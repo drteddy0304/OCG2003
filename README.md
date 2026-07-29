@@ -11,6 +11,10 @@
 
 デッキ編集とCPU戦は、Phase 1の後続ビルドで追加します。
 
+## プレイ
+
+GitHub Pages: https://drteddy0304.github.io/OCG2003/
+
 ## 開発
 
 Node.js 22.13以降が必要です。
