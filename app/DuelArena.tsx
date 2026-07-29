@@ -101,19 +101,6 @@ export function DuelArena({
     setRewardName(cardById.get(rewardId)?.name ?? null);
   }, [duel?.result, onReward]);
 
-  useEffect(() => {
-    if (!cpuPlayback) return;
-    if (cpuPlayback.index >= cpuPlayback.messages.length) {
-      setDuel(cpuPlayback.finalState);
-      setCpuPlayback(null);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setCpuPlayback((current) => current ? { ...current, index: current.index + 1 } : null);
-    }, 750);
-    return () => window.clearTimeout(timer);
-  }, [cpuPlayback]);
-
   function startDuel() {
     const counts = JSON.parse(localStorage.getItem(DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
     const playerCards = expandDeck(counts);
@@ -377,13 +364,23 @@ export function DuelArena({
     });
   }
 
+  function advanceCpuPlayback() {
+    if (!cpuPlayback) return;
+    if (cpuPlayback.index >= cpuPlayback.messages.length - 1) {
+      setDuel(cpuPlayback.finalState);
+      setCpuPlayback(null);
+      return;
+    }
+    setCpuPlayback({ ...cpuPlayback, index: cpuPlayback.index + 1 });
+  }
+
   if (!duel) {
     return (
       <section className="duel-lobby">
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 011</strong>
+          <strong>VOL.1 DUEL · BUILD 012</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -434,10 +431,15 @@ export function DuelArena({
             <p className="section-label">CPU ACTION</p>
             <strong>{cpuPlayback.messages[Math.min(cpuPlayback.index, cpuPlayback.messages.length - 1)]}</strong>
             <span>{Math.min(cpuPlayback.index + 1, cpuPlayback.messages.length)} / {cpuPlayback.messages.length}</span>
-            <button onClick={() => {
-              setDuel(cpuPlayback.finalState);
-              setCpuPlayback(null);
-            }}>演出をスキップ</button>
+            <div className="cpu-playback-actions">
+              <button className="cpu-next" onClick={advanceCpuPlayback}>
+                {cpuPlayback.index >= cpuPlayback.messages.length - 1 ? "自分のターンへ" : "次の行動"}
+              </button>
+              <button onClick={() => {
+                setDuel(cpuPlayback.finalState);
+                setCpuPlayback(null);
+              }}>すべてスキップ</button>
+            </div>
           </div>
         </div>
       )}
