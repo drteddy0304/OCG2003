@@ -25,6 +25,8 @@ type ZoneCard = {
   faceDown: boolean;
   attacked: boolean;
   equipped: string[];
+  summonedTurn: number;
+  positionChanged: boolean;
 };
 
 type DuelState = {
@@ -142,7 +144,15 @@ export function DuelArena({
     const tributedZones = duel.playerField.filter((_, index) => tributeIndexes.includes(index));
     const tributeNames = tributeIndexes.map((index) => cardById.get(duel.playerField[index].id)?.name).filter(Boolean);
     const nextField = duel.playerField.filter((_, index) => !tributeIndexes.includes(index));
-    nextField.push({ id, position, faceDown: position === "defense", attacked: false, equipped: [] });
+    nextField.push({
+      id,
+      position,
+      faceDown: position === "defense",
+      attacked: false,
+      equipped: [],
+      summonedTurn: duel.turnNumber,
+      positionChanged: false,
+    });
     let nextState: DuelState = {
       ...duel,
       playerHand: duel.playerHand.filter((_, index) => index !== handIndex),
@@ -174,6 +184,26 @@ export function DuelArena({
       if (current.selected.length >= current.required) return current;
       return { ...current, selected: [...current.selected, index] };
     });
+  }
+
+  function changePosition(index: number) {
+    if (!duel || duel.turn !== "player" || duel.result || pendingTribute) return;
+    const zone = duel.playerField[index];
+    if (!zone || zone.attacked || zone.positionChanged || zone.summonedTurn === duel.turnNumber) return;
+    const nextPosition: Position = zone.position === "defense" ? "attack" : "defense";
+    setDuel({
+      ...duel,
+      playerField: duel.playerField.map((item, fieldIndex) =>
+        fieldIndex === index
+          ? { ...item, position: nextPosition, faceDown: false, positionChanged: true }
+          : item,
+      ),
+      log: appendLog(
+        duel.log,
+        `${cardById.get(zone.id)?.name ?? "モンスター"}を${nextPosition === "attack" ? "攻撃" : "守備"}表示に変更。`,
+      ),
+    });
+    setSelectedAttacker(null);
   }
 
   function useSpell(handIndex: number) {
@@ -279,7 +309,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 007</strong>
+          <strong>VOL.1 DUEL · BUILD 008</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -327,6 +357,18 @@ export function DuelArena({
           tributeTarget={pendingTribute !== null}
           selectedTributes={pendingTribute?.selected ?? []}
           onTribute={toggleTribute}
+          canChangePosition={(index) => {
+            const zone = duel.playerField[index];
+            return Boolean(
+              duel.turn === "player"
+              && !pendingTribute
+              && zone
+              && !zone.attacked
+              && !zone.positionChanged
+              && zone.summonedTurn !== duel.turnNumber,
+            );
+          }}
+          onPositionChange={changePosition}
         />
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
@@ -437,6 +479,8 @@ function FieldRow({
   tributeTarget = false,
   selectedTributes = [],
   onTribute,
+  canChangePosition,
+  onPositionChange,
 }: {
   zones: ZoneCard[];
   owner: Side;
@@ -449,6 +493,8 @@ function FieldRow({
   tributeTarget?: boolean;
   selectedTributes?: number[];
   onTribute?: (index: number) => void;
+  canChangePosition?: (index: number) => boolean;
+  onPositionChange?: (index: number) => void;
 }) {
   return (
     <div className={`monster-zones zones-${owner}`}>
@@ -459,18 +505,26 @@ function FieldRow({
         if (!card) return null;
         const hidden = owner === "cpu" && zone.faceDown;
         const validEquipTarget = equipTarget && Boolean(equipId && canEquip(equipId, card));
+        const showPositionChange = owner === "player" && canChangePosition?.(index);
         return (
-          <button
-            className={`field-card ${zone.position} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
-            disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || zone.position !== "attack" || zone.attacked}
-            key={`${zone.id}-${index}`}
-            onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
-          >
-            <strong>{hidden ? "伏せモンスター" : card.name}</strong>
-            <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone)}`}</span>
-            {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
-            {owner === "player" && zone.position === "attack" && <small>{zone.attacked ? "攻撃済" : "攻撃"}</small>}
-          </button>
+          <div className="field-slot" key={`${zone.id}-${index}`}>
+            <button
+              className={`field-card ${zone.position} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
+              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || zone.position !== "attack" || zone.attacked}
+              onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
+            >
+              <strong>{hidden ? "伏せモンスター" : card.name}</strong>
+              <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone)}`}</span>
+              {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
+              {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
+              {owner === "player" && zone.position === "attack" && <small>{zone.attacked ? "攻撃済" : "攻撃"}</small>}
+            </button>
+            {showPositionChange && (
+              <button className="position-change" onClick={() => onPositionChange?.(index)}>
+                {zone.position === "defense" ? "攻撃表示へ" : "守備表示へ"}
+              </button>
+            )}
+          </div>
         );
       })}
     </div>
@@ -502,7 +556,15 @@ function runCpuTurn(initial: DuelState): DuelState {
     const tributedZones = state.cpuField.filter((_, index) => tributeIndexes.includes(index));
     const nextField = state.cpuField.filter((_, index) => !tributeIndexes.includes(index));
     const defensive = (summonChoice.card.def ?? 0) > (summonChoice.card.atk ?? 0);
-    nextField.push({ id: summonChoice.card.id, position: defensive ? "defense" : "attack", faceDown: defensive, attacked: true, equipped: [] });
+    nextField.push({
+      id: summonChoice.card.id,
+      position: defensive ? "defense" : "attack",
+      faceDown: defensive,
+      attacked: true,
+      equipped: [],
+      summonedTurn: state.turnNumber,
+      positionChanged: false,
+    });
     state = {
       ...state,
       cpuHand: state.cpuHand.filter((_, index) => index !== summonChoice.index),
@@ -542,7 +604,7 @@ function runCpuTurn(initial: DuelState): DuelState {
     ...state,
     playerHand: [...state.playerHand, state.playerDeck[0]],
     playerDeck: state.playerDeck.slice(1),
-    playerField: state.playerField.map((zone) => ({ ...zone, attacked: false })),
+    playerField: state.playerField.map((zone) => ({ ...zone, attacked: false, positionChanged: false })),
     turn: "player",
     turnNumber: state.turnNumber + 1,
     normalSummoned: false,
