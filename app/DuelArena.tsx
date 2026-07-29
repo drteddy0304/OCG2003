@@ -24,6 +24,11 @@ type CpuPlayback = {
   messages: string[];
   index: number;
 };
+type PendingTrapResponse = {
+  trapIndex: number;
+  monsterIndex: number;
+  monsterId: string;
+};
 
 type ZoneCard = {
   id: string;
@@ -53,6 +58,7 @@ type DuelState = {
   phase: Phase;
   normalSummoned: boolean;
   result: Result;
+  pendingTrapResponse: PendingTrapResponse | null;
   log: string[];
 };
 
@@ -133,6 +139,7 @@ export function DuelArena({
       phase: "main1",
       normalSummoned: false,
       result: null,
+      pendingTrapResponse: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
     });
   }
@@ -352,16 +359,46 @@ export function DuelArena({
       log: appendLog(duel.log, "ターン終了。CPUのターン。"),
     };
     const finalState = runCpuTurn(cpuStart);
-    const markerIndex = finalState.log.lastIndexOf("ターン終了。CPUのターン。");
+    beginCpuPlayback(cpuStart, finalState, "ターン終了。CPUのターン。");
+  }
+
+  function beginCpuPlayback(startState: DuelState, finalState: DuelState, marker: string) {
+    const markerIndex = finalState.log.lastIndexOf(marker);
     const messages = finalState.log
       .slice(markerIndex >= 0 ? markerIndex + 1 : Math.max(0, finalState.log.length - 6))
       .filter((message) => message !== "あなたのターン。1枚ドロー。");
-    setDuel(cpuStart);
+    setDuel(startState);
     setCpuPlayback({
       finalState,
       messages: messages.length ? messages : ["CPUは行動せずターンを終了。"],
       index: 0,
     });
+  }
+
+  function respondToTrap(activate: boolean) {
+    if (!duel?.pendingTrapResponse) return;
+    const pending = duel.pendingTrapResponse;
+    const monster = cardById.get(pending.monsterId);
+    const marker = "罠カードの発動確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingTrapResponse: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (activate) {
+      resumed = {
+        ...resumed,
+        cpuField: resumed.cpuField.filter((_, index) => index !== pending.monsterIndex),
+        playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        cpuGraveyard: [...resumed.cpuGraveyard, pending.monsterId],
+        playerGraveyard: [...resumed.playerGraveyard, "vol1-trap-hole"],
+        log: appendLog(resumed.log, `落とし穴を発動。${monster?.name ?? "モンスター"}を破壊。`),
+      };
+    } else {
+      resumed = { ...resumed, log: appendLog(resumed.log, "落とし穴を発動しませんでした。") };
+    }
+    const finalState = finishCpuTurn(resumed);
+    beginCpuPlayback(resumed, finalState, marker);
   }
 
   function advanceCpuPlayback() {
@@ -380,7 +417,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 014</strong>
+          <strong>VOL.1 DUEL · BUILD 015</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -433,12 +470,31 @@ export function DuelArena({
             <span>{Math.min(cpuPlayback.index + 1, cpuPlayback.messages.length)} / {cpuPlayback.messages.length}</span>
             <div className="cpu-playback-actions">
               <button className="cpu-next" onClick={advanceCpuPlayback}>
-                {cpuPlayback.index >= cpuPlayback.messages.length - 1 ? "自分のターンへ" : "次の行動"}
+                {cpuPlayback.index >= cpuPlayback.messages.length - 1
+                  ? cpuPlayback.finalState.pendingTrapResponse ? "発動確認へ" : "自分のターンへ"
+                  : "次の行動"}
               </button>
               <button onClick={() => {
                 setDuel(cpuPlayback.finalState);
                 setCpuPlayback(null);
               }}>すべてスキップ</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingTrapResponse && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">CHAIN RESPONSE</p>
+            <h2>落とし穴を発動しますか？</h2>
+            <p>
+              CPUが
+              <strong>{cardById.get(duel.pendingTrapResponse.monsterId)?.name ?? "モンスター"}</strong>
+              を召喚しました。
+            </p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToTrap(true)}>発動する</button>
+              <button onClick={() => respondToTrap(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -759,17 +815,22 @@ function runCpuTurn(initial: DuelState): DuelState {
     };
     const trapIndex = state.playerSpellTrap.indexOf("vol1-trap-hole");
     if (!defensive && (summonChoice.card.atk ?? 0) >= 1000 && trapIndex >= 0) {
-      state = {
+      return {
         ...state,
-        cpuField: state.cpuField.filter((_, index) => index !== state.cpuField.length - 1),
-        playerSpellTrap: state.playerSpellTrap.filter((_, index) => index !== trapIndex),
-        cpuGraveyard: [...state.cpuGraveyard, summonChoice.card.id],
-        playerGraveyard: [...state.playerGraveyard, "vol1-trap-hole"],
-        log: appendLog(state.log, `落とし穴を発動。${summonChoice.card.name}を破壊。`),
+        pendingTrapResponse: {
+          trapIndex,
+          monsterIndex: state.cpuField.length - 1,
+          monsterId: summonChoice.card.id,
+        },
+        log: appendLog(state.log, "落とし穴を発動できます。"),
       };
     }
   }
+  return finishCpuTurn(state);
+}
 
+function finishCpuTurn(initial: DuelState): DuelState {
+  let state: DuelState = { ...initial, pendingTrapResponse: null };
   state = setCpuTrapAndEquips(state);
 
   state = {
