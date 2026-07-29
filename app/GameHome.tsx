@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { cardById, cards, packs, type Card, type Rarity } from "./card-data";
 import { DeckEditor } from "./DeckEditor";
+import { DuelArena } from "./DuelArena";
 
 const STORAGE_KEY = "ocg2003.collection.v1";
 const DAILY_KEY = "ocg2003.daily-packs.v1";
@@ -53,7 +54,7 @@ function drawPack(packId: string) {
 export function GameHome() {
   const [collection, setCollection] = useState<Record<string, number>>({});
   const [opened, setOpened] = useState<Card[]>([]);
-  const [tab, setTab] = useState<"pack" | "collection" | "deck">("pack");
+  const [tab, setTab] = useState<"pack" | "collection" | "deck" | "duel">("pack");
   const [selectedPackId, setSelectedPackId] = useState(packs[0].id);
   const [remainingPacks, setRemainingPacks] = useState(DAILY_PACKS);
   const [ready, setReady] = useState(false);
@@ -104,6 +105,12 @@ export function GameHome() {
     setOpened(result);
   }
 
+  function awardCard(cardId: string) {
+    const next = { ...collection, [cardId]: (collection[cardId] ?? 0) + 1 };
+    setCollection(next);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }
+
   return (
     <main>
       <header className="topbar">
@@ -121,7 +128,7 @@ export function GameHome() {
         <button className={tab === "pack" ? "active" : ""} onClick={() => setTab("pack")}>パック</button>
         <button className={tab === "collection" ? "active" : ""} onClick={() => setTab("collection")}>カード</button>
         <button className={tab === "deck" ? "active" : ""} onClick={() => setTab("deck")}>デッキ</button>
-        <button disabled>デュエル <small>NEXT</small></button>
+        <button className={tab === "duel" ? "active" : ""} onClick={() => setTab("duel")}>デュエル</button>
       </nav>
 
       {tab === "pack" ? (
@@ -185,8 +192,10 @@ export function GameHome() {
             </div>
           )}
         </section>
-      ) : <DeckEditor collection={collection} />}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 1 · BUILD 003</span></footer>
+      ) : tab === "deck"
+        ? <DeckEditor collection={collection} />
+        : <DuelArena collection={collection} onReward={awardCard} />}
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 1 · BUILD 004</span></footer>
     </main>
   );
 }

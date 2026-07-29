@@ -22,6 +22,7 @@ test("Vol.1と1日10パックの初期画面を表示する", async () => {
   assert.match(html, /毎日0:00（日本時間）/);
   assert.match(html, /パックを開ける/);
   assert.match(html, /<button class="">デッキ<\/button>/);
-  assert.match(html, /PHASE 1 · BUILD 003/);
+  assert.match(html, /<button class="">デュエル<\/button>/);
+  assert.match(html, /PHASE 1 · BUILD 004/);
   assert.doesNotMatch(html, /codex-preview/);
 });
