@@ -12,6 +12,7 @@ const FIELD_LIMIT = 5;
 type Position = "attack" | "defense";
 type Side = "player" | "cpu";
 type Result = "win" | "lose" | null;
+type Phase = "main1" | "battle" | "main2";
 type PendingTribute = {
   handIndex: number;
   position: Position;
@@ -42,6 +43,7 @@ type DuelState = {
   cpuLp: number;
   turn: Side;
   turnNumber: number;
+  phase: Phase;
   normalSummoned: boolean;
   result: Result;
   log: string[];
@@ -79,6 +81,7 @@ export function DuelArena({
       return [];
     }
   }, [collection, duel]);
+  const isPlayerMainPhase = duel?.turn === "player" && (duel.phase === "main1" || duel.phase === "main2");
 
   useEffect(() => {
     if (duel?.result !== "win" || rewarded.current) return;
@@ -114,6 +117,7 @@ export function DuelArena({
       cpuLp: STARTING_LP,
       turn: "player",
       turnNumber: 1,
+      phase: "main1",
       normalSummoned: false,
       result: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
@@ -121,7 +125,7 @@ export function DuelArena({
   }
 
   function summon(handIndex: number, position: Position) {
-    if (!duel || duel.turn !== "player" || duel.normalSummoned || duel.result) return;
+    if (!duel || !isPlayerMainPhase || duel.normalSummoned || duel.result) return;
     const id = duel.playerHand[handIndex];
     const card = cardById.get(id);
     if (!card || card.cardType !== "monster") return;
@@ -187,7 +191,7 @@ export function DuelArena({
   }
 
   function changePosition(index: number) {
-    if (!duel || duel.turn !== "player" || duel.result || pendingTribute) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingTribute) return;
     const zone = duel.playerField[index];
     if (!zone || zone.attacked || zone.positionChanged || zone.summonedTurn === duel.turnNumber) return;
     const nextPosition: Position = zone.position === "defense" ? "attack" : "defense";
@@ -207,7 +211,7 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || duel.turn !== "player" || duel.result) return;
+    if (!duel || !isPlayerMainPhase || duel.result) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
     if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
@@ -246,7 +250,7 @@ export function DuelArena({
   }
 
   function equipSpell(fieldIndex: number) {
-    if (!duel || selectedEquip === null) return;
+    if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
     const zone = duel.playerField[fieldIndex];
     const monster = zone ? cardById.get(zone.id) : null;
@@ -263,7 +267,7 @@ export function DuelArena({
   }
 
   function setTrap(handIndex: number) {
-    if (!duel || duel.turn !== "player" || duel.result || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+    if (!duel || !isPlayerMainPhase || duel.result || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "trap") return;
     setDuel({
@@ -274,7 +278,7 @@ export function DuelArena({
   }
 
   function chooseAttacker(index: number) {
-    if (!duel || duel.turn !== "player" || duel.turnNumber === 1 || duel.result) return;
+    if (!duel || duel.turn !== "player" || duel.phase !== "battle" || duel.turnNumber === 1 || duel.result) return;
     const zone = duel.playerField[index];
     if (!zone || zone.position !== "attack" || zone.attacked) return;
     if (duel.cpuField.length === 0) {
@@ -291,14 +295,38 @@ export function DuelArena({
     setSelectedAttacker(null);
   }
 
+  function advancePhase() {
+    if (!duel || duel.turn !== "player" || duel.result || pendingTribute) return;
+    setSelectedAttacker(null);
+    setSelectedEquip(null);
+    if (duel.phase === "main1") {
+      const nextPhase: Phase = duel.turnNumber === 1 ? "main2" : "battle";
+      setDuel({
+        ...duel,
+        phase: nextPhase,
+        log: appendLog(
+          duel.log,
+          duel.turnNumber === 1 ? "先攻第1ターンのバトルフェイズをスキップ。" : "バトルフェイズへ。",
+        ),
+      });
+      return;
+    }
+    if (duel.phase === "battle") {
+      setDuel({ ...duel, phase: "main2", log: appendLog(duel.log, "メインフェイズ2へ。") });
+      return;
+    }
+    endTurn();
+  }
+
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result) return;
+    if (!duel || duel.turn !== "player" || duel.result || pendingTribute) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     setDuel(runCpuTurn({
       ...duel,
       turn: "cpu",
       turnNumber: duel.turnNumber + 1,
+      phase: "main1",
       log: appendLog(duel.log, "ターン終了。CPUのターン。"),
     }));
   }
@@ -309,7 +337,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 008</strong>
+          <strong>VOL.1 DUEL · BUILD 009</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -331,6 +359,28 @@ export function DuelArena({
         <div className="turn-badge">TURN {duel.turnNumber}<b>{duel.turn === "player" ? "YOUR TURN" : "CPU TURN"}</b></div>
         <div><span>PLAYER</span><strong>{Math.max(0, duel.playerLp)}</strong><small>LP</small></div>
       </div>
+      <div className="phase-guide" aria-label="現在のフェイズ">
+        {[
+          ["DRAW", "ドロー"],
+          ["STANDBY", "スタンバイ"],
+          ["MAIN 1", "メイン1"],
+          ["BATTLE", "バトル"],
+          ["MAIN 2", "メイン2"],
+          ["END", "エンド"],
+        ].map(([english, japanese], index) => {
+          const activeIndex = duel.phase === "main1" ? 2 : duel.phase === "battle" ? 3 : 4;
+          return (
+            <div className={index === activeIndex ? "active" : index < activeIndex ? "done" : ""} key={english}>
+              <b>{english}</b><span>{japanese}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="phase-help">
+        {duel.phase === "main1" && "召喚・セット・魔法・罠・表示変更ができます。"}
+        {duel.phase === "battle" && "攻撃するモンスターを選び、攻撃対象を選んでください。"}
+        {duel.phase === "main2" && "戦闘後に召喚・セット・魔法・罠を使用できます。"}
+      </p>
 
       <div className="duel-board">
         <div className="hand-summary"><span>CPU HAND</span><b>{duel.cpuHand.length}</b><span>DECK</span><b>{duel.cpuDeck.length}</b></div>
@@ -351,6 +401,7 @@ export function DuelArena({
           zones={duel.playerField}
           owner="player"
           onAttack={chooseAttacker}
+          canAttack={duel.phase === "battle" && duel.turnNumber > 1}
           equipTarget={selectedEquip !== null}
           onEquip={equipSpell}
           equipId={selectedEquip === null ? null : duel.playerHand[selectedEquip]}
@@ -360,7 +411,7 @@ export function DuelArena({
           canChangePosition={(index) => {
             const zone = duel.playerField[index];
             return Boolean(
-              duel.turn === "player"
+              isPlayerMainPhase
               && !pendingTribute
               && zone
               && !zone.attacked
@@ -405,7 +456,7 @@ export function DuelArena({
             if (!card) return null;
             const tributes = tributeCount(card);
             const canSummon = card.cardType === "monster"
-              && duel.turn === "player"
+              && isPlayerMainPhase
               && !duel.normalSummoned
               && !pendingTribute
               && duel.playerField.length >= tributes
@@ -424,7 +475,7 @@ export function DuelArena({
                     <small>{spellDescription(card.id)}</small>
                     <button
                       disabled={
-                        duel.turn !== "player"
+                        !isPlayerMainPhase
                         || pendingTribute !== null
                         || duel.playerSpellTrap.length >= FIELD_LIMIT
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
@@ -441,14 +492,23 @@ export function DuelArena({
                 ) : (
                   <>
                     <small>ATK1000以上の召喚モンスターを破壊</small>
-                    <button disabled={duel.turn !== "player" || pendingTribute !== null || duel.playerSpellTrap.length >= FIELD_LIMIT} onClick={() => setTrap(index)}>セット</button>
+                    <button disabled={!isPlayerMainPhase || pendingTribute !== null || duel.playerSpellTrap.length >= FIELD_LIMIT} onClick={() => setTrap(index)}>セット</button>
                   </>
                 )}
               </article>
             );
           })}
         </div>
-        <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+        <div className="phase-actions">
+          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || Boolean(duel.result)} onClick={advancePhase}>
+            {duel.phase === "main1"
+              ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
+              : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
+          </button>
+          {duel.phase !== "main2" && (
+            <button className="skip-turn" disabled={pendingTribute !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+          )}
+        </div>
       </div>
 
       <div className="duel-log" aria-live="polite">
@@ -473,6 +533,7 @@ function FieldRow({
   selectedTarget = false,
   onTarget,
   onAttack,
+  canAttack = false,
   equipTarget = false,
   onEquip,
   equipId,
@@ -487,6 +548,7 @@ function FieldRow({
   selectedTarget?: boolean;
   onTarget?: (index: number) => void;
   onAttack?: (index: number) => void;
+  canAttack?: boolean;
   equipTarget?: boolean;
   onEquip?: (index: number) => void;
   equipId?: string | null;
@@ -510,14 +572,14 @@ function FieldRow({
           <div className="field-slot" key={`${zone.id}-${index}`}>
             <button
               className={`field-card ${zone.position} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
-              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || zone.position !== "attack" || zone.attacked}
+              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || !canAttack || zone.position !== "attack" || zone.attacked}
               onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
             >
               <strong>{hidden ? "伏せモンスター" : card.name}</strong>
               <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone)}`}</span>
               {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
-              {owner === "player" && zone.position === "attack" && <small>{zone.attacked ? "攻撃済" : "攻撃"}</small>}
+              {owner === "player" && zone.position === "attack" && <small>{zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
             </button>
             {showPositionChange && (
               <button className="position-change" onClick={() => onPositionChange?.(index)}>
@@ -607,6 +669,7 @@ function runCpuTurn(initial: DuelState): DuelState {
     playerField: state.playerField.map((zone) => ({ ...zone, attacked: false, positionChanged: false })),
     turn: "player",
     turnNumber: state.turnNumber + 1,
+    phase: "main1",
     normalSummoned: false,
     log: appendLog(state.log, "あなたのターン。1枚ドロー。"),
   };
