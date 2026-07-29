@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
+import { battleOutcome } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -11,6 +12,12 @@ const FIELD_LIMIT = 5;
 type Position = "attack" | "defense";
 type Side = "player" | "cpu";
 type Result = "win" | "lose" | null;
+type PendingTribute = {
+  handIndex: number;
+  position: Position;
+  required: number;
+  selected: number[];
+};
 
 type ZoneCard = {
   id: string;
@@ -57,6 +64,7 @@ export function DuelArena({
   const [duel, setDuel] = useState<DuelState | null>(null);
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
+  const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
   const [rewardName, setRewardName] = useState<string | null>(null);
   const rewarded = useRef(false);
 
@@ -90,6 +98,7 @@ export function DuelArena({
     rewarded.current = false;
     setRewardName(null);
     setSelectedAttacker(null);
+    setPendingTribute(null);
     setDuel({
       playerDeck: shuffledPlayer.slice(6),
       cpuDeck: shuffledCpu.slice(5),
@@ -116,8 +125,20 @@ export function DuelArena({
     if (!card || card.cardType !== "monster") return;
     const tributes = tributeCount(card);
     if (duel.playerField.length < tributes || duel.playerField.length - tributes >= FIELD_LIMIT) return;
+    if (tributes > 0) {
+      setPendingTribute({ handIndex, position, required: tributes, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+    performSummon(handIndex, position, []);
+  }
 
-    const tributeIndexes = lowestAttackIndexes(duel.playerField, tributes);
+  function performSummon(handIndex: number, position: Position, tributeIndexes: number[]) {
+    if (!duel) return;
+    const id = duel.playerHand[handIndex];
+    const card = cardById.get(id);
+    if (!card || card.cardType !== "monster" || tributeIndexes.length !== tributeCount(card)) return;
     const tributedZones = duel.playerField.filter((_, index) => tributeIndexes.includes(index));
     const tributeNames = tributeIndexes.map((index) => cardById.get(duel.playerField[index].id)?.name).filter(Boolean);
     const nextField = duel.playerField.filter((_, index) => !tributeIndexes.includes(index));
@@ -140,6 +161,19 @@ export function DuelArena({
       };
     }
     setDuel(nextState);
+    setPendingTribute(null);
+  }
+
+  function toggleTribute(index: number) {
+    if (!pendingTribute) return;
+    setPendingTribute((current) => {
+      if (!current) return null;
+      if (current.selected.includes(index)) {
+        return { ...current, selected: current.selected.filter((value) => value !== index) };
+      }
+      if (current.selected.length >= current.required) return current;
+      return { ...current, selected: [...current.selected, index] };
+    });
   }
 
   function useSpell(handIndex: number) {
@@ -245,7 +279,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 006</strong>
+          <strong>VOL.1 DUEL · BUILD 007</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -290,6 +324,9 @@ export function DuelArena({
           equipTarget={selectedEquip !== null}
           onEquip={equipSpell}
           equipId={selectedEquip === null ? null : duel.playerHand[selectedEquip]}
+          tributeTarget={pendingTribute !== null}
+          selectedTributes={pendingTribute?.selected ?? []}
+          onTribute={toggleTribute}
         />
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
@@ -305,6 +342,20 @@ export function DuelArena({
         <div className="hand-summary"><span>YOUR HAND</span><b>{duel.playerHand.length}</b><span>DECK</span><b>{duel.playerDeck.length}</b></div>
       </div>
 
+      {pendingTribute && (
+        <div className="tribute-picker">
+          <strong>生け贄にするモンスターを選択</strong>
+          <span>{pendingTribute.selected.length} / {pendingTribute.required}体</span>
+          <button
+            disabled={pendingTribute.selected.length !== pendingTribute.required}
+            onClick={() => performSummon(pendingTribute.handIndex, pendingTribute.position, pendingTribute.selected)}
+          >
+            選択したモンスターを生け贄にする
+          </button>
+          <button onClick={() => setPendingTribute(null)}>キャンセル</button>
+        </div>
+      )}
+
       <div className="duel-controls">
         <div className="duel-hand">
           {duel.playerHand.map((id, index) => {
@@ -314,6 +365,7 @@ export function DuelArena({
             const canSummon = card.cardType === "monster"
               && duel.turn === "player"
               && !duel.normalSummoned
+              && !pendingTribute
               && duel.playerField.length >= tributes
               && duel.playerField.length - tributes < FIELD_LIMIT;
             return (
@@ -331,6 +383,7 @@ export function DuelArena({
                     <button
                       disabled={
                         duel.turn !== "player"
+                        || pendingTribute !== null
                         || duel.playerSpellTrap.length >= FIELD_LIMIT
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
@@ -346,14 +399,14 @@ export function DuelArena({
                 ) : (
                   <>
                     <small>ATK1000以上の召喚モンスターを破壊</small>
-                    <button disabled={duel.turn !== "player" || duel.playerSpellTrap.length >= FIELD_LIMIT} onClick={() => setTrap(index)}>セット</button>
+                    <button disabled={duel.turn !== "player" || pendingTribute !== null || duel.playerSpellTrap.length >= FIELD_LIMIT} onClick={() => setTrap(index)}>セット</button>
                   </>
                 )}
               </article>
             );
           })}
         </div>
-        <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+        <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
       </div>
 
       <div className="duel-log" aria-live="polite">
@@ -381,6 +434,9 @@ function FieldRow({
   equipTarget = false,
   onEquip,
   equipId,
+  tributeTarget = false,
+  selectedTributes = [],
+  onTribute,
 }: {
   zones: ZoneCard[];
   owner: Side;
@@ -390,6 +446,9 @@ function FieldRow({
   equipTarget?: boolean;
   onEquip?: (index: number) => void;
   equipId?: string | null;
+  tributeTarget?: boolean;
+  selectedTributes?: number[];
+  onTribute?: (index: number) => void;
 }) {
   return (
     <div className={`monster-zones zones-${owner}`}>
@@ -402,10 +461,10 @@ function FieldRow({
         const validEquipTarget = equipTarget && Boolean(equipId && canEquip(equipId, card));
         return (
           <button
-            className={`field-card ${zone.position} ${selectedTarget || validEquipTarget ? "targetable" : ""}`}
-            disabled={equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || zone.position !== "attack" || zone.attacked}
+            className={`field-card ${zone.position} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
+            disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || zone.position !== "attack" || zone.attacked}
             key={`${zone.id}-${index}`}
-            onClick={() => equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
+            onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
           >
             <strong>{hidden ? "伏せモンスター" : card.name}</strong>
             <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone)}`}</span>
@@ -605,24 +664,8 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   if (!defender) return state;
   const attackValue = effectiveAtk(attackerZone);
   const defenseValue = defenderZone.position === "attack" ? effectiveAtk(defenderZone) : effectiveDef(defenderZone);
-  let attackerDestroyed = false;
-  let defenderDestroyed = false;
-  let attackerDamage = 0;
-  let defenderDamage = 0;
-
-  if (defenderZone.position === "attack") {
-    if (attackValue > defenseValue) {
-      defenderDestroyed = true;
-      defenderDamage = attackValue - defenseValue;
-    } else if (attackValue < defenseValue) {
-      attackerDestroyed = true;
-      attackerDamage = defenseValue - attackValue;
-    } else {
-      attackerDestroyed = true;
-      defenderDestroyed = true;
-    }
-  } else if (attackValue > defenseValue) defenderDestroyed = true;
-  else if (attackValue < defenseValue) attackerDestroyed = true;
+  const { attackerDestroyed, defenderDestroyed, attackerDamage, defenderDamage } =
+    battleOutcome(attackValue, defenseValue, defenderZone.position);
 
   const nextAttackerField = attackerDestroyed ? attackerField.filter((_, index) => index !== attackerIndex) : attackerField;
   const nextDefenderField = defenderDestroyed ? defenderField.filter((_, index) => index !== defenderIndex) : defenderField;
@@ -642,7 +685,18 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     [defenderLpKey]: state[defenderLpKey] - defenderDamage,
     playerSpellTrap: discardEquips(state.playerSpellTrap, destroyedPlayerZones),
     cpuSpellTrap: discardEquips(state.cpuSpellTrap, destroyedCpuZones),
-    log: appendLog(state.log, `${attacker.name}が${defender.name}を攻撃。${defenderDamage || attackerDamage ? `${defenderDamage || attackerDamage}ダメージ。` : "戦闘ダメージなし。"}`),
+    log: appendLog(
+      state.log,
+      `${attacker.name}が${defender.name}を攻撃。${
+        attackerDestroyed && defenderDestroyed
+          ? "両方を破壊。"
+          : defenderDestroyed
+            ? `${defender.name}を破壊。${defenderDamage ? `${defenderDamage}ダメージ。` : ""}`
+            : attackerDestroyed
+              ? `${attacker.name}を破壊。${attackerDamage ? `${attackerDamage}ダメージ。` : ""}`
+              : "モンスターは破壊されない。"
+      }`,
+    ),
   } as DuelState;
   if (next.cpuLp <= 0) next.result = "win";
   if (next.playerLp <= 0) next.result = "lose";
