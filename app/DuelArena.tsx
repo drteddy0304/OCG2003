@@ -28,6 +28,7 @@ type DuelState = {
   playerField: ZoneCard[];
   cpuField: ZoneCard[];
   playerSpellTrap: string[];
+  cpuSpellTrap: string[];
   playerLp: number;
   cpuLp: number;
   turn: Side;
@@ -37,8 +38,7 @@ type DuelState = {
   log: string[];
 };
 
-const monsterIds = cards.filter((card) => card.cardType === "monster").map((card) => card.id);
-const CPU_DECK = [...monsterIds, ...monsterIds.slice(0, 10)];
+const CPU_DECK = cards.map((card) => card.id);
 const EQUIP_RULES: Record<string, string> = {
   "vol1-legendary-sword": "戦士族",
   "vol1-beast-fangs": "獣族",
@@ -98,6 +98,7 @@ export function DuelArena({
       playerField: [],
       cpuField: [],
       playerSpellTrap: [],
+      cpuSpellTrap: [],
       playerLp: STARTING_LP,
       cpuLp: STARTING_LP,
       turn: "player",
@@ -121,14 +122,24 @@ export function DuelArena({
     const tributeNames = tributeIndexes.map((index) => cardById.get(duel.playerField[index].id)?.name).filter(Boolean);
     const nextField = duel.playerField.filter((_, index) => !tributeIndexes.includes(index));
     nextField.push({ id, position, faceDown: position === "defense", attacked: false, equipped: [] });
-    setDuel({
+    let nextState: DuelState = {
       ...duel,
       playerHand: duel.playerHand.filter((_, index) => index !== handIndex),
       playerField: nextField,
       playerSpellTrap: discardEquips(duel.playerSpellTrap, tributedZones),
       normalSummoned: true,
       log: appendLog(duel.log, `${card.name}を${position === "attack" ? "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
-    });
+    };
+    const cpuTrapIndex = nextState.cpuSpellTrap.indexOf("vol1-trap-hole");
+    if (position === "attack" && (card.atk ?? 0) >= 1000 && cpuTrapIndex >= 0) {
+      nextState = {
+        ...nextState,
+        playerField: nextState.playerField.filter((_, index) => index !== nextState.playerField.length - 1),
+        cpuSpellTrap: nextState.cpuSpellTrap.filter((_, index) => index !== cpuTrapIndex),
+        log: appendLog(nextState.log, `CPUが落とし穴を発動。${card.name}を破壊。`),
+      };
+    }
+    setDuel(nextState);
   }
 
   function useSpell(handIndex: number) {
@@ -150,6 +161,7 @@ export function DuelArena({
         playerField: [],
         cpuField: [],
         playerSpellTrap: discardEquips(next.playerSpellTrap, next.playerField),
+        cpuSpellTrap: discardEquips(next.cpuSpellTrap, next.cpuField),
       };
     } else if (card.id === "vol1-red-medicine") {
       next = { ...next, playerLp: next.playerLp + 500 };
@@ -159,7 +171,11 @@ export function DuelArena({
     } else if (card.id === "vol1-fissure") {
       const target = lowestFaceUpAttackIndex(next.cpuField);
       if (target === null) return;
-      next = { ...next, cpuField: next.cpuField.filter((_, index) => index !== target) };
+      next = {
+        ...next,
+        cpuField: next.cpuField.filter((_, index) => index !== target),
+        cpuSpellTrap: discardEquips(next.cpuSpellTrap, [next.cpuField[target]]),
+      };
     } else return;
     next.log = appendLog(next.log, `${card.name}を発動。`);
     setDuel(next);
@@ -229,8 +245,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 005</strong>
-          <p>モンスター戦闘に加え、Vol.1収録の魔法・罠カード10種を使用できます。</p>
+          <strong>VOL.1 DUEL · BUILD 006</strong>
+          <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -254,6 +270,17 @@ export function DuelArena({
 
       <div className="duel-board">
         <div className="hand-summary"><span>CPU HAND</span><b>{duel.cpuHand.length}</b><span>DECK</span><b>{duel.cpuDeck.length}</b></div>
+        <div className="spell-trap-row cpu-spell-trap-row">
+          {Array.from({ length: FIELD_LIMIT }, (_, index) => (
+            <div className={duel.cpuSpellTrap[index] ? "set-card" : "empty-zone"} key={index}>
+              {duel.cpuSpellTrap[index]
+                ? duel.cpuSpellTrap[index] === "vol1-trap-hole"
+                  ? "SET"
+                  : cardById.get(duel.cpuSpellTrap[index])?.name
+                : "MAGIC / TRAP"}
+            </div>
+          ))}
+        </div>
         <FieldRow zones={duel.cpuField} owner="cpu" selectedTarget={selectedAttacker !== null} onTarget={attackTarget} />
         <div className="phase-line"><span>BATTLE FIELD</span></div>
         <FieldRow
@@ -399,6 +426,8 @@ function runCpuTurn(initial: DuelState): DuelState {
     cpuHand: [...state.cpuHand, state.cpuDeck[0]],
     cpuDeck: state.cpuDeck.slice(1),
   };
+  state = playCpuNormalSpells(state);
+  if (state.result) return state;
 
   const candidates = state.cpuHand
     .map((id, index) => ({ card: cardById.get(id), index }))
@@ -411,6 +440,7 @@ function runCpuTurn(initial: DuelState): DuelState {
   if (summonChoice) {
     const tributes = tributeCount(summonChoice.card);
     const tributeIndexes = lowestAttackIndexes(state.cpuField, tributes);
+    const tributedZones = state.cpuField.filter((_, index) => tributeIndexes.includes(index));
     const nextField = state.cpuField.filter((_, index) => !tributeIndexes.includes(index));
     const defensive = (summonChoice.card.def ?? 0) > (summonChoice.card.atk ?? 0);
     nextField.push({ id: summonChoice.card.id, position: defensive ? "defense" : "attack", faceDown: defensive, attacked: true, equipped: [] });
@@ -418,6 +448,7 @@ function runCpuTurn(initial: DuelState): DuelState {
       ...state,
       cpuHand: state.cpuHand.filter((_, index) => index !== summonChoice.index),
       cpuField: nextField,
+      cpuSpellTrap: discardEquips(state.cpuSpellTrap, tributedZones),
       log: appendLog(state.log, defensive ? "CPUがモンスターをセット。" : `CPUが${summonChoice.card.name}を召喚。`),
     };
     const trapIndex = state.playerSpellTrap.indexOf("vol1-trap-hole");
@@ -430,6 +461,8 @@ function runCpuTurn(initial: DuelState): DuelState {
       };
     }
   }
+
+  state = setCpuTrapAndEquips(state);
 
   state = {
     ...state,
@@ -456,6 +489,94 @@ function runCpuTurn(initial: DuelState): DuelState {
     normalSummoned: false,
     log: appendLog(state.log, "あなたのターン。1枚ドロー。"),
   };
+}
+
+function playCpuNormalSpells(initial: DuelState): DuelState {
+  let state = initial;
+  if (state.cpuSpellTrap.length >= FIELD_LIMIT) return state;
+
+  if (
+    state.cpuHand.includes("vol1-dark-hole")
+    && state.playerField.length > 0
+    && fieldPower(state.playerField) > fieldPower(state.cpuField)
+  ) {
+    state = {
+      ...removeCpuHandCard(state, "vol1-dark-hole"),
+      playerSpellTrap: discardEquips(state.playerSpellTrap, state.playerField),
+      cpuSpellTrap: discardEquips(state.cpuSpellTrap, state.cpuField),
+      playerField: [],
+      cpuField: [],
+      log: appendLog(state.log, "CPUがブラック・ホールを発動。すべてのモンスターを破壊。"),
+    };
+  }
+
+  const fissureTarget = lowestFaceUpAttackIndex(state.playerField);
+  if (state.cpuHand.includes("vol1-fissure") && fissureTarget !== null) {
+    const destroyed = state.playerField[fissureTarget];
+    state = {
+      ...removeCpuHandCard(state, "vol1-fissure"),
+      playerField: state.playerField.filter((_, index) => index !== fissureTarget),
+      playerSpellTrap: discardEquips(state.playerSpellTrap, [destroyed]),
+      log: appendLog(state.log, "CPUが地割れを発動。モンスター1体を破壊。"),
+    };
+  }
+
+  if (state.cpuHand.includes("vol1-red-medicine") && state.cpuLp <= STARTING_LP - 500) {
+    state = {
+      ...removeCpuHandCard(state, "vol1-red-medicine"),
+      cpuLp: state.cpuLp + 500,
+      log: appendLog(state.log, "CPUがレッド・ポーションを発動。LPを500回復。"),
+    };
+  }
+
+  if (state.cpuHand.includes("vol1-sparks")) {
+    state = {
+      ...removeCpuHandCard(state, "vol1-sparks"),
+      playerLp: state.playerLp - 200,
+      log: appendLog(state.log, "CPUが火の粉を発動。200ダメージ。"),
+    };
+    if (state.playerLp <= 0) state.result = "lose";
+  }
+  return state;
+}
+
+function setCpuTrapAndEquips(initial: DuelState): DuelState {
+  let state = initial;
+  if (state.cpuSpellTrap.length >= FIELD_LIMIT) return state;
+
+  if (state.cpuHand.includes("vol1-trap-hole")) {
+    state = {
+      ...removeCpuHandCard(state, "vol1-trap-hole"),
+      cpuSpellTrap: [...state.cpuSpellTrap, "vol1-trap-hole"],
+      log: appendLog(state.log, "CPUが罠カードを1枚セット。"),
+    };
+  }
+
+  while (state.cpuSpellTrap.length < FIELD_LIMIT) {
+    const choice = state.cpuHand
+      .map((id) => cardById.get(id))
+      .find((card) =>
+        Boolean(card && EQUIP_RULES[card.id] && state.cpuField.some((zone) => {
+          const monster = cardById.get(zone.id);
+          return !zone.faceDown && Boolean(monster && canEquip(card.id, monster));
+        })),
+      );
+    if (!choice) break;
+    const targetIndex = state.cpuField.findIndex((zone) => {
+      const monster = cardById.get(zone.id);
+      return !zone.faceDown && Boolean(monster && canEquip(choice.id, monster));
+    });
+    const target = cardById.get(state.cpuField[targetIndex].id);
+    state = {
+      ...removeCpuHandCard(state, choice.id),
+      cpuField: state.cpuField.map((zone, index) =>
+        index === targetIndex ? { ...zone, equipped: [...zone.equipped, choice.id] } : zone,
+      ),
+      cpuSpellTrap: [...state.cpuSpellTrap, choice.id],
+      log: appendLog(state.log, `CPUが${choice.name}を${target?.name ?? "モンスター"}に装備。`),
+    };
+  }
+  return state;
 }
 
 function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: number, defenderIndex: number | null): DuelState {
@@ -509,6 +630,10 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     ...(attackerDestroyed && attackerSide === "player" ? [attackerZone] : []),
     ...(defenderDestroyed && attackerSide === "cpu" ? [defenderZone] : []),
   ];
+  const destroyedCpuZones = [
+    ...(attackerDestroyed && attackerSide === "cpu" ? [attackerZone] : []),
+    ...(defenderDestroyed && attackerSide === "player" ? [defenderZone] : []),
+  ];
   const next = {
     ...state,
     [attackerFieldKey]: nextAttackerField,
@@ -516,6 +641,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     [attackerLpKey]: state[attackerLpKey] - attackerDamage,
     [defenderLpKey]: state[defenderLpKey] - defenderDamage,
     playerSpellTrap: discardEquips(state.playerSpellTrap, destroyedPlayerZones),
+    cpuSpellTrap: discardEquips(state.cpuSpellTrap, destroyedCpuZones),
     log: appendLog(state.log, `${attacker.name}が${defender.name}を攻撃。${defenderDamage || attackerDamage ? `${defenderDamage || attackerDamage}ダメージ。` : "戦闘ダメージなし。"}`),
   } as DuelState;
   if (next.cpuLp <= 0) next.result = "win";
@@ -583,6 +709,17 @@ function canEquip(spellId: string, monster: Card) {
 
 function removeHandCard(state: DuelState, handIndex: number): DuelState {
   return { ...state, playerHand: state.playerHand.filter((_, index) => index !== handIndex) };
+}
+
+function removeCpuHandCard(state: DuelState, cardId: string): DuelState {
+  const index = state.cpuHand.indexOf(cardId);
+  return index < 0
+    ? state
+    : { ...state, cpuHand: state.cpuHand.filter((_, handIndex) => handIndex !== index) };
+}
+
+function fieldPower(field: ZoneCard[]) {
+  return field.reduce((total, zone) => total + Math.max(effectiveAtk(zone), effectiveDef(zone)), 0);
 }
 
 function discardEquips(spellTrap: string[], zones: ZoneCard[]) {

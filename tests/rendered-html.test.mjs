@@ -23,6 +23,6 @@ test("Vol.1と1日10パックの初期画面を表示する", async () => {
   assert.match(html, /パックを開ける/);
   assert.match(html, /<button class="">デッキ<\/button>/);
   assert.match(html, /<button class="">デュエル<\/button>/);
-  assert.match(html, /PHASE 1 · BUILD 005/);
+  assert.match(html, /PHASE 1 · BUILD 006/);
   assert.doesNotMatch(html, /codex-preview/);
 });
