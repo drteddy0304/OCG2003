@@ -19,6 +19,11 @@ type PendingTribute = {
   required: number;
   selected: number[];
 };
+type CpuPlayback = {
+  finalState: DuelState;
+  messages: string[];
+  index: number;
+};
 
 type ZoneCard = {
   id: string;
@@ -73,6 +78,7 @@ export function DuelArena({
   const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
+  const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
   const [rewardName, setRewardName] = useState<string | null>(null);
   const rewarded = useRef(false);
 
@@ -95,6 +101,19 @@ export function DuelArena({
     setRewardName(cardById.get(rewardId)?.name ?? null);
   }, [duel?.result, onReward]);
 
+  useEffect(() => {
+    if (!cpuPlayback) return;
+    if (cpuPlayback.index >= cpuPlayback.messages.length) {
+      setDuel(cpuPlayback.finalState);
+      setCpuPlayback(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setCpuPlayback((current) => current ? { ...current, index: current.index + 1 } : null);
+    }, 750);
+    return () => window.clearTimeout(timer);
+  }, [cpuPlayback]);
+
   function startDuel() {
     const counts = JSON.parse(localStorage.getItem(DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
     const playerCards = expandDeck(counts);
@@ -108,6 +127,7 @@ export function DuelArena({
     setRewardName(null);
     setSelectedAttacker(null);
     setPendingTribute(null);
+    setCpuPlayback(null);
     setDuel({
       playerDeck: shuffledPlayer.slice(6),
       cpuDeck: shuffledCpu.slice(5),
@@ -337,13 +357,24 @@ export function DuelArena({
     if (!duel || duel.turn !== "player" || duel.result || pendingTribute) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
-    setDuel(runCpuTurn({
+    const cpuStart: DuelState = {
       ...duel,
       turn: "cpu",
       turnNumber: duel.turnNumber + 1,
       phase: "main1",
       log: appendLog(duel.log, "ターン終了。CPUのターン。"),
-    }));
+    };
+    const finalState = runCpuTurn(cpuStart);
+    const markerIndex = finalState.log.lastIndexOf("ターン終了。CPUのターン。");
+    const messages = finalState.log
+      .slice(markerIndex >= 0 ? markerIndex + 1 : Math.max(0, finalState.log.length - 6))
+      .filter((message) => message !== "あなたのターン。1枚ドロー。");
+    setDuel(cpuStart);
+    setCpuPlayback({
+      finalState,
+      messages: messages.length ? messages : ["CPUは行動せずターンを終了。"],
+      index: 0,
+    });
   }
 
   if (!duel) {
@@ -352,7 +383,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 010</strong>
+          <strong>VOL.1 DUEL · BUILD 011</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -396,6 +427,20 @@ export function DuelArena({
         {duel.phase === "battle" && "攻撃するモンスターを選び、攻撃対象を選んでください。"}
         {duel.phase === "main2" && "戦闘後に召喚・セット・魔法・罠を使用できます。"}
       </p>
+
+      {cpuPlayback && (
+        <div className="cpu-playback" aria-live="assertive">
+          <div>
+            <p className="section-label">CPU ACTION</p>
+            <strong>{cpuPlayback.messages[Math.min(cpuPlayback.index, cpuPlayback.messages.length - 1)]}</strong>
+            <span>{Math.min(cpuPlayback.index + 1, cpuPlayback.messages.length)} / {cpuPlayback.messages.length}</span>
+            <button onClick={() => {
+              setDuel(cpuPlayback.finalState);
+              setCpuPlayback(null);
+            }}>演出をスキップ</button>
+          </div>
+        </div>
+      )}
 
       <div className="duel-board">
         <div className="hand-summary">
