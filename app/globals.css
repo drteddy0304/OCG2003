@@ -142,6 +142,8 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .turn-badge b { display: block; margin-top: 3px; color: #f1d8a2; }
 .duel-board { border: 2px solid var(--ink); padding: 12px; background: linear-gradient(135deg, #c7bda9aa, #e4dccdcc); }
 .monster-zones { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; min-height: 112px; }
+.spell-trap-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; min-height: 48px; margin-top: 8px; }
+.set-card { min-width: 0; border: 3px solid #6f3f68; background: #a45b8a; color: white; display: grid; place-items: center; padding: 4px; text-align: center; font: 700 7px monospace; overflow: hidden; }
 .empty-zone { border: 1px dashed #8b8272; color: #8b8272; display: grid; place-items: center; font: 7px monospace; min-width: 0; }
 .field-card { min-width: 0; border: 5px solid #93683e; background: #c7925b; color: #1c1710; padding: 7px; box-shadow: 0 5px 10px #0003; transition: transform .15s; }
 .field-card.defense { transform: rotate(90deg) scale(.78); }
@@ -207,6 +209,7 @@ footer { border-top: 1px solid #aaa18f; padding-top: 12px; display: flex; justif
   .duel-hud span { font-size: 7px; }
   .duel-board { padding: 7px; }
   .monster-zones { gap: 4px; min-height: 87px; }
+  .spell-trap-row { gap: 4px; min-height: 38px; }
   .field-card { border-width: 3px; padding: 4px; }
   .field-card strong { font-size: 7px; }
   .field-card span { font-size: 7px; margin-top: 7px; }
