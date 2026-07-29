@@ -14,7 +14,11 @@ const LEGACY_CARD_IDS: Record<string, string> = {
   "silver-fang": "vol1-silver-fang",
 };
 
-type DailyAllowance = { date: string; remaining: number };
+type DailyAllowance = { date: string; remainingByPack: Record<string, number> };
+
+function freshPackAllowances() {
+  return Object.fromEntries(packs.map((pack) => [pack.id, DAILY_PACKS]));
+}
 
 function jstDateKey(now = new Date()) {
   return new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -24,13 +28,17 @@ function loadDailyAllowance(): DailyAllowance {
   const today = jstDateKey();
   try {
     const saved = JSON.parse(localStorage.getItem(DAILY_KEY) ?? "null") as DailyAllowance | null;
-    if (saved?.date === today && Number.isInteger(saved.remaining)) {
-      return { date: today, remaining: Math.max(0, Math.min(DAILY_PACKS, saved.remaining)) };
+    if (saved?.date === today && saved.remainingByPack && typeof saved.remainingByPack === "object") {
+      const remainingByPack = Object.fromEntries(packs.map((pack) => {
+        const value = saved.remainingByPack[pack.id];
+        return [pack.id, Number.isInteger(value) ? Math.max(0, Math.min(DAILY_PACKS, value)) : DAILY_PACKS];
+      }));
+      return { date: today, remainingByPack };
     }
   } catch {
     // 壊れた端末データは当日分を再作成する。
   }
-  const fresh = { date: today, remaining: DAILY_PACKS };
+  const fresh = { date: today, remainingByPack: freshPackAllowances() };
   localStorage.setItem(DAILY_KEY, JSON.stringify(fresh));
   return fresh;
 }
@@ -56,7 +64,7 @@ export function GameHome() {
   const [opened, setOpened] = useState<Card[]>([]);
   const [tab, setTab] = useState<"pack" | "collection" | "deck" | "duel">("pack");
   const [selectedPackId, setSelectedPackId] = useState(packs[0].id);
-  const [remainingPacks, setRemainingPacks] = useState(DAILY_PACKS);
+  const [remainingByPack, setRemainingByPack] = useState<Record<string, number>>(freshPackAllowances);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -74,7 +82,7 @@ export function GameHome() {
         setCollection(migrated);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
       }
-      setRemainingPacks(loadDailyAllowance().remaining);
+      setRemainingByPack(loadDailyAllowance().remainingByPack);
     } finally {
       setReady(true);
     }
@@ -86,11 +94,13 @@ export function GameHome() {
     [collection],
   );
   const selectedPack = packs.find((pack) => pack.id === selectedPackId) ?? packs[0];
+  const selectedRemaining = remainingByPack[selectedPackId] ?? DAILY_PACKS;
 
   function openPack() {
     const allowance = loadDailyAllowance();
-    if (allowance.remaining <= 0) {
-      setRemainingPacks(0);
+    const remaining = allowance.remainingByPack[selectedPackId] ?? DAILY_PACKS;
+    if (remaining <= 0) {
+      setRemainingByPack(allowance.remainingByPack);
       return;
     }
     const result = drawPack(selectedPackId);
@@ -98,9 +108,12 @@ export function GameHome() {
     result.forEach((card) => {
       next[card.id] = (next[card.id] ?? 0) + 1;
     });
-    const nextAllowance = { ...allowance, remaining: allowance.remaining - 1 };
+    const nextAllowance = {
+      ...allowance,
+      remainingByPack: { ...allowance.remainingByPack, [selectedPackId]: remaining - 1 },
+    };
     setCollection(next);
-    setRemainingPacks(nextAllowance.remaining);
+    setRemainingByPack(nextAllowance.remainingByPack);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     localStorage.setItem(DAILY_KEY, JSON.stringify(nextAllowance));
     setOpened(result);
@@ -120,8 +133,8 @@ export function GameHome() {
           <h1>OCG 2003</h1>
         </div>
         <div className="counter" aria-label={`所持カード ${totalCount}枚`}>
-          <span>本日の残り</span>
-          <strong>{ready ? `${remainingPacks} PACK` : "—"}</strong>
+          <span>{selectedPack.name} 本日の残り</span>
+          <strong>{ready ? `${selectedRemaining} PACK` : "—"}</strong>
         </div>
       </header>
 
@@ -141,7 +154,7 @@ export function GameHome() {
               <div className="pack-logo">Vol.<br /><b>{selectedPack.name.replace("Vol.", "")}</b></div>
               <p>{selectedPack.releaseDate.replaceAll("-", ".")}</p>
             </div>
-            <p className="pack-count">{remainingPacks} / {DAILY_PACKS} PACKS</p>
+            <p className="pack-count">{selectedRemaining} / {DAILY_PACKS} PACKS</p>
           </div>
           <div className="pack-copy">
             <p className="section-label">SELECT BOOSTER PACK</p>
@@ -154,14 +167,14 @@ export function GameHome() {
                   onClick={() => setSelectedPackId(pack.id)}
                   role="listitem"
                 >
-                  <span><b>{pack.name}</b><small>{pack.releaseDate.replaceAll("-", ".")}</small></span>
+                  <span><b>{pack.name}</b><small>{pack.releaseDate.replaceAll("-", ".")} · 残り{remainingByPack[pack.id] ?? DAILY_PACKS}</small></span>
                   <strong>{pack.cardIds.length}種</strong>
                 </button>
               ))}
             </div>
-            <p>毎日0:00（日本時間）に10パックまで回復します。未使用分は翌日に持ち越されません。</p>
-            <button className="primary" onClick={openPack} disabled={!ready || remainingPacks === 0}>
-              {remainingPacks > 0 ? "パックを開ける" : "本日分は終了"} <span>5枚</span>
+            <p>各パックを毎日10回まで開封できます。0:00（日本時間）にパックごとに回復します。</p>
+            <button className="primary" onClick={openPack} disabled={!ready || selectedRemaining === 0}>
+              {selectedRemaining > 0 ? "パックを開ける" : "このパックの本日分は終了"} <span>5枚</span>
             </button>
           </div>
 
@@ -196,7 +209,7 @@ export function GameHome() {
       ) : tab === "deck"
         ? <DeckEditor collection={collection} />
         : <DuelArena collection={collection} onReward={awardCard} />}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 013</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 014</span></footer>
     </main>
   );
 }

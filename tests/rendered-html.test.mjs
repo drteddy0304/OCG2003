@@ -10,7 +10,7 @@ async function render() {
   }, { waitUntil() {}, passThroughOnException() {} });
 }
 
-test("Vol.1・Vol.2と1日10パックの初期画面を表示する", async () => {
+test("Vol.1・Vol.2を各1日10パック開封できる初期画面を表示する", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   const html = await response.text();
@@ -20,10 +20,10 @@ test("Vol.1・Vol.2と1日10パックの初期画面を表示する", async () =
   assert.match(html, /Vol\.2/);
   assert.match(html, /40(?:<!-- -->)?種/);
   assert.match(html, /10(?:<!-- -->)? \/ (?:<!-- -->)?10(?:<!-- -->)? PACKS/);
-  assert.match(html, /毎日0:00（日本時間）/);
+  assert.match(html, /各パックを毎日10回/);
   assert.match(html, /パックを開ける/);
   assert.match(html, /<button class="">デッキ<\/button>/);
   assert.match(html, /<button class="">デュエル<\/button>/);
-  assert.match(html, /PHASE 2 · BUILD 013/);
+  assert.match(html, /PHASE 2 · BUILD 014/);
   assert.doesNotMatch(html, /codex-preview/);
 });
