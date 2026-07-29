@@ -35,6 +35,7 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .tabs button:disabled { color: #999181; }
 .tabs small { display: block; font: 7px monospace; letter-spacing: .15em; }
 .pack-screen { flex: 1; display: grid; grid-template-columns: minmax(220px, 340px) 1fr; align-items: center; gap: clamp(30px, 8vw, 100px); padding: 42px 6%; position: relative; }
+.pack-stage { display: grid; justify-items: center; }
 .pack { aspect-ratio: .66; background: radial-gradient(circle at 50% 35%, #473e2e, #181612 65%); color: #e9d6a5; box-shadow: 18px 22px 0 #c7bdac, 0 25px 55px #332b1f66; padding: 17% 11%; text-align: center; position: relative; overflow: hidden; border: 1px solid #665b43; transform: rotate(-2deg); }
 .pack::before, .pack::after { content: ""; position: absolute; left: 0; right: 0; height: 18px; background: repeating-linear-gradient(90deg, #a68648 0 8px, #55431f 8px 12px); }
 .pack::before { top: 0; } .pack::after { bottom: 0; }
@@ -43,16 +44,27 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .pack-logo { position: relative; margin-top: 32%; font: 900 clamp(22px, 5vw, 42px)/.8 Georgia, serif; letter-spacing: -.05em; }
 .pack-logo b { font-size: 1.4em; color: #d1a955; }
 .pack p { position: relative; font: 8px monospace; letter-spacing: .3em; margin-top: 18px; }
+.pack-count { margin: 28px 0 0; border: 1px solid #aaa18f; padding: 7px 14px; font: 800 10px monospace; letter-spacing: .12em; background: #e4dccd; }
 .pack-copy h2, .collection-heading h2 { font: 900 clamp(38px, 7vw, 72px)/1.05 Georgia, "Yu Mincho", serif; margin: 10px 0 20px; letter-spacing: -.04em; }
 .pack-copy > p:not(.section-label) { max-width: 430px; line-height: 1.8; font-size: 14px; color: #5f594e; }
+.pack-selector { display: grid; gap: 8px; max-width: 430px; margin: 20px 0; }
+.pack-selector button { width: 100%; border: 1px solid #aaa18f; background: #e7dfd0; padding: 13px 14px; display: flex; justify-content: space-between; align-items: center; text-align: left; }
+.pack-selector button.selected { border: 2px solid var(--red); background: #f8f1e4; box-shadow: 4px 4px 0 var(--ink); }
+.pack-selector button span { display: grid; gap: 3px; }
+.pack-selector button b { font: 900 18px Georgia, serif; }
+.pack-selector button small { color: #746d61; font: 9px monospace; letter-spacing: .1em; }
+.pack-selector button strong { font: 800 11px monospace; color: var(--red); }
 .primary { width: min(100%, 430px); padding: 18px 20px; margin-top: 20px; border: 0; background: var(--red); color: white; text-align: left; font-weight: 900; box-shadow: 6px 6px 0 var(--ink); transition: transform .15s, box-shadow .15s; }
 .primary:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 var(--ink); }
+.primary:disabled { background: #777064; box-shadow: 3px 3px 0 #3e3a33; cursor: not-allowed; }
 .primary span { float: right; font: 700 12px monospace; opacity: .8; }
 .results { position: fixed; inset: 0; z-index: 10; background: #11100ef2; color: white; padding: 24px; overflow: auto; }
 .result-heading { max-width: 1000px; margin: 0 auto 30px; display: flex; justify-content: space-between; align-items: center; }
 .result-heading button { border: 1px solid #777; color: white; background: none; padding: 9px 18px; }
 .card-row, .collection-grid { max-width: 1000px; margin: auto; display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 14px; }
 .card { aspect-ratio: .69; background: #c7925b; color: #19140d; border: 7px solid #9e7045; padding: 8px; box-shadow: 0 7px 16px #0007; position: relative; font-family: "Yu Mincho", serif; }
+.card-spell { background: #4f9f8e; border-color: #3c7d70; }
+.card-trap { background: #a45b8a; border-color: #7f456c; }
 .rarity-ur { box-shadow: 0 0 20px #e9c95799, 0 7px 16px #0007; }
 .card-name { background: #ead8b9; padding: 5px; border: 1px solid #6b492a; display: flex; justify-content: space-between; gap: 4px; font-size: 11px; }
 .card-name span { border: 1px solid #777; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; font-size: 8px; }
@@ -76,6 +88,7 @@ footer { border-top: 1px solid #aaa18f; padding-top: 12px; display: flex; justif
 @media (max-width: 700px) {
   main { padding-top: 16px; }
   .pack-screen { grid-template-columns: 115px 1fr; gap: 22px; padding: 34px 0; align-items: start; }
+  .pack-stage { align-self: start; }
   .pack { width: 115px; box-shadow: 8px 10px 0 #c7bdac, 0 15px 30px #332b1f55; }
   .pack-lines { width: 90px; height: 90px; }
   .pack-copy h2 { font-size: clamp(32px, 10vw, 48px); margin-top: 8px; }

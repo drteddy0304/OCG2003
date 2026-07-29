@@ -1,48 +1,78 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
-type Card = {
-  id: string;
-  name: string;
-  kind: string;
-  attribute: string;
-  level: number;
-  atk: number;
-  def: number;
-  flavor: string;
-  rarity: "UR" | "SR" | "R" | "N";
-};
-
-const cards: Card[] = [
-  { id: "blue-eyes", name: "青眼の白龍", kind: "ドラゴン族", attribute: "光", level: 8, atk: 3000, def: 2500, flavor: "高い攻撃力を誇る伝説のドラゴン。", rarity: "UR" },
-  { id: "dark-magician", name: "ブラック・マジシャン", kind: "魔法使い族", attribute: "闇", level: 7, atk: 2500, def: 2100, flavor: "魔法使いとしては、攻撃力・守備力ともに最高クラス。", rarity: "UR" },
-  { id: "gaia", name: "暗黒騎士ガイア", kind: "戦士族", attribute: "地", level: 7, atk: 2300, def: 2100, flavor: "風よりも速く走る馬に乗った騎士。突進攻撃に注意。", rarity: "SR" },
-  { id: "winged-dragon", name: "砦を守る翼竜", kind: "ドラゴン族", attribute: "風", level: 4, atk: 1400, def: 1200, flavor: "山の砦を守る竜。天空から急降下して敵を攻撃。", rarity: "R" },
-  { id: "beaver-warrior", name: "ルイーズ", kind: "獣戦士族", attribute: "地", level: 4, atk: 1200, def: 1500, flavor: "体は小さいが、草原での守備力はかなり強い。", rarity: "N" },
-  { id: "silver-fang", name: "シルバー・フォング", kind: "獣族", attribute: "地", level: 3, atk: 1200, def: 800, flavor: "白銀に輝くオオカミ。見た目より凶暴。", rarity: "N" },
-];
+import { cardById, cards, packs, type Card, type Rarity } from "./card-data";
 
 const STORAGE_KEY = "ocg2003.collection.v1";
+const DAILY_KEY = "ocg2003.daily-packs.v1";
+const DAILY_PACKS = 10;
+const LEGACY_CARD_IDS: Record<string, string> = {
+  "dark-magician": "vol1-dark-magician",
+  gaia: "vol1-gaia",
+  "silver-fang": "vol1-silver-fang",
+};
 
-function drawPack() {
-  const pool = [...cards].sort(() => Math.random() - 0.5);
-  const normal = pool.slice(0, 4);
-  const rarePool = cards.filter((card) => card.rarity !== "N");
-  const rare = rarePool[Math.floor(Math.random() * rarePool.length)];
-  return [...normal, rare].sort(() => Math.random() - 0.5);
+type DailyAllowance = { date: string; remaining: number };
+
+function jstDateKey(now = new Date()) {
+  return new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function loadDailyAllowance(): DailyAllowance {
+  const today = jstDateKey();
+  try {
+    const saved = JSON.parse(localStorage.getItem(DAILY_KEY) ?? "null") as DailyAllowance | null;
+    if (saved?.date === today && Number.isInteger(saved.remaining)) {
+      return { date: today, remaining: Math.max(0, Math.min(DAILY_PACKS, saved.remaining)) };
+    }
+  } catch {
+    // 壊れた端末データは当日分を再作成する。
+  }
+  const fresh = { date: today, remaining: DAILY_PACKS };
+  localStorage.setItem(DAILY_KEY, JSON.stringify(fresh));
+  return fresh;
+}
+
+function randomCard(pool: Card[]) {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function drawPack(packId: string) {
+  const pack = packs.find((item) => item.id === packId) ?? packs[0];
+  const pool = pack.cardIds.map((id) => cardById.get(id)).filter((card): card is Card => Boolean(card));
+  const normalPool = pool.filter((card) => card.rarity === "N");
+  const rarityRoll = Math.random();
+  const rareRarity: Rarity = rarityRoll < 0.05 ? "UR" : rarityRoll < 0.2 ? "SR" : "R";
+  const rarePool = pool.filter((card) => card.rarity === rareRarity);
+  const result = Array.from({ length: 4 }, () => randomCard(normalPool));
+  result.push(randomCard(rarePool.length ? rarePool : pool.filter((card) => card.rarity !== "N")));
+  return result.sort(() => Math.random() - 0.5);
 }
 
 export function GameHome() {
   const [collection, setCollection] = useState<Record<string, number>>({});
   const [opened, setOpened] = useState<Card[]>([]);
   const [tab, setTab] = useState<"pack" | "collection">("pack");
+  const [selectedPackId, setSelectedPackId] = useState(packs[0].id);
+  const [remainingPacks, setRemainingPacks] = useState(DAILY_PACKS);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setCollection(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved) as Record<string, number>;
+        const migrated = Object.entries(parsed).reduce<Record<string, number>>((result, [id, count]) => {
+          const currentId = LEGACY_CARD_IDS[id] ?? id;
+          if (cardById.has(currentId) && Number.isInteger(count) && count > 0) {
+            result[currentId] = (result[currentId] ?? 0) + count;
+          }
+          return result;
+        }, {});
+        setCollection(migrated);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      }
+      setRemainingPacks(loadDailyAllowance().remaining);
     } finally {
       setReady(true);
     }
@@ -55,13 +85,21 @@ export function GameHome() {
   );
 
   function openPack() {
-    const result = drawPack();
+    const allowance = loadDailyAllowance();
+    if (allowance.remaining <= 0) {
+      setRemainingPacks(0);
+      return;
+    }
+    const result = drawPack(selectedPackId);
     const next = { ...collection };
     result.forEach((card) => {
       next[card.id] = (next[card.id] ?? 0) + 1;
     });
+    const nextAllowance = { ...allowance, remaining: allowance.remaining - 1 };
     setCollection(next);
+    setRemainingPacks(nextAllowance.remaining);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    localStorage.setItem(DAILY_KEY, JSON.stringify(nextAllowance));
     setOpened(result);
   }
 
@@ -73,8 +111,8 @@ export function GameHome() {
           <h1>OCG 2003</h1>
         </div>
         <div className="counter" aria-label={`所持カード ${totalCount}枚`}>
-          <span>COLLECTION</span>
-          <strong>{ready ? totalCount : "—"}</strong>
+          <span>本日の残り</span>
+          <strong>{ready ? `${remainingPacks} PACK` : "—"}</strong>
         </div>
       </header>
 
@@ -87,17 +125,35 @@ export function GameHome() {
 
       {tab === "pack" ? (
         <section className="pack-screen">
-          <div className="pack">
-            <div className="pack-lines" />
-            <span className="pack-kicker">DEVELOPMENT PACK</span>
-            <div className="pack-logo">OCG<br /><b>2003</b></div>
-            <p>TEST EDITION</p>
+          <div className="pack-stage">
+            <div className="pack">
+              <div className="pack-lines" />
+              <span className="pack-kicker">OFFICIAL CARD GAME</span>
+              <div className="pack-logo">Vol.<br /><b>1</b></div>
+              <p>1999.02.04</p>
+            </div>
+            <p className="pack-count">{remainingPacks} / {DAILY_PACKS} PACKS</p>
           </div>
           <div className="pack-copy">
-            <p className="section-label">開発用テストパック</p>
-            <h2>最初の5枚を<br />手に入れよう。</h2>
-            <p>カードを引くたびに、端末のコレクションへ自動で保存されます。</p>
-            <button className="primary" onClick={openPack}>パックを開ける <span>5枚</span></button>
+            <p className="section-label">SELECT BOOSTER PACK</p>
+            <h2>好きなパックを<br />選んで開封。</h2>
+            <div className="pack-selector" role="list" aria-label="パック選択">
+              {packs.map((pack) => (
+                <button
+                  className={selectedPackId === pack.id ? "selected" : ""}
+                  key={pack.id}
+                  onClick={() => setSelectedPackId(pack.id)}
+                  role="listitem"
+                >
+                  <span><b>{pack.name}</b><small>{pack.releaseDate.replaceAll("-", ".")}</small></span>
+                  <strong>{pack.cardIds.length}種</strong>
+                </button>
+              ))}
+            </div>
+            <p>毎日0:00（日本時間）に10パックまで回復します。未使用分は翌日に持ち越されません。</p>
+            <button className="primary" onClick={openPack} disabled={!ready || remainingPacks === 0}>
+              {remainingPacks > 0 ? "パックを開ける" : "本日分は終了"} <span>5枚</span>
+            </button>
           </div>
 
           {opened.length > 0 && (
@@ -129,18 +185,23 @@ export function GameHome() {
           )}
         </section>
       )}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 1 · BUILD 001</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 1 · BUILD 002</span></footer>
     </main>
   );
 }
 
 function CardTile({ card }: { card: Card }) {
+  const isMonster = card.cardType === "monster";
   return (
-    <article className={`card rarity-${card.rarity.toLowerCase()}`}>
-      <div className="card-name"><strong>{card.name}</strong><span>{card.attribute}</span></div>
-      <div className="stars">{"★".repeat(card.level)}</div>
+    <article className={`card card-${card.cardType} rarity-${card.rarity.toLowerCase()}`}>
+      <div className="card-name"><strong>{card.name}</strong><span>{card.attribute ?? (card.cardType === "spell" ? "魔" : "罠")}</span></div>
+      <div className="stars">{isMonster ? "★".repeat(card.level ?? 0) : card.kind}</div>
       <div className="card-art"><span>{card.kind}</span></div>
-      <div className="card-text"><b>【{card.kind}】</b><p>{card.flavor}</p><strong>ATK/{card.atk} DEF/{card.def}</strong></div>
+      <div className="card-text">
+        <b>【{card.kind}】</b>
+        <p>{isMonster ? "通常モンスター" : card.cardType === "spell" ? "魔法カード" : "罠カード"}</p>
+        {isMonster && <strong>ATK/{card.atk} DEF/{card.def}</strong>}
+      </div>
       <i>{card.rarity}</i>
     </article>
   );
