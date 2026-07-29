@@ -39,6 +39,8 @@ type DuelState = {
   cpuField: ZoneCard[];
   playerSpellTrap: string[];
   cpuSpellTrap: string[];
+  playerGraveyard: string[];
+  cpuGraveyard: string[];
   playerLp: number;
   cpuLp: number;
   turn: Side;
@@ -69,6 +71,8 @@ export function DuelArena({
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
   const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
+  const [detailCardId, setDetailCardId] = useState<string | null>(null);
+  const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [rewardName, setRewardName] = useState<string | null>(null);
   const rewarded = useRef(false);
 
@@ -113,6 +117,8 @@ export function DuelArena({
       cpuField: [],
       playerSpellTrap: [],
       cpuSpellTrap: [],
+      playerGraveyard: [],
+      cpuGraveyard: [],
       playerLp: STARTING_LP,
       cpuLp: STARTING_LP,
       turn: "player",
@@ -162,6 +168,7 @@ export function DuelArena({
       playerHand: duel.playerHand.filter((_, index) => index !== handIndex),
       playerField: nextField,
       playerSpellTrap: discardEquips(duel.playerSpellTrap, tributedZones),
+      playerGraveyard: [...duel.playerGraveyard, ...graveCards(tributedZones)],
       normalSummoned: true,
       log: appendLog(duel.log, `${card.name}を${position === "attack" ? "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
     };
@@ -171,6 +178,8 @@ export function DuelArena({
         ...nextState,
         playerField: nextState.playerField.filter((_, index) => index !== nextState.playerField.length - 1),
         cpuSpellTrap: nextState.cpuSpellTrap.filter((_, index) => index !== cpuTrapIndex),
+        playerGraveyard: [...nextState.playerGraveyard, card.id],
+        cpuGraveyard: [...nextState.cpuGraveyard, "vol1-trap-hole"],
         log: appendLog(nextState.log, `CPUが落とし穴を発動。${card.name}を破壊。`),
       };
     }
@@ -222,7 +231,10 @@ export function DuelArena({
       return;
     }
 
-    let next = removeHandCard(duel, handIndex);
+    let next = {
+      ...removeHandCard(duel, handIndex),
+      playerGraveyard: [...duel.playerGraveyard, card.id],
+    };
     if (card.id === "vol1-dark-hole") {
       next = {
         ...next,
@@ -230,6 +242,8 @@ export function DuelArena({
         cpuField: [],
         playerSpellTrap: discardEquips(next.playerSpellTrap, next.playerField),
         cpuSpellTrap: discardEquips(next.cpuSpellTrap, next.cpuField),
+        playerGraveyard: [...next.playerGraveyard, ...graveCards(next.playerField)],
+        cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField)],
       };
     } else if (card.id === "vol1-red-medicine") {
       next = { ...next, playerLp: next.playerLp + 500 };
@@ -243,6 +257,7 @@ export function DuelArena({
         ...next,
         cpuField: next.cpuField.filter((_, index) => index !== target),
         cpuSpellTrap: discardEquips(next.cpuSpellTrap, [next.cpuField[target]]),
+        cpuGraveyard: [...next.cpuGraveyard, ...graveCards([next.cpuField[target]])],
       };
     } else return;
     next.log = appendLog(next.log, `${card.name}を発動。`);
@@ -337,7 +352,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 009</strong>
+          <strong>VOL.1 DUEL · BUILD 010</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -383,7 +398,10 @@ export function DuelArena({
       </p>
 
       <div className="duel-board">
-        <div className="hand-summary"><span>CPU HAND</span><b>{duel.cpuHand.length}</b><span>DECK</span><b>{duel.cpuDeck.length}</b></div>
+        <div className="hand-summary">
+          <span>CPU HAND</span><b>{duel.cpuHand.length}</b><span>DECK</span><b>{duel.cpuDeck.length}</b>
+          <button className="grave-button" onClick={() => setGraveyardView("cpu")}>CPU墓地 {duel.cpuGraveyard.length}</button>
+        </div>
         <div className="spell-trap-row cpu-spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
             <div className={duel.cpuSpellTrap[index] ? "set-card" : "empty-zone"} key={index}>
@@ -395,7 +413,7 @@ export function DuelArena({
             </div>
           ))}
         </div>
-        <FieldRow zones={duel.cpuField} owner="cpu" selectedTarget={selectedAttacker !== null} onTarget={attackTarget} />
+        <FieldRow zones={duel.cpuField} owner="cpu" selectedTarget={selectedAttacker !== null} onTarget={attackTarget} onInspect={setDetailCardId} />
         <div className="phase-line"><span>BATTLE FIELD</span></div>
         <FieldRow
           zones={duel.playerField}
@@ -420,6 +438,7 @@ export function DuelArena({
             );
           }}
           onPositionChange={changePosition}
+          onInspect={setDetailCardId}
         />
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
@@ -432,7 +451,10 @@ export function DuelArena({
             </div>
           ))}
         </div>
-        <div className="hand-summary"><span>YOUR HAND</span><b>{duel.playerHand.length}</b><span>DECK</span><b>{duel.playerDeck.length}</b></div>
+        <div className="hand-summary">
+          <span>YOUR HAND</span><b>{duel.playerHand.length}</b><span>DECK</span><b>{duel.playerDeck.length}</b>
+          <button className="grave-button" onClick={() => setGraveyardView("player")}>自分の墓地 {duel.playerGraveyard.length}</button>
+        </div>
       </div>
 
       {pendingTribute && (
@@ -465,6 +487,7 @@ export function DuelArena({
               <article className={`hand-card hand-${card.cardType}`} key={`${id}-${index}`}>
                 <strong>{card.name}</strong>
                 <span>{card.kind}</span>
+                <button className="card-detail-button" onClick={() => setDetailCardId(card.id)}>詳細</button>
                 {card.cardType === "monster" ? (
                   <>
                     <small>★{card.level}　ATK {card.atk} / DEF {card.def}</small>
@@ -515,6 +538,31 @@ export function DuelArena({
         {duel.log.slice(-5).map((entry, index) => <p key={`${entry}-${index}`}>{entry}</p>)}
       </div>
 
+      {graveyardView && (
+        <div className="card-overlay">
+          <div className="graveyard-panel">
+            <p className="section-label">{graveyardView === "player" ? "YOUR GRAVEYARD" : "CPU GRAVEYARD"}</p>
+            <h2>墓地</h2>
+            <div className="graveyard-list">
+              {(graveyardView === "player" ? duel.playerGraveyard : duel.cpuGraveyard).map((id, index) => {
+                const card = cardById.get(id);
+                return card ? (
+                  <button key={`${id}-${index}`} onClick={() => setDetailCardId(id)}>
+                    <span>{card.name}</span><small>{card.kind}</small>
+                  </button>
+                ) : null;
+              })}
+              {(graveyardView === "player" ? duel.playerGraveyard : duel.cpuGraveyard).length === 0 && <p>墓地にカードはありません。</p>}
+            </div>
+            <button className="overlay-close" onClick={() => setGraveyardView(null)}>閉じる</button>
+          </div>
+        </div>
+      )}
+
+      {detailCardId && (
+        <CardDetail cardId={detailCardId} onClose={() => setDetailCardId(null)} />
+      )}
+
       {duel.result && (
         <div className="duel-result">
           <p className="section-label">DUEL RESULT</p>
@@ -524,6 +572,30 @@ export function DuelArena({
         </div>
       )}
     </section>
+  );
+}
+
+function CardDetail({ cardId, onClose }: { cardId: string; onClose: () => void }) {
+  const card = cardById.get(cardId);
+  if (!card) return null;
+  return (
+    <div className="card-overlay card-detail-overlay">
+      <article className={`card-detail detail-${card.cardType}`}>
+        <p className="section-label">CARD DETAIL</p>
+        <h2>{card.name}</h2>
+        <strong>{card.kind}</strong>
+        {card.cardType === "monster" ? (
+          <>
+            <p>属性：{card.attribute}　レベル：{card.level}</p>
+            <p className="detail-stats">ATK {card.atk} / DEF {card.def}</p>
+          </>
+        ) : (
+          <p>{card.cardType === "spell" ? spellDescription(card.id) : "ATK1000以上で召喚された相手モンスターを破壊"}</p>
+        )}
+        <small>レアリティ：{card.rarity}</small>
+        <button className="overlay-close" onClick={onClose}>閉じる</button>
+      </article>
+    </div>
   );
 }
 
@@ -542,6 +614,7 @@ function FieldRow({
   onTribute,
   canChangePosition,
   onPositionChange,
+  onInspect,
 }: {
   zones: ZoneCard[];
   owner: Side;
@@ -557,6 +630,7 @@ function FieldRow({
   onTribute?: (index: number) => void;
   canChangePosition?: (index: number) => boolean;
   onPositionChange?: (index: number) => void;
+  onInspect?: (cardId: string) => void;
 }) {
   return (
     <div className={`monster-zones zones-${owner}`}>
@@ -586,6 +660,7 @@ function FieldRow({
                 {zone.position === "defense" ? "攻撃表示へ" : "守備表示へ"}
               </button>
             )}
+            {!hidden && <button className="field-detail-button" onClick={() => onInspect?.(card.id)}>詳細</button>}
           </div>
         );
       })}
@@ -632,6 +707,7 @@ function runCpuTurn(initial: DuelState): DuelState {
       cpuHand: state.cpuHand.filter((_, index) => index !== summonChoice.index),
       cpuField: nextField,
       cpuSpellTrap: discardEquips(state.cpuSpellTrap, tributedZones),
+      cpuGraveyard: [...state.cpuGraveyard, ...graveCards(tributedZones)],
       log: appendLog(state.log, defensive ? "CPUがモンスターをセット。" : `CPUが${summonChoice.card.name}を召喚。`),
     };
     const trapIndex = state.playerSpellTrap.indexOf("vol1-trap-hole");
@@ -640,6 +716,8 @@ function runCpuTurn(initial: DuelState): DuelState {
         ...state,
         cpuField: state.cpuField.filter((_, index) => index !== state.cpuField.length - 1),
         playerSpellTrap: state.playerSpellTrap.filter((_, index) => index !== trapIndex),
+        cpuGraveyard: [...state.cpuGraveyard, summonChoice.card.id],
+        playerGraveyard: [...state.playerGraveyard, "vol1-trap-hole"],
         log: appendLog(state.log, `落とし穴を発動。${summonChoice.card.name}を破壊。`),
       };
     }
@@ -688,6 +766,8 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       ...removeCpuHandCard(state, "vol1-dark-hole"),
       playerSpellTrap: discardEquips(state.playerSpellTrap, state.playerField),
       cpuSpellTrap: discardEquips(state.cpuSpellTrap, state.cpuField),
+      playerGraveyard: [...state.playerGraveyard, ...graveCards(state.playerField)],
+      cpuGraveyard: [...state.cpuGraveyard, "vol1-dark-hole", ...graveCards(state.cpuField)],
       playerField: [],
       cpuField: [],
       log: appendLog(state.log, "CPUがブラック・ホールを発動。すべてのモンスターを破壊。"),
@@ -701,6 +781,8 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       ...removeCpuHandCard(state, "vol1-fissure"),
       playerField: state.playerField.filter((_, index) => index !== fissureTarget),
       playerSpellTrap: discardEquips(state.playerSpellTrap, [destroyed]),
+      playerGraveyard: [...state.playerGraveyard, ...graveCards([destroyed])],
+      cpuGraveyard: [...state.cpuGraveyard, "vol1-fissure"],
       log: appendLog(state.log, "CPUが地割れを発動。モンスター1体を破壊。"),
     };
   }
@@ -709,6 +791,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
     state = {
       ...removeCpuHandCard(state, "vol1-red-medicine"),
       cpuLp: state.cpuLp + 500,
+      cpuGraveyard: [...state.cpuGraveyard, "vol1-red-medicine"],
       log: appendLog(state.log, "CPUがレッド・ポーションを発動。LPを500回復。"),
     };
   }
@@ -717,6 +800,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
     state = {
       ...removeCpuHandCard(state, "vol1-sparks"),
       playerLp: state.playerLp - 200,
+      cpuGraveyard: [...state.cpuGraveyard, "vol1-sparks"],
       log: appendLog(state.log, "CPUが火の粉を発動。200ダメージ。"),
     };
     if (state.playerLp <= 0) state.result = "lose";
@@ -810,6 +894,8 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     [defenderLpKey]: state[defenderLpKey] - defenderDamage,
     playerSpellTrap: discardEquips(state.playerSpellTrap, destroyedPlayerZones),
     cpuSpellTrap: discardEquips(state.cpuSpellTrap, destroyedCpuZones),
+    playerGraveyard: [...state.playerGraveyard, ...graveCards(destroyedPlayerZones)],
+    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones)],
     log: appendLog(
       state.log,
       `${attacker.name}が${defender.name}を攻撃。${
@@ -908,6 +994,10 @@ function discardEquips(spellTrap: string[], zones: ZoneCard[]) {
     if (index >= 0) remaining.splice(index, 1);
   });
   return remaining;
+}
+
+function graveCards(zones: ZoneCard[]) {
+  return zones.flatMap((zone) => [zone.id, ...zone.equipped]);
 }
 
 function spellDescription(id: string) {

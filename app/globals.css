@@ -156,6 +156,7 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .field-slot { min-width: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 3px; }
 .field-slot .field-card { width: 100%; min-height: 82px; }
 .position-change { border: 1px solid var(--ink); background: #f1e7d2; color: var(--ink); padding: 4px 2px; font-size: 7px; font-weight: 900; }
+.field-detail-button { border: 0; background: transparent; color: #514b41; padding: 2px; font-size: 7px; text-decoration: underline; }
 .field-card { min-width: 0; border: 5px solid #93683e; background: #c7925b; color: #1c1710; padding: 7px; box-shadow: 0 5px 10px #0003; transition: transform .15s; }
 .field-card.defense { transform: rotate(90deg) scale(.78); }
 .field-card strong, .field-card span, .field-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -169,6 +170,7 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .phase-line::before, .phase-line::after { content: ""; height: 1px; background: #948a78; flex: 1; }
 .hand-summary { display: flex; justify-content: flex-end; gap: 7px; align-items: center; margin: 6px 0; font: 700 8px monospace; letter-spacing: .1em; }
 .hand-summary b { color: var(--red); font-size: 12px; }
+.grave-button { border: 1px solid var(--ink); background: #eee4d1; padding: 4px 6px; font-size: 8px; font-weight: 800; }
 .duel-controls { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 10px; }
 .tribute-picker { margin-top: 10px; border: 2px solid var(--ink); background: #f1e7d2; padding: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tribute-picker strong { margin-right: auto; }
@@ -185,6 +187,7 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .hand-card > div { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 10px; }
 .hand-card button { border: 1px solid #372b1d; background: #eee2cb; padding: 6px 2px; font-size: 9px; font-weight: 800; }
 .hand-card button:disabled { opacity: .35; }
+.hand-card .card-detail-button { margin-top: 5px; background: transparent; border-style: dashed; }
 .end-turn { border: 0; background: var(--ink); color: white; font-weight: 900; }
 .end-turn:disabled { opacity: .45; }
 .phase-actions { display: grid; grid-template-rows: 1fr auto; gap: 5px; }
@@ -196,6 +199,19 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .duel-result h2 { font: 900 clamp(60px, 15vw, 120px)/1 Georgia, serif; letter-spacing: -.06em; color: var(--gold); margin: 10px 0; }
 .duel-result p:not(.section-label) { font-size: 14px; }
 .duel-result button { margin-top: 20px; border: 1px solid white; background: transparent; color: white; padding: 14px 30px; font-weight: 800; }
+.card-overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #11100ed9; padding: 18px; }
+.card-detail-overlay { z-index: 35; }
+.graveyard-panel, .card-detail { width: min(520px, 100%); max-height: 82vh; overflow: auto; background: #eee5d4; color: var(--ink); border: 3px solid var(--ink); padding: 18px; box-shadow: 0 16px 40px #0008; }
+.graveyard-panel h2, .card-detail h2 { margin: 4px 0 14px; font-family: "Yu Mincho", serif; }
+.graveyard-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.graveyard-list button { min-width: 0; border: 1px solid #8d8373; background: #f8f1e4; padding: 8px; text-align: left; }
+.graveyard-list span, .graveyard-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graveyard-list small { margin-top: 3px; color: #72695d; }
+.overlay-close { width: 100%; margin-top: 14px; border: 0; background: var(--ink); color: white; padding: 11px; font-weight: 900; }
+.card-detail { border-color: #93683e; }
+.card-detail.detail-spell { border-color: #3c7d70; }
+.card-detail.detail-trap { border-color: #7f456c; }
+.detail-stats { font: 900 18px monospace; }
 footer { border-top: 1px solid #aaa18f; padding-top: 12px; display: flex; justify-content: space-between; font: 8px monospace; letter-spacing: .12em; color: #756f64; }
 
 @media (max-width: 700px) {
