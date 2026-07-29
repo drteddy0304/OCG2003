@@ -20,7 +20,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
       const saved = JSON.parse(localStorage.getItem(DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
       const valid = Object.entries(saved).reduce<Record<string, number>>((result, [id, count]) => {
         const owned = collection[id] ?? 0;
-        if (cardById.has(id) && Number.isInteger(count) && count > 0 && owned > 0) {
+        if (cardById.has(id) && !cardById.get(id)?.fusion && Number.isInteger(count) && count > 0 && owned > 0) {
           result[id] = Math.min(count, owned, COPY_LIMIT);
         }
         return result;
@@ -41,6 +41,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     const normalized = query.trim().toLocaleLowerCase("ja");
     return cards.filter((card) => {
       if (!collection[card.id]) return false;
+      if (card.fusion) return false;
       if (filter !== "all" && card.cardType !== filter) return false;
       if (!normalized) return true;
       return `${card.name} ${card.kind} ${card.attribute ?? ""}`.toLocaleLowerCase("ja").includes(normalized);

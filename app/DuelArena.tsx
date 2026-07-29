@@ -56,7 +56,7 @@ type DuelState = {
   log: string[];
 };
 
-const CPU_DECK = cards.map((card) => card.id);
+const CPU_DECK = cards.filter((card) => card.id.startsWith("vol1-")).map((card) => card.id);
 const EQUIP_RULES: Record<string, string> = {
   "vol1-legendary-sword": "戦士族",
   "vol1-beast-fangs": "獣族",
@@ -380,7 +380,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 012</strong>
+          <strong>VOL.1 DUEL · BUILD 013</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -630,7 +630,7 @@ function CardDetail({ cardId, onClose }: { cardId: string; onClose: () => void }
       <article className={`card-detail detail-${card.cardType}`}>
         <p className="section-label">CARD DETAIL</p>
         <h2>{card.name}</h2>
-        <strong>{card.kind}</strong>
+        <strong>{card.kind}{card.fusion ? "／融合" : ""}</strong>
         {card.cardType === "monster" ? (
           <>
             <p>属性：{card.attribute}　レベル：{card.level}</p>
@@ -963,7 +963,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
 
 function expandDeck(counts: Record<string, number>) {
   return Object.entries(counts).flatMap(([id, count]) =>
-    cardById.has(id) && Number.isInteger(count) && count > 0 ? Array(Math.min(3, count)).fill(id) : [],
+    cardById.has(id) && !cardById.get(id)?.fusion && Number.isInteger(count) && count > 0 ? Array(Math.min(3, count)).fill(id) : [],
   );
 }
 

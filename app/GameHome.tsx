@@ -85,6 +85,7 @@ export function GameHome() {
     () => Object.values(collection).reduce((sum, count) => sum + count, 0),
     [collection],
   );
+  const selectedPack = packs.find((pack) => pack.id === selectedPackId) ?? packs[0];
 
   function openPack() {
     const allowance = loadDailyAllowance();
@@ -137,8 +138,8 @@ export function GameHome() {
             <div className="pack">
               <div className="pack-lines" />
               <span className="pack-kicker">OFFICIAL CARD GAME</span>
-              <div className="pack-logo">Vol.<br /><b>1</b></div>
-              <p>1999.02.04</p>
+              <div className="pack-logo">Vol.<br /><b>{selectedPack.name.replace("Vol.", "")}</b></div>
+              <p>{selectedPack.releaseDate.replaceAll("-", ".")}</p>
             </div>
             <p className="pack-count">{remainingPacks} / {DAILY_PACKS} PACKS</p>
           </div>
@@ -195,7 +196,7 @@ export function GameHome() {
       ) : tab === "deck"
         ? <DeckEditor collection={collection} />
         : <DuelArena collection={collection} onReward={awardCard} />}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 1 · BUILD 012</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 013</span></footer>
     </main>
   );
 }
