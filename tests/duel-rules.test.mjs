@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { battleOutcome, equipRules, simpleSpellEffect } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, equipRules, simpleSpellEffect } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -45,4 +45,10 @@ test("Vol.2の装備魔法5枚が正しい種族に対応する", () => {
 test("Vol.2の回復・ダメージ魔法の数値を適用する", () => {
   assert.deepEqual(simpleSpellEffect("vol2-goblin-secret-remedy"), { gain: 600, damage: 0 });
   assert.deepEqual(simpleSpellEffect("vol2-final-flame"), { gain: 0, damage: 600 });
+});
+
+test("光の護封剣はCPUターン3回で終了する", () => {
+  assert.deepEqual(advanceSwordsTurns([3]), { remaining: [2], expired: 0 });
+  assert.deepEqual(advanceSwordsTurns([2]), { remaining: [1], expired: 0 });
+  assert.deepEqual(advanceSwordsTurns([1]), { remaining: [], expired: 1 });
 });

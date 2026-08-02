@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { battleOutcome, equipRules, simpleSpellEffect } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, equipRules, simpleSpellEffect } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -48,6 +48,7 @@ type DuelState = {
   playerField: ZoneCard[];
   cpuField: ZoneCard[];
   playerSpellTrap: string[];
+  playerSwordsTurns: number[];
   cpuSpellTrap: string[];
   playerGraveyard: string[];
   cpuGraveyard: string[];
@@ -123,6 +124,7 @@ export function DuelArena({
       playerField: [],
       cpuField: [],
       playerSpellTrap: [],
+      playerSwordsTurns: [],
       cpuSpellTrap: [],
       playerGraveyard: [],
       cpuGraveyard: [],
@@ -236,6 +238,18 @@ export function DuelArena({
       if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
       setSelectedEquip(handIndex);
       setSelectedAttacker(null);
+      return;
+    }
+
+    if (card.id === "vol2-swords-revealing-light") {
+      const next = removeHandCard(duel, handIndex);
+      setDuel({
+        ...next,
+        cpuField: next.cpuField.map((zone) => ({ ...zone, faceDown: false })),
+        playerSpellTrap: [...next.playerSpellTrap, card.id],
+        playerSwordsTurns: [...next.playerSwordsTurns, 3],
+        log: appendLog(next.log, "光の護封剣を発動。相手モンスターを表にし、3ターン攻撃を封じます。"),
+      });
       return;
     }
 
@@ -414,8 +428,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 017</strong>
-          <p>Vol.1の全魔法・罠と、Vol.2の装備・回復・ダメージ魔法を使用できます。</p>
+          <strong>VOL.1 DUEL · BUILD 018</strong>
+          <p>Vol.1の全魔法・罠と、Vol.2の装備・回復・ダメージ魔法・光の護封剣を使用できます。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -458,6 +472,11 @@ export function DuelArena({
         {duel.phase === "battle" && "攻撃するモンスターを選び、攻撃対象を選んでください。"}
         {duel.phase === "main2" && "戦闘後に召喚・セット・魔法・罠を使用できます。"}
       </p>
+      {duel.playerSwordsTurns.length > 0 && (
+        <p className="effect-status">
+          光の護封剣：CPUの攻撃をあと{Math.max(...duel.playerSwordsTurns)}ターン封じます
+        </p>
+      )}
 
       {cpuPlayback && (
         <div className="cpu-playback" aria-live="assertive">
@@ -839,13 +858,33 @@ function finishCpuTurn(initial: DuelState): DuelState {
     ...state,
     cpuField: state.cpuField.map((zone) => ({ ...zone, attacked: false })),
   };
-  for (let index = state.cpuField.length - 1; index >= 0 && !state.result; index -= 1) {
-    const attacker = state.cpuField[index];
-    if (attacker.position !== "attack" || attacker.attacked) continue;
-    const targetIndex = weakestTargetIndex(state.playerField);
-    state = resolveBattle(state, "cpu", index, targetIndex);
+  if (state.playerSwordsTurns.length > 0) {
+    state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
+  } else {
+    for (let index = state.cpuField.length - 1; index >= 0 && !state.result; index -= 1) {
+      const attacker = state.cpuField[index];
+      if (attacker.position !== "attack" || attacker.attacked) continue;
+      const targetIndex = weakestTargetIndex(state.playerField);
+      state = resolveBattle(state, "cpu", index, targetIndex);
+    }
   }
   if (state.result) return state;
+
+  const swords = advanceSwordsTurns(state.playerSwordsTurns);
+  if (swords.expired > 0) {
+    state = {
+      ...state,
+      playerSwordsTurns: swords.remaining,
+      playerSpellTrap: removeCardCopies(state.playerSpellTrap, "vol2-swords-revealing-light", swords.expired),
+      playerGraveyard: [
+        ...state.playerGraveyard,
+        ...Array(swords.expired).fill("vol2-swords-revealing-light"),
+      ],
+      log: appendLog(state.log, "光の護封剣の効果が終了しました。"),
+    };
+  } else if (state.playerSwordsTurns.length > 0) {
+    state = { ...state, playerSwordsTurns: swords.remaining };
+  }
 
   if (state.playerDeck.length === 0) {
     return { ...state, result: "lose", log: appendLog(state.log, "デッキからカードを引けず敗北。") };
@@ -1116,8 +1155,18 @@ function spellDescription(id: string) {
   const effect = simpleSpellEffect(id);
   if (effect?.gain) return `自分のLPを${effect.gain}回復`;
   if (effect?.damage) return `相手に${effect.damage}ダメージ`;
+  if (id === "vol2-swords-revealing-light") return "相手モンスターを表にし、相手の攻撃を3ターン封じる";
   if (id === "vol1-fissure") return "相手の表側モンスターのうちATKが一番低い1体を破壊";
   return "";
+}
+
+function removeCardCopies(cardIds: string[], cardId: string, count: number) {
+  let remaining = count;
+  return cardIds.filter((id) => {
+    if (id !== cardId || remaining <= 0) return true;
+    remaining -= 1;
+    return false;
+  });
 }
 
 function appendLog(log: string[], entry: string) {

@@ -40,3 +40,8 @@ const simpleSpellEffects = Object.freeze({
 export function simpleSpellEffect(id) {
   return simpleSpellEffects[id] ?? null;
 }
+
+export function advanceSwordsTurns(turns) {
+  const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
+  return { remaining, expired: turns.length - remaining.length };
+}
