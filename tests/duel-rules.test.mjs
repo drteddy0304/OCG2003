@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, simpleSpellEffect, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuUseSimpleSpell, simpleSpellEffect, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -64,4 +64,10 @@ test("死者蘇生で選んだ墓地のモンスターだけを取り出す", ()
 test("魔法除去は魔法だけを破壊し、罠は元に戻す", () => {
   assert.equal(deSpellDestroys("spell"), true);
   assert.equal(deSpellDestroys("trap"), false);
+});
+
+test("CPUは回復量が無駄にならない時だけ回復魔法を使う", () => {
+  assert.equal(shouldCpuUseSimpleSpell("vol2-goblin-secret-remedy", 8000), false);
+  assert.equal(shouldCpuUseSimpleSpell("vol2-goblin-secret-remedy", 7400), true);
+  assert.equal(shouldCpuUseSimpleSpell("vol2-final-flame", 8000), true);
 });

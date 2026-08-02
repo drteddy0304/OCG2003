@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, simpleSpellEffect, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuUseSimpleSpell, simpleSpellEffect, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -63,7 +63,18 @@ type DuelState = {
   log: string[];
 };
 
-const CPU_DECK = cards.filter((card) => card.id.startsWith("vol1-")).map((card) => card.id);
+const CPU_PENDING_VOL2_EFFECTS = new Set([
+  "vol2-swords-revealing-light",
+  "vol2-monster-reborn",
+  "vol2-de-spell",
+]);
+const CPU_DECK = cards
+  .filter((card) => (
+    (card.id.startsWith("vol1-") || card.id.startsWith("vol2-"))
+    && !card.fusion
+    && !CPU_PENDING_VOL2_EFFECTS.has(card.id)
+  ))
+  .map((card) => card.id);
 const EQUIP_RULES = equipRules;
 
 export function DuelArena({
@@ -521,8 +532,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 020</strong>
-          <p>Vol.1の全魔法・罠と、実装済みのVol.2魔法を使用できます。</p>
+          <strong>VOL.1 + VOL.2 CPU · BUILD 021</strong>
+          <p>CPUがVol.2のモンスターと、装備・回復・ダメージ魔法も使用します。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -1058,7 +1069,6 @@ function finishCpuTurn(initial: DuelState): DuelState {
 
 function playCpuNormalSpells(initial: DuelState): DuelState {
   let state = initial;
-  if (state.cpuSpellTrap.length >= FIELD_LIMIT) return state;
 
   if (
     state.cpuHand.includes("vol1-dark-hole")
@@ -1090,23 +1100,26 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
     };
   }
 
-  if (state.cpuHand.includes("vol1-red-medicine") && state.cpuLp <= STARTING_LP - 500) {
+  for (const spellId of [...state.cpuHand]) {
+    const effect = simpleSpellEffect(spellId);
+    if (!effect || !shouldCpuUseSimpleSpell(spellId, state.cpuLp, STARTING_LP)) continue;
+    const spell = cardById.get(spellId);
     state = {
-      ...removeCpuHandCard(state, "vol1-red-medicine"),
-      cpuLp: state.cpuLp + 500,
-      cpuGraveyard: [...state.cpuGraveyard, "vol1-red-medicine"],
-      log: appendLog(state.log, "CPUがレッド・ポーションを発動。LPを500回復。"),
+      ...removeCpuHandCard(state, spellId),
+      cpuLp: state.cpuLp + effect.gain,
+      playerLp: state.playerLp - effect.damage,
+      cpuGraveyard: [...state.cpuGraveyard, spellId],
+      log: appendLog(
+        state.log,
+        effect.gain
+          ? `CPUが${spell?.name ?? "回復魔法"}を発動。LPを${effect.gain}回復。`
+          : `CPUが${spell?.name ?? "ダメージ魔法"}を発動。${effect.damage}ダメージ。`,
+      ),
     };
-  }
-
-  if (state.cpuHand.includes("vol1-sparks")) {
-    state = {
-      ...removeCpuHandCard(state, "vol1-sparks"),
-      playerLp: state.playerLp - 200,
-      cpuGraveyard: [...state.cpuGraveyard, "vol1-sparks"],
-      log: appendLog(state.log, "CPUが火の粉を発動。200ダメージ。"),
-    };
-    if (state.playerLp <= 0) state.result = "lose";
+    if (state.playerLp <= 0) {
+      state.result = "lose";
+      break;
+    }
   }
   return state;
 }

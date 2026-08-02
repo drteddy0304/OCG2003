@@ -41,6 +41,12 @@ export function simpleSpellEffect(id) {
   return simpleSpellEffects[id] ?? null;
 }
 
+export function shouldCpuUseSimpleSpell(id, currentLp, startingLp = 8000) {
+  const effect = simpleSpellEffect(id);
+  if (!effect) return false;
+  return effect.damage > 0 || currentLp <= startingLp - effect.gain;
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };
