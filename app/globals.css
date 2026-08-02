@@ -232,6 +232,12 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .revive-list > div > small { margin-top: 3px; font: 700 9px monospace; }
 .revive-list > div > div { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
 .revive-list button { border: 1px solid var(--ink); background: #eee2cb; padding: 8px; font-weight: 900; }
+.spell-target-overlay { z-index: 32; }
+.spell-target-panel > p:not(.section-label) { font-size: 10px; line-height: 1.5; }
+.spell-target-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; max-height: 50vh; overflow: auto; }
+.spell-target-list button { min-width: 0; border: 1px solid #397568; background: #e2f0e8; padding: 10px; text-align: left; }
+.spell-target-list span, .spell-target-list strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spell-target-list span { color: #63756d; font-size: 8px; }
 .overlay-close { width: 100%; margin-top: 14px; border: 0; background: var(--ink); color: white; padding: 11px; font-weight: 900; }
 .card-detail { border-color: #93683e; }
 .card-detail.detail-spell { border-color: #3c7d70; }

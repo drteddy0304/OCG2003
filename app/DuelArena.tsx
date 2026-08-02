@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, equipRules, simpleSpellEffect, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, simpleSpellEffect, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -78,6 +78,7 @@ export function DuelArena({
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
   const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
   const [pendingReborn, setPendingReborn] = useState<number | null>(null);
+  const [pendingDeSpell, setPendingDeSpell] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -117,6 +118,7 @@ export function DuelArena({
     setSelectedAttacker(null);
     setPendingTribute(null);
     setPendingReborn(null);
+    setPendingDeSpell(null);
     setCpuPlayback(null);
     setDuel({
       playerDeck: shuffledPlayer.slice(6),
@@ -143,7 +145,7 @@ export function DuelArena({
   }
 
   function summon(handIndex: number, position: Position) {
-    if (!duel || !isPlayerMainPhase || duel.normalSummoned || duel.result || pendingReborn !== null) return;
+    if (!duel || !isPlayerMainPhase || duel.normalSummoned || duel.result || pendingReborn !== null || pendingDeSpell !== null) return;
     const id = duel.playerHand[handIndex];
     const card = cardById.get(id);
     if (!card || card.cardType !== "monster") return;
@@ -212,7 +214,7 @@ export function DuelArena({
   }
 
   function changePosition(index: number) {
-    if (!duel || !isPlayerMainPhase || duel.result || pendingTribute || pendingReborn !== null) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
     const zone = duel.playerField[index];
     if (!zone || zone.attacked || zone.positionChanged || zone.summonedTurn === duel.turnNumber) return;
     const nextPosition: Position = zone.position === "defense" ? "attack" : "defense";
@@ -232,7 +234,7 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
     if (EQUIP_RULES[card.id]) {
@@ -247,6 +249,14 @@ export function DuelArena({
         .some((id) => cardById.get(id)?.cardType === "monster");
       if (!hasTarget || duel.playerField.length >= FIELD_LIMIT) return;
       setPendingReborn(handIndex);
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "vol2-de-spell") {
+      if (duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0) return;
+      setPendingDeSpell(handIndex);
       setSelectedAttacker(null);
       setSelectedEquip(null);
       return;
@@ -332,6 +342,46 @@ export function DuelArena({
     setPendingReborn(null);
   }
 
+  function resolveDeSpell(targetSide: Side, targetIndex: number) {
+    if (!duel || pendingDeSpell === null || duel.playerHand[pendingDeSpell] !== "vol2-de-spell") return;
+    const targetZones = targetSide === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap;
+    const targetId = targetZones[targetIndex];
+    const target = cardById.get(targetId);
+    if (!target) return;
+    let next: DuelState = {
+      ...removeHandCard(duel, pendingDeSpell),
+      playerGraveyard: [...duel.playerGraveyard, "vol2-de-spell"],
+    };
+    if (deSpellDestroys(target.cardType)) {
+      if (targetSide === "player") {
+        const swordsIndex = targetId === "vol2-swords-revealing-light"
+          ? duel.playerSpellTrap.slice(0, targetIndex + 1).filter((id) => id === targetId).length - 1
+          : -1;
+        next = {
+          ...next,
+          playerField: removeEquippedCard(next.playerField, targetId),
+          playerSpellTrap: next.playerSpellTrap.filter((_, index) => index !== targetIndex),
+          playerSwordsTurns: swordsIndex >= 0
+            ? next.playerSwordsTurns.filter((_, index) => index !== swordsIndex)
+            : next.playerSwordsTurns,
+          playerGraveyard: [...next.playerGraveyard, targetId],
+        };
+      } else {
+        next = {
+          ...next,
+          cpuField: removeEquippedCard(next.cpuField, targetId),
+          cpuSpellTrap: next.cpuSpellTrap.filter((_, index) => index !== targetIndex),
+          cpuGraveyard: [...next.cpuGraveyard, targetId],
+        };
+      }
+      next.log = appendLog(next.log, `魔法除去を発動。${target.name}を破壊。`);
+    } else {
+      next.log = appendLog(next.log, `魔法除去で伏せカードを確認。${target.name}は罠カードのため元に戻します。`);
+    }
+    setDuel(next);
+    setPendingDeSpell(null);
+  }
+
   function equipSpell(fieldIndex: number) {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
@@ -350,7 +400,7 @@ export function DuelArena({
   }
 
   function setTrap(handIndex: number) {
-    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "trap") return;
     setDuel({
@@ -379,7 +429,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -402,7 +452,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     const cpuStart: DuelState = {
@@ -471,7 +521,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 019</strong>
+          <strong>VOL.1 DUEL · BUILD 020</strong>
           <p>Vol.1の全魔法・罠と、実装済みのVol.2魔法を使用できます。</p>
         </div>
         <dl>
@@ -586,6 +636,31 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingDeSpell !== null && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">DE-SPELL</p>
+            <h2>確認するカードを選択</h2>
+            <p>魔法カードなら破壊し、罠カードなら確認後に元へ戻します。</p>
+            <div className="spell-target-list">
+              {(["player", "cpu"] as const).flatMap((side) =>
+                (side === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap).map((id, index) => {
+                  const card = cardById.get(id);
+                  if (!card) return null;
+                  const hidden = card.cardType === "trap";
+                  return (
+                    <button key={`${side}-${id}-${index}`} onClick={() => resolveDeSpell(side, index)}>
+                      <span>{side === "player" ? "自分" : "CPU"}のフィールド</span>
+                      <strong>{hidden ? "伏せカード" : card.name}</strong>
+                    </button>
+                  );
+                }),
+              )}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingDeSpell(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
 
       <div className="duel-board">
         <div className="hand-summary">
@@ -691,6 +766,7 @@ export function DuelArena({
                         !isPlayerMainPhase
                         || pendingTribute !== null
                         || pendingReborn !== null
+                        || pendingDeSpell !== null
                         || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
                         || (card.id === "vol2-monster-reborn" && (
@@ -698,6 +774,7 @@ export function DuelArena({
                           || ![...duel.playerGraveyard, ...duel.cpuGraveyard]
                             .some((id) => cardById.get(id)?.cardType === "monster")
                         ))
+                        || (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0)
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
                           const monster = cardById.get(zone.id);
                           return Boolean(monster && canEquip(card.id, monster));
@@ -719,13 +796,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -1234,6 +1311,7 @@ function spellDescription(id: string) {
   if (effect?.damage) return `相手に${effect.damage}ダメージ`;
   if (id === "vol2-swords-revealing-light") return "相手モンスターを表にし、相手の攻撃を3ターン封じる";
   if (id === "vol2-monster-reborn") return "自分または相手の墓地からモンスター1体を特殊召喚";
+  if (id === "vol2-de-spell") return "フィールドのカード1枚を確認し、魔法カードなら破壊";
   if (id === "vol1-fissure") return "相手の表側モンスターのうちATKが一番低い1体を破壊";
   return "";
 }
@@ -1245,6 +1323,18 @@ function removeCardCopies(cardIds: string[], cardId: string, count: number) {
     remaining -= 1;
     return false;
   });
+}
+
+function removeEquippedCard(field: ZoneCard[], spellId: string) {
+  let removed = false;
+  return field.map((zone) => ({
+    ...zone,
+    equipped: zone.equipped.filter((id) => {
+      if (removed || id !== spellId) return true;
+      removed = true;
+      return false;
+    }),
+  }));
 }
 
 function appendLog(log: string[], entry: string) {

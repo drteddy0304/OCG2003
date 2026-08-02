@@ -29,3 +29,5 @@ export function takeGraveyardCard(cards: string[], index: number): {
   cardId: string;
   remaining: string[];
 } | null;
+
+export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;

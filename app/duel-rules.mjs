@@ -53,3 +53,7 @@ export function takeGraveyardCard(cards, index) {
     remaining: cards.filter((_, cardIndex) => cardIndex !== index),
   };
 }
+
+export function deSpellDestroys(cardType) {
+  return cardType === "spell";
+}
