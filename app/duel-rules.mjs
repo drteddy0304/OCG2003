@@ -45,3 +45,11 @@ export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };
 }
+
+export function takeGraveyardCard(cards, index) {
+  if (!Number.isInteger(index) || index < 0 || index >= cards.length) return null;
+  return {
+    cardId: cards[index],
+    remaining: cards.filter((_, cardIndex) => cardIndex !== index),
+  };
+}

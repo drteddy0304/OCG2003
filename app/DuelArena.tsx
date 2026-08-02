@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, equipRules, simpleSpellEffect } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, equipRules, simpleSpellEffect, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -77,6 +77,7 @@ export function DuelArena({
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
   const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
+  const [pendingReborn, setPendingReborn] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -115,6 +116,7 @@ export function DuelArena({
     setRewardName(null);
     setSelectedAttacker(null);
     setPendingTribute(null);
+    setPendingReborn(null);
     setCpuPlayback(null);
     setDuel({
       playerDeck: shuffledPlayer.slice(6),
@@ -141,7 +143,7 @@ export function DuelArena({
   }
 
   function summon(handIndex: number, position: Position) {
-    if (!duel || !isPlayerMainPhase || duel.normalSummoned || duel.result) return;
+    if (!duel || !isPlayerMainPhase || duel.normalSummoned || duel.result || pendingReborn !== null) return;
     const id = duel.playerHand[handIndex];
     const card = cardById.get(id);
     if (!card || card.cardType !== "monster") return;
@@ -210,7 +212,7 @@ export function DuelArena({
   }
 
   function changePosition(index: number) {
-    if (!duel || !isPlayerMainPhase || duel.result || pendingTribute) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingTribute || pendingReborn !== null) return;
     const zone = duel.playerField[index];
     if (!zone || zone.attacked || zone.positionChanged || zone.summonedTurn === duel.turnNumber) return;
     const nextPosition: Position = zone.position === "defense" ? "attack" : "defense";
@@ -230,10 +232,9 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || !isPlayerMainPhase || duel.result) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
-    if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
     if (EQUIP_RULES[card.id]) {
       if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
       setSelectedEquip(handIndex);
@@ -241,7 +242,18 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "vol2-monster-reborn") {
+      const hasTarget = [...duel.playerGraveyard, ...duel.cpuGraveyard]
+        .some((id) => cardById.get(id)?.cardType === "monster");
+      if (!hasTarget || duel.playerField.length >= FIELD_LIMIT) return;
+      setPendingReborn(handIndex);
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
     if (card.id === "vol2-swords-revealing-light") {
+      if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
       const next = removeHandCard(duel, handIndex);
       setDuel({
         ...next,
@@ -289,6 +301,37 @@ export function DuelArena({
     setDuel(next);
   }
 
+  function reviveMonster(graveSide: Side, graveIndex: number, position: Position) {
+    if (!duel || pendingReborn === null || duel.playerField.length >= FIELD_LIMIT) return;
+    if (duel.playerHand[pendingReborn] !== "vol2-monster-reborn") return;
+    const graveyard = graveSide === "player" ? duel.playerGraveyard : duel.cpuGraveyard;
+    const taken = takeGraveyardCard(graveyard, graveIndex);
+    const monster = taken ? cardById.get(taken.cardId) : null;
+    if (!taken || monster?.cardType !== "monster") return;
+    setDuel({
+      ...removeHandCard(duel, pendingReborn),
+      playerField: [
+        ...duel.playerField,
+        {
+          id: taken.cardId,
+          position,
+          faceDown: false,
+          attacked: false,
+          equipped: [],
+          summonedTurn: duel.turnNumber,
+          positionChanged: false,
+        },
+      ],
+      playerGraveyard: [
+        ...(graveSide === "player" ? taken.remaining : duel.playerGraveyard),
+        "vol2-monster-reborn",
+      ],
+      cpuGraveyard: graveSide === "cpu" ? taken.remaining : duel.cpuGraveyard,
+      log: appendLog(duel.log, `死者蘇生を発動。${monster.name}を${position === "attack" ? "攻撃" : "守備"}表示で特殊召喚。`),
+    });
+    setPendingReborn(null);
+  }
+
   function equipSpell(fieldIndex: number) {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
@@ -307,7 +350,7 @@ export function DuelArena({
   }
 
   function setTrap(handIndex: number) {
-    if (!duel || !isPlayerMainPhase || duel.result || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "trap") return;
     setDuel({
@@ -336,7 +379,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || pendingTribute) return;
+    if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -359,7 +402,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || pendingTribute) return;
+    if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     const cpuStart: DuelState = {
@@ -428,8 +471,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 018</strong>
-          <p>Vol.1の全魔法・罠と、Vol.2の装備・回復・ダメージ魔法・光の護封剣を使用できます。</p>
+          <strong>VOL.1 DUEL · BUILD 019</strong>
+          <p>Vol.1の全魔法・罠と、実装済みのVol.2魔法を使用できます。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -512,6 +555,34 @@ export function DuelArena({
               <button className="activate-trap" onClick={() => respondToTrap(true)}>発動する</button>
               <button onClick={() => respondToTrap(false)}>発動しない</button>
             </div>
+          </div>
+        </div>
+      )}
+      {pendingReborn !== null && (
+        <div className="card-overlay revive-overlay">
+          <div className="graveyard-panel revive-panel">
+            <p className="section-label">MONSTER REBORN</p>
+            <h2>特殊召喚するモンスターを選択</h2>
+            <div className="revive-list">
+              {(["player", "cpu"] as const).flatMap((side) =>
+                (side === "player" ? duel.playerGraveyard : duel.cpuGraveyard).map((id, index) => {
+                  const card = cardById.get(id);
+                  if (card?.cardType !== "monster") return null;
+                  return (
+                    <div key={`${side}-${id}-${index}`}>
+                      <span>{side === "player" ? "自分" : "CPU"}の墓地</span>
+                      <strong>{card.name}</strong>
+                      <small>ATK {card.atk} / DEF {card.def}</small>
+                      <div>
+                        <button onClick={() => reviveMonster(side, index, "attack")}>攻撃表示</button>
+                        <button onClick={() => reviveMonster(side, index, "defense")}>守備表示</button>
+                      </div>
+                    </div>
+                  );
+                }),
+              )}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingReborn(null)}>キャンセル</button>
           </div>
         </div>
       )}
@@ -619,8 +690,14 @@ export function DuelArena({
                       disabled={
                         !isPlayerMainPhase
                         || pendingTribute !== null
-                        || duel.playerSpellTrap.length >= FIELD_LIMIT
+                        || pendingReborn !== null
+                        || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
+                        || (card.id === "vol2-monster-reborn" && (
+                          duel.playerField.length >= FIELD_LIMIT
+                          || ![...duel.playerGraveyard, ...duel.cpuGraveyard]
+                            .some((id) => cardById.get(id)?.cardType === "monster")
+                        ))
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
                           const monster = cardById.get(zone.id);
                           return Boolean(monster && canEquip(card.id, monster));
@@ -642,13 +719,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={pendingTribute !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -1156,6 +1233,7 @@ function spellDescription(id: string) {
   if (effect?.gain) return `自分のLPを${effect.gain}回復`;
   if (effect?.damage) return `相手に${effect.damage}ダメージ`;
   if (id === "vol2-swords-revealing-light") return "相手モンスターを表にし、相手の攻撃を3ターン封じる";
+  if (id === "vol2-monster-reborn") return "自分または相手の墓地からモンスター1体を特殊召喚";
   if (id === "vol1-fissure") return "相手の表側モンスターのうちATKが一番低い1体を破壊";
   return "";
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, equipRules, simpleSpellEffect } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, equipRules, simpleSpellEffect, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -51,4 +51,12 @@ test("光の護封剣はCPUターン3回で終了する", () => {
   assert.deepEqual(advanceSwordsTurns([3]), { remaining: [2], expired: 0 });
   assert.deepEqual(advanceSwordsTurns([2]), { remaining: [1], expired: 0 });
   assert.deepEqual(advanceSwordsTurns([1]), { remaining: [], expired: 1 });
+});
+
+test("死者蘇生で選んだ墓地のモンスターだけを取り出す", () => {
+  assert.deepEqual(takeGraveyardCard(["monster-a", "spell", "monster-b"], 2), {
+    cardId: "monster-b",
+    remaining: ["monster-a", "spell"],
+  });
+  assert.equal(takeGraveyardCard(["monster-a"], 3), null);
 });

@@ -24,3 +24,8 @@ export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];
   expired: number;
 };
+
+export function takeGraveyardCard(cards: string[], index: number): {
+  cardId: string;
+  remaining: string[];
+} | null;

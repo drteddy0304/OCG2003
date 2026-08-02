@@ -224,6 +224,14 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .graveyard-list button { min-width: 0; border: 1px solid #8d8373; background: #f8f1e4; padding: 8px; text-align: left; }
 .graveyard-list span, .graveyard-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graveyard-list small { margin-top: 3px; color: #72695d; }
+.revive-overlay { z-index: 32; }
+.revive-list { display: grid; gap: 7px; max-height: 55vh; overflow: auto; }
+.revive-list > div { border: 1px solid #8d8373; background: #f8f1e4; padding: 9px; }
+.revive-list > div > span, .revive-list > div > strong, .revive-list > div > small { display: block; }
+.revive-list > div > span { color: #776d5f; font-size: 8px; font-weight: 800; }
+.revive-list > div > small { margin-top: 3px; font: 700 9px monospace; }
+.revive-list > div > div { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
+.revive-list button { border: 1px solid var(--ink); background: #eee2cb; padding: 8px; font-weight: 900; }
 .overlay-close { width: 100%; margin-top: 14px; border: 0; background: var(--ink); color: white; padding: 11px; font-weight: 900; }
 .card-detail { border-color: #93683e; }
 .card-detail.detail-spell { border-color: #3c7d70; }
