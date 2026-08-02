@@ -417,7 +417,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 015</strong>
+          <strong>VOL.1 DUEL · BUILD 016</strong>
           <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
         </div>
         <dl>
@@ -471,7 +471,7 @@ export function DuelArena({
             <div className="cpu-playback-actions">
               <button className="cpu-next" onClick={advanceCpuPlayback}>
                 {cpuPlayback.index >= cpuPlayback.messages.length - 1
-                  ? cpuPlayback.finalState.pendingTrapResponse ? "発動確認へ" : "自分のターンへ"
+                  ? cpuPlayback.finalState.pendingTrapResponse ? "3. 落とし穴の発動確認へ" : "自分のターンへ"
                   : "次の行動"}
               </button>
               <button onClick={() => {
@@ -486,7 +486,7 @@ export function DuelArena({
         <div className="trap-response">
           <div>
             <p className="section-label">CHAIN RESPONSE</p>
-            <h2>落とし穴を発動しますか？</h2>
+            <h2>3. 落とし穴を発動しますか？</h2>
             <p>
               CPUが
               <strong>{cardById.get(duel.pendingTrapResponse.monsterId)?.name ?? "モンスター"}</strong>
@@ -811,7 +811,12 @@ function runCpuTurn(initial: DuelState): DuelState {
       cpuField: nextField,
       cpuSpellTrap: discardEquips(state.cpuSpellTrap, tributedZones),
       cpuGraveyard: [...state.cpuGraveyard, ...graveCards(tributedZones)],
-      log: appendLog(state.log, defensive ? "CPUがモンスターをセット。" : `CPUが${summonChoice.card.name}を召喚。`),
+      log: appendLog(
+        state.log,
+        defensive
+          ? "CPUがモンスターをセット。セットには落とし穴を発動できません。"
+          : `CPUが${summonChoice.card.name}を召喚。`,
+      ),
     };
     const trapIndex = state.playerSpellTrap.indexOf("vol1-trap-hole");
     if (!defensive && (summonChoice.card.atk ?? 0) >= 1000 && trapIndex >= 0) {
@@ -822,7 +827,7 @@ function runCpuTurn(initial: DuelState): DuelState {
           monsterIndex: state.cpuField.length - 1,
           monsterId: summonChoice.card.id,
         },
-        log: appendLog(state.log, "落とし穴を発動できます。"),
+        log: state.log,
       };
     }
   }
