@@ -10,3 +10,12 @@ export function battleOutcome(
   defense: number,
   defenderPosition: "attack" | "defense",
 ): BattleOutcome;
+
+export const equipRules: Readonly<Record<string, string>>;
+
+export type SimpleSpellEffect = {
+  gain: number;
+  damage: number;
+};
+
+export function simpleSpellEffect(id: string): SimpleSpellEffect | null;

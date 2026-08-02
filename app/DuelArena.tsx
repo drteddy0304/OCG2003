@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { battleOutcome } from "./duel-rules.mjs";
+import { battleOutcome, equipRules, simpleSpellEffect } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -63,13 +63,7 @@ type DuelState = {
 };
 
 const CPU_DECK = cards.filter((card) => card.id.startsWith("vol1-")).map((card) => card.id);
-const EQUIP_RULES: Record<string, string> = {
-  "vol1-legendary-sword": "戦士族",
-  "vol1-beast-fangs": "獣族",
-  "vol1-violet-crystal": "アンデット族",
-  "vol1-book-secret-arts": "魔法使い族",
-  "vol1-power-kaishin": "水族",
-};
+const EQUIP_RULES = equipRules;
 
 export function DuelArena({
   collection,
@@ -259,10 +253,13 @@ export function DuelArena({
         playerGraveyard: [...next.playerGraveyard, ...graveCards(next.playerField)],
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField)],
       };
-    } else if (card.id === "vol1-red-medicine") {
-      next = { ...next, playerLp: next.playerLp + 500 };
-    } else if (card.id === "vol1-sparks") {
-      next = { ...next, cpuLp: next.cpuLp - 200 };
+    } else if (simpleSpellEffect(card.id)) {
+      const effect = simpleSpellEffect(card.id)!;
+      next = {
+        ...next,
+        playerLp: next.playerLp + effect.gain,
+        cpuLp: next.cpuLp - effect.damage,
+      };
       if (next.cpuLp <= 0) next.result = "win";
     } else if (card.id === "vol1-fissure") {
       const target = lowestFaceUpAttackIndex(next.cpuField);
@@ -417,8 +414,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 DUEL · BUILD 016</strong>
-          <p>プレイヤーとCPUの両方が、Vol.1収録の魔法・罠カード10種を使用します。</p>
+          <strong>VOL.1 DUEL · BUILD 017</strong>
+          <p>Vol.1の全魔法・罠と、Vol.2の装備・回復・ダメージ魔法を使用できます。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -1116,8 +1113,9 @@ function graveCards(zones: ZoneCard[]) {
 function spellDescription(id: string) {
   if (EQUIP_RULES[id]) return `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
   if (id === "vol1-dark-hole") return "フィールドのモンスターをすべて破壊";
-  if (id === "vol1-red-medicine") return "自分のLPを500回復";
-  if (id === "vol1-sparks") return "相手に200ダメージ";
+  const effect = simpleSpellEffect(id);
+  if (effect?.gain) return `自分のLPを${effect.gain}回復`;
+  if (effect?.damage) return `相手に${effect.damage}ダメージ`;
   if (id === "vol1-fissure") return "相手の表側モンスターのうちATKが一番低い1体を破壊";
   return "";
 }
