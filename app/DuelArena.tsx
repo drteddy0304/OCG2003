@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuUseSimpleSpell, simpleSpellEffect, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -50,6 +50,7 @@ type DuelState = {
   playerSpellTrap: string[];
   playerSwordsTurns: number[];
   cpuSpellTrap: string[];
+  cpuSwordsTurns: number[];
   playerGraveyard: string[];
   cpuGraveyard: string[];
   playerLp: number;
@@ -64,7 +65,6 @@ type DuelState = {
 };
 
 const CPU_PENDING_VOL2_EFFECTS = new Set([
-  "vol2-swords-revealing-light",
   "vol2-monster-reborn",
   "vol2-de-spell",
 ]);
@@ -141,6 +141,7 @@ export function DuelArena({
       playerSpellTrap: [],
       playerSwordsTurns: [],
       cpuSpellTrap: [],
+      cpuSwordsTurns: [],
       playerGraveyard: [],
       cpuGraveyard: [],
       playerLp: STARTING_LP,
@@ -378,10 +379,16 @@ export function DuelArena({
           playerGraveyard: [...next.playerGraveyard, targetId],
         };
       } else {
+        const swordsIndex = targetId === "vol2-swords-revealing-light"
+          ? duel.cpuSpellTrap.slice(0, targetIndex + 1).filter((id) => id === targetId).length - 1
+          : -1;
         next = {
           ...next,
           cpuField: removeEquippedCard(next.cpuField, targetId),
           cpuSpellTrap: next.cpuSpellTrap.filter((_, index) => index !== targetIndex),
+          cpuSwordsTurns: swordsIndex >= 0
+            ? next.cpuSwordsTurns.filter((_, index) => index !== swordsIndex)
+            : next.cpuSwordsTurns,
           cpuGraveyard: [...next.cpuGraveyard, targetId],
         };
       }
@@ -422,7 +429,7 @@ export function DuelArena({
   }
 
   function chooseAttacker(index: number) {
-    if (!duel || duel.turn !== "player" || duel.phase !== "battle" || duel.turnNumber === 1 || duel.result) return;
+    if (!duel || duel.turn !== "player" || duel.phase !== "battle" || duel.turnNumber === 1 || duel.result || duel.cpuSwordsTurns.length > 0) return;
     const zone = duel.playerField[index];
     if (!zone || zone.position !== "attack" || zone.attacked) return;
     if (duel.cpuField.length === 0) {
@@ -466,12 +473,29 @@ export function DuelArena({
     if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
+    let playerEnd = duel;
+    if (playerEnd.cpuSwordsTurns.length > 0) {
+      const swords = advanceSwordsTurns(playerEnd.cpuSwordsTurns);
+      playerEnd = {
+        ...playerEnd,
+        cpuSwordsTurns: swords.remaining,
+        cpuSpellTrap: swords.expired > 0
+          ? removeCardCopies(playerEnd.cpuSpellTrap, "vol2-swords-revealing-light", swords.expired)
+          : playerEnd.cpuSpellTrap,
+        cpuGraveyard: swords.expired > 0
+          ? [...playerEnd.cpuGraveyard, ...Array(swords.expired).fill("vol2-swords-revealing-light")]
+          : playerEnd.cpuGraveyard,
+        log: swords.expired > 0
+          ? appendLog(playerEnd.log, "CPUの光の護封剣の効果が終了しました。")
+          : playerEnd.log,
+      };
+    }
     const cpuStart: DuelState = {
-      ...duel,
+      ...playerEnd,
       turn: "cpu",
-      turnNumber: duel.turnNumber + 1,
+      turnNumber: playerEnd.turnNumber + 1,
       phase: "main1",
-      log: appendLog(duel.log, "ターン終了。CPUのターン。"),
+      log: appendLog(playerEnd.log, "ターン終了。CPUのターン。"),
     };
     const finalState = runCpuTurn(cpuStart);
     beginCpuPlayback(cpuStart, finalState, "ターン終了。CPUのターン。");
@@ -532,7 +556,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 CPU · BUILD 021</strong>
+          <strong>VOL.1 + VOL.2 CPU · BUILD 022</strong>
           <p>CPUがVol.2のモンスターと、装備・回復・ダメージ魔法も使用します。</p>
         </div>
         <dl>
@@ -573,12 +597,19 @@ export function DuelArena({
       </div>
       <p className="phase-help">
         {duel.phase === "main1" && "召喚・セット・魔法・罠・表示変更ができます。"}
-        {duel.phase === "battle" && "攻撃するモンスターを選び、攻撃対象を選んでください。"}
+        {duel.phase === "battle" && (duel.cpuSwordsTurns.length > 0
+          ? "CPUの光の護封剣により、このターンは攻撃できません。"
+          : "攻撃するモンスターを選び、攻撃対象を選んでください。")}
         {duel.phase === "main2" && "戦闘後に召喚・セット・魔法・罠を使用できます。"}
       </p>
       {duel.playerSwordsTurns.length > 0 && (
         <p className="effect-status">
           光の護封剣：CPUの攻撃をあと{Math.max(...duel.playerSwordsTurns)}ターン封じます
+        </p>
+      )}
+      {duel.cpuSwordsTurns.length > 0 && (
+        <p className="effect-status enemy-effect-status">
+          CPUの光の護封剣：あと{Math.max(...duel.cpuSwordsTurns)}ターン攻撃できません
         </p>
       )}
 
@@ -695,7 +726,7 @@ export function DuelArena({
           zones={duel.playerField}
           owner="player"
           onAttack={chooseAttacker}
-          canAttack={duel.phase === "battle" && duel.turnNumber > 1}
+          canAttack={duel.phase === "battle" && duel.turnNumber > 1 && duel.cpuSwordsTurns.length === 0}
           equipTarget={selectedEquip !== null}
           onEquip={equipSpell}
           equipId={selectedEquip === null ? null : duel.playerHand[selectedEquip]}
@@ -1097,6 +1128,24 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       playerGraveyard: [...state.playerGraveyard, ...graveCards([destroyed])],
       cpuGraveyard: [...state.cpuGraveyard, "vol1-fissure"],
       log: appendLog(state.log, "CPUが地割れを発動。モンスター1体を破壊。"),
+    };
+  }
+
+  if (
+    state.cpuHand.includes("vol2-swords-revealing-light")
+    && shouldCpuActivateSwords(
+      state.playerField.length,
+      state.cpuSwordsTurns.length,
+      state.cpuSpellTrap.length,
+      FIELD_LIMIT,
+    )
+  ) {
+    state = {
+      ...removeCpuHandCard(state, "vol2-swords-revealing-light"),
+      playerField: state.playerField.map((zone) => ({ ...zone, faceDown: false })),
+      cpuSpellTrap: [...state.cpuSpellTrap, "vol2-swords-revealing-light"],
+      cpuSwordsTurns: [...state.cpuSwordsTurns, 3],
+      log: appendLog(state.log, "CPUが光の護封剣を発動。3ターン攻撃を封じます。"),
     };
   }
 

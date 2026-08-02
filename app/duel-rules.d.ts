@@ -22,6 +22,13 @@ export function simpleSpellEffect(id: string): SimpleSpellEffect | null;
 
 export function shouldCpuUseSimpleSpell(id: string, currentLp: number, startingLp?: number): boolean;
 
+export function shouldCpuActivateSwords(
+  opponentMonsterCount: number,
+  activeSwordsCount: number,
+  spellTrapCount: number,
+  fieldLimit?: number,
+): boolean;
+
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];
   expired: number;

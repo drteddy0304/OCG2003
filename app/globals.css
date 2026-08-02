@@ -147,6 +147,7 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .phase-guide span { margin-top: 2px; font-size: 7px; }
 .phase-help { margin: 0 0 9px; background: #eee4d1; border-left: 4px solid var(--red); padding: 7px 9px; font-size: 10px; font-weight: 700; }
 .effect-status { margin: -1px 0 9px; border: 1px solid #aa8737; background: #fff1b9; color: #5a4210; padding: 7px 9px; font-size: 10px; font-weight: 900; text-align: center; }
+.enemy-effect-status { border-color: #9b3833; background: #f4d2cc; color: #6f211d; }
 .cpu-playback { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: #11100eb8; padding: 20px; }
 .cpu-playback > div { width: min(440px, 100%); border: 3px solid var(--red); background: #eee5d4; color: var(--ink); padding: 20px; text-align: center; box-shadow: 0 16px 44px #0009; animation: cpu-action-in .25s ease-out; }
 .cpu-playback strong, .cpu-playback span { display: block; }

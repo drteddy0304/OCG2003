@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuUseSimpleSpell, simpleSpellEffect, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -70,4 +70,11 @@ test("CPUは回復量が無駄にならない時だけ回復魔法を使う", ()
   assert.equal(shouldCpuUseSimpleSpell("vol2-goblin-secret-remedy", 8000), false);
   assert.equal(shouldCpuUseSimpleSpell("vol2-goblin-secret-remedy", 7400), true);
   assert.equal(shouldCpuUseSimpleSpell("vol2-final-flame", 8000), true);
+});
+
+test("CPUは相手モンスターがいる時だけ光の護封剣を発動する", () => {
+  assert.equal(shouldCpuActivateSwords(1, 0, 4), true);
+  assert.equal(shouldCpuActivateSwords(0, 0, 4), false);
+  assert.equal(shouldCpuActivateSwords(1, 1, 4), false);
+  assert.equal(shouldCpuActivateSwords(1, 0, 5), false);
 });
