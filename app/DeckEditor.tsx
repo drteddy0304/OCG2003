@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { matchesDeckFilters, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter } from "./deck-rules.mjs";
+import { matchesDeckFilters, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter } from "./deck-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const COPY_LIMIT = 3;
 const MIN_DECK_SIZE = 40;
+type SortOrder = "name" | "level" | "atk" | "def";
+
+const MONSTER_ATTRIBUTES = [...new Set(cards.flatMap((card) => card.cardType === "monster" && card.attribute ? [card.attribute] : []))];
+const MONSTER_RACES = [...new Set(cards.flatMap((card) => card.cardType === "monster" ? [card.kind] : []))].sort((a, b) => a.localeCompare(b, "ja"));
 
 export function DeckEditor({ collection }: { collection: Record<string, number> }) {
   const [deck, setDeck] = useState<Record<string, number>>({});
@@ -14,6 +18,9 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   const [filter, setFilter] = useState<DeckCardTypeFilter>("all");
   const [monsterClass, setMonsterClass] = useState<MonsterClassFilter>("all");
   const [level, setLevel] = useState<LevelFilter>("all");
+  const [attribute, setAttribute] = useState<AttributeFilter>("all");
+  const [race, setRace] = useState<RaceFilter>("all");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("name");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -41,9 +48,9 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   const filteredCards = useMemo(() => {
     return cards.filter((card) => {
       if (!collection[card.id]) return false;
-      return matchesDeckFilters(card, query, filter, monsterClass, level);
+      return matchesDeckFilters(card, query, filter, monsterClass, level, attribute, race);
     });
-  }, [collection, filter, level, monsterClass, query]);
+  }, [attribute, collection, filter, level, monsterClass, query, race]);
 
   const deckCards = useMemo(
     () => cards.filter((card) => deck[card.id]).sort(compareCards),
@@ -113,6 +120,8 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                   if (value === "spell" || value === "trap") {
                     setMonsterClass("all");
                     setLevel("all");
+                    setAttribute("all");
+                    setRace("all");
                   }
                 }}
               >{label}</button>
@@ -149,9 +158,40 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                 ))}
               </select>
             </label>
+            <label className="attribute-filter">
+              <span>属性</span>
+              <select value={attribute} onChange={(event) => {
+                const value = event.target.value as AttributeFilter;
+                setAttribute(value);
+                if (value !== "all") setFilter("monster");
+              }}>
+                <option value="all">すべて</option>
+                {MONSTER_ATTRIBUTES.map((value) => <option value={value} key={value}>{value}属性</option>)}
+              </select>
+            </label>
+            <label className="race-filter">
+              <span>種族</span>
+              <select value={race} onChange={(event) => {
+                const value = event.target.value as RaceFilter;
+                setRace(value);
+                if (value !== "all") setFilter("monster");
+              }}>
+                <option value="all">すべて</option>
+                {MONSTER_RACES.map((value) => <option value={value} key={value}>{value}</option>)}
+              </select>
+            </label>
+            <label className="sort-filter">
+              <span>並び順</span>
+              <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as SortOrder)}>
+                <option value="name">カード名</option>
+                <option value="level">★が高い順</option>
+                <option value="atk">ATKが高い順</option>
+                <option value="def">DEFが高い順</option>
+              </select>
+            </label>
           </div>
           <div className="deck-list">
-            {filteredCards.length ? filteredCards.sort(compareCards).map((card) => {
+            {filteredCards.length ? filteredCards.sort((a, b) => compareCardsBy(a, b, sortOrder)).map((card) => {
               const used = deck[card.id] ?? 0;
               const owned = collection[card.id] ?? 0;
               return (
@@ -194,6 +234,13 @@ function compareCards(a: Card, b: Card) {
     || a.name.localeCompare(b.name, "ja");
 }
 
+function compareCardsBy(a: Card, b: Card, order: SortOrder) {
+  if (order === "level") return (b.level ?? -1) - (a.level ?? -1) || compareCards(a, b);
+  if (order === "atk") return (b.atk ?? -1) - (a.atk ?? -1) || compareCards(a, b);
+  if (order === "def") return (b.def ?? -1) - (a.def ?? -1) || compareCards(a, b);
+  return a.name.localeCompare(b.name, "ja");
+}
+
 function DeckRow({
   actionLabel,
   card,
@@ -207,12 +254,13 @@ function DeckRow({
   disabled?: boolean;
   onAction: () => void;
 }) {
-  const typeLabel = card.cardType === "monster" ? `${card.attribute}・${card.kind}${card.effect ? "・効果" : card.fusion ? "・融合" : "・通常"}` : card.kind;
+  const typeLabel = card.cardType === "monster" ? `${card.attribute}属性｜${card.kind}｜${card.effect ? "効果" : card.fusion ? "融合" : "通常"}｜★${card.level}` : card.kind;
   return (
     <article className={`deck-row row-${card.cardType}`}>
       <div>
         <strong>{card.name}</strong>
-        <span>{typeLabel}{card.atk !== undefined ? `　ATK ${card.atk}` : ""}</span>
+        <span>{typeLabel}</span>
+        {card.cardType === "monster" && <span className="monster-stats">ATK {card.atk} / DEF {card.def}</span>}
       </div>
       <b>{count}</b>
       <button disabled={disabled} onClick={onAction} aria-label={`${card.name}を${actionLabel}`}>{actionLabel}</button>

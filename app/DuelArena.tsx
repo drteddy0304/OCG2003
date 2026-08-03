@@ -583,7 +583,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 030</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 031</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
