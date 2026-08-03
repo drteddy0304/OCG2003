@@ -583,7 +583,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 027</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 028</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
@@ -933,6 +933,7 @@ function CardDetail({ cardId, onClose }: { cardId: string; onClose: () => void }
           <>
             <p>属性：{card.attribute}　レベル：{card.level}</p>
             <p className="detail-stats">ATK {card.atk} / DEF {card.def}</p>
+            {monsterDescription(card.id) && <p>{monsterDescription(card.id)}</p>}
           </>
         ) : (
           <p>{card.cardType === "spell" ? spellDescription(card.id) : "ATK1000以上で召喚された相手モンスターを破壊"}</p>
@@ -1611,6 +1612,15 @@ function spellDescription(id: string) {
   if (id === "vol3-pot-of-greed") return "デッキからカードを2枚ドロー";
   if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
   if (id === "vol3-gravedigger-ghoul") return "相手の墓地のモンスターを2体まで除外";
+  return "";
+}
+
+function monsterDescription(id: string) {
+  if (id === "vol3-reaper-cards") return "リバース：フィールドの罠カード1枚を確認し、罠カードなら破壊する";
+  if (id === "vol3-armed-ninja") return "リバース：フィールドの魔法カード1枚を確認し、魔法カードなら破壊する";
+  if (id === "vol3-man-eater-bug") return "リバース：フィールドのモンスター1体を破壊する";
+  if (id === "vol3-skelengel") return "リバース：デッキからカードを1枚ドローする";
+  if (id === "vol3-hane-hane") return "リバース：フィールドのモンスター1体を持ち主の手札に戻す";
   return "";
 }
 
