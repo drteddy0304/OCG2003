@@ -44,3 +44,7 @@ export function takeGraveyardCard(cards: string[], index: number): {
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
+
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster";
+
+export function flipEffect(id: string): FlipEffect | null;

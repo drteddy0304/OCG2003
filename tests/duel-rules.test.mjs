@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, firstSpellTargetIndex, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, firstSpellTargetIndex, flipEffect, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -87,4 +87,13 @@ test("CPUの死者蘇生は攻撃力が最も高いモンスターを選ぶ", ()
 test("CPUの魔法除去は表側魔法を選び、罠だけなら温存する", () => {
   assert.equal(firstSpellTargetIndex(["trap", "spell", "spell"]), 1);
   assert.equal(firstSpellTargetIndex(["trap", "trap"]), null);
+});
+
+test("Vol.3のリバースモンスター5体を正しい効果として扱う", () => {
+  assert.equal(flipEffect("vol3-reaper-cards"), "destroy-trap");
+  assert.equal(flipEffect("vol3-armed-ninja"), "destroy-spell");
+  assert.equal(flipEffect("vol3-man-eater-bug"), "destroy-monster");
+  assert.equal(flipEffect("vol3-skelengel"), "draw");
+  assert.equal(flipEffect("vol3-hane-hane"), "return-monster");
+  assert.equal(flipEffect("vol3-red-eyes"), null);
 });

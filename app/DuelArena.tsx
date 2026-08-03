@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, firstSpellTargetIndex, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, firstSpellTargetIndex, flipEffect, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -225,7 +225,7 @@ export function DuelArena({
     const zone = duel.playerField[index];
     if (!zone || zone.attacked || zone.positionChanged || zone.summonedTurn === duel.turnNumber) return;
     const nextPosition: Position = zone.position === "defense" ? "attack" : "defense";
-    setDuel({
+    let next: DuelState = {
       ...duel,
       playerField: duel.playerField.map((item, fieldIndex) =>
         fieldIndex === index
@@ -236,7 +236,9 @@ export function DuelArena({
         duel.log,
         `${cardById.get(zone.id)?.name ?? "モンスター"}を${nextPosition === "attack" ? "攻撃" : "守備"}表示に変更。`,
       ),
-    });
+    };
+    if (zone.faceDown) next = resolveFlipEffect(next, "player", zone.id);
+    setDuel(next);
     setSelectedAttacker(null);
   }
 
@@ -551,7 +553,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 CPU · BUILD 025</strong>
+          <strong>VOL.1 + VOL.2 CPU · BUILD 026</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
@@ -1291,6 +1293,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   }
 
   const defenderZone = defenderField[defenderIndex];
+  const wasFaceDown = defenderZone.faceDown;
   defenderZone.faceDown = false;
   const defender = cardById.get(defenderZone.id);
   if (!defender) return state;
@@ -1309,7 +1312,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     ...(attackerDestroyed && attackerSide === "cpu" ? [attackerZone] : []),
     ...(defenderDestroyed && attackerSide === "player" ? [defenderZone] : []),
   ];
-  const next = {
+  let next = {
     ...state,
     [attackerFieldKey]: nextAttackerField,
     [defenderFieldKey]: nextDefenderField,
@@ -1332,9 +1335,104 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
       }`,
     ),
   } as DuelState;
+  if (wasFaceDown) next = resolveFlipEffect(next, attackerSide === "player" ? "cpu" : "player", defender.id);
   if (next.cpuLp <= 0) next.result = "win";
   if (next.playerLp <= 0) next.result = "lose";
   return next;
+}
+
+function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
+  const ownerName = owner === "player" ? "あなた" : "CPU";
+  const effect = flipEffect(monsterId);
+  if (effect === "draw") {
+    const deck = owner === "player" ? state.playerDeck : state.cpuDeck;
+    if (deck.length === 0) return state;
+    return owner === "player"
+      ? {
+          ...state,
+          playerDeck: deck.slice(1),
+          playerHand: [...state.playerHand, deck[0]],
+          log: appendLog(state.log, `${ownerName}のスケルエンジェルがリバース。カードを1枚ドロー。`),
+        }
+      : {
+          ...state,
+          cpuDeck: deck.slice(1),
+          cpuHand: [...state.cpuHand, deck[0]],
+          log: appendLog(state.log, `${ownerName}のスケルエンジェルがリバース。カードを1枚ドロー。`),
+        };
+  }
+
+  if (effect === "destroy-monster" || effect === "return-monster") {
+    const opponentField = owner === "player" ? state.cpuField : state.playerField;
+    const targetIndex = strongestAttackIndex(opponentField.map(effectiveAtk));
+    if (targetIndex === null) return state;
+    const target = opponentField[targetIndex];
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    const remainingField = opponentField.filter((_, index) => index !== targetIndex);
+    const remainingSpellTrap = discardEquips(
+      owner === "player" ? state.cpuSpellTrap : state.playerSpellTrap,
+      [target],
+    );
+    if (effect === "return-monster") {
+      return owner === "player"
+        ? {
+            ...state,
+            cpuField: remainingField,
+            cpuSpellTrap: remainingSpellTrap,
+            cpuHand: [...state.cpuHand, target.id],
+            cpuGraveyard: [...state.cpuGraveyard, ...target.equipped],
+            log: appendLog(state.log, `${ownerName}のハネハネがリバース。${targetName}を手札に戻した。`),
+          }
+        : {
+            ...state,
+            playerField: remainingField,
+            playerSpellTrap: remainingSpellTrap,
+            playerHand: [...state.playerHand, target.id],
+            playerGraveyard: [...state.playerGraveyard, ...target.equipped],
+            log: appendLog(state.log, `${ownerName}のハネハネがリバース。${targetName}を手札に戻した。`),
+          };
+    }
+    return owner === "player"
+      ? {
+          ...state,
+          cpuField: remainingField,
+          cpuSpellTrap: remainingSpellTrap,
+          cpuGraveyard: [...state.cpuGraveyard, ...graveCards([target])],
+          log: appendLog(state.log, `${ownerName}の人喰い虫がリバース。${targetName}を破壊した。`),
+        }
+      : {
+          ...state,
+          playerField: remainingField,
+          playerSpellTrap: remainingSpellTrap,
+          playerGraveyard: [...state.playerGraveyard, ...graveCards([target])],
+          log: appendLog(state.log, `${ownerName}の人喰い虫がリバース。${targetName}を破壊した。`),
+        };
+  }
+
+  const targetType = effect === "destroy-spell" ? "spell" : effect === "destroy-trap" ? "trap" : null;
+  if (!targetType) return state;
+  const opponentSpellTrap = owner === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
+  const targetIndex = opponentSpellTrap.findIndex((id) => cardById.get(id)?.cardType === targetType);
+  if (targetIndex < 0) return state;
+  const targetId = opponentSpellTrap[targetIndex];
+  const targetName = cardById.get(targetId)?.name ?? (targetType === "spell" ? "魔法カード" : "罠カード");
+  const remainingSpellTrap = opponentSpellTrap.filter((_, index) => index !== targetIndex);
+  const effectName = effect === "destroy-spell" ? "青い忍者" : "カードを狩る死神";
+  return owner === "player"
+    ? {
+        ...state,
+        cpuField: removeEquippedCard(state.cpuField, targetId),
+        cpuSpellTrap: remainingSpellTrap,
+        cpuGraveyard: [...state.cpuGraveyard, targetId],
+        log: appendLog(state.log, `${ownerName}の${effectName}がリバース。${targetName}を破壊した。`),
+      }
+    : {
+        ...state,
+        playerField: removeEquippedCard(state.playerField, targetId),
+        playerSpellTrap: remainingSpellTrap,
+        playerGraveyard: [...state.playerGraveyard, targetId],
+        log: appendLog(state.log, `${ownerName}の${effectName}がリバース。${targetName}を破壊した。`),
+      };
 }
 
 function expandDeck(counts: Record<string, number>) {

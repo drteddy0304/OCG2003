@@ -77,3 +77,15 @@ export function firstSpellTargetIndex(cardTypes) {
   const index = cardTypes.findIndex((cardType) => cardType === "spell");
   return index >= 0 ? index : null;
 }
+
+const flipEffects = Object.freeze({
+  "vol3-reaper-cards": "destroy-trap",
+  "vol3-armed-ninja": "destroy-spell",
+  "vol3-man-eater-bug": "destroy-monster",
+  "vol3-skelengel": "draw",
+  "vol3-hane-hane": "return-monster",
+});
+
+export function flipEffect(id) {
+  return flipEffects[id] ?? null;
+}
