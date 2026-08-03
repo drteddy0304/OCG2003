@@ -2,17 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
+import { matchesDeckFilters, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter } from "./deck-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const COPY_LIMIT = 3;
 const MIN_DECK_SIZE = 40;
 
-type Filter = "all" | Card["cardType"];
-
 export function DeckEditor({ collection }: { collection: Record<string, number> }) {
   const [deck, setDeck] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<DeckCardTypeFilter>("all");
+  const [monsterClass, setMonsterClass] = useState<MonsterClassFilter>("all");
+  const [level, setLevel] = useState<LevelFilter>("all");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -38,15 +39,11 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   );
 
   const filteredCards = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase("ja");
     return cards.filter((card) => {
       if (!collection[card.id]) return false;
-      if (card.fusion) return false;
-      if (filter !== "all" && card.cardType !== filter) return false;
-      if (!normalized) return true;
-      return `${card.name} ${card.kind} ${card.attribute ?? ""}`.toLocaleLowerCase("ja").includes(normalized);
+      return matchesDeckFilters(card, query, filter, monsterClass, level);
     });
-  }, [collection, filter, query]);
+  }, [collection, filter, level, monsterClass, query]);
 
   const deckCards = useMemo(
     () => cards.filter((card) => deck[card.id]).sort(compareCards),
@@ -108,8 +105,50 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
               ["spell", "魔法"],
               ["trap", "罠"],
             ] as const).map(([value, label]) => (
-              <button className={filter === value ? "active" : ""} key={value} onClick={() => setFilter(value)}>{label}</button>
+              <button
+                className={filter === value ? "active" : ""}
+                key={value}
+                onClick={() => {
+                  setFilter(value);
+                  if (value === "spell" || value === "trap") {
+                    setMonsterClass("all");
+                    setLevel("all");
+                  }
+                }}
+              >{label}</button>
             ))}
+          </div>
+          <div className="deck-advanced-filters">
+            <div className="monster-filters" aria-label="モンスター分類">
+              {([
+                ["all", "分類すべて"],
+                ["normal", "通常"],
+                ["effect", "効果"],
+                ["fusion", "融合"],
+              ] as const).map(([value, label]) => (
+                <button
+                  className={monsterClass === value ? "active" : ""}
+                  key={value}
+                  onClick={() => {
+                    setMonsterClass(value);
+                    if (value !== "all") setFilter("monster");
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+            <label className="level-filter">
+              <span>★レベル</span>
+              <select value={level} onChange={(event) => {
+                const value = event.target.value as LevelFilter;
+                setLevel(value);
+                if (value !== "all") setFilter("monster");
+              }}>
+                <option value="all">すべて</option>
+                {Array.from({ length: 12 }, (_, index) => index + 1).map((value) => (
+                  <option value={String(value)} key={value}>★{value}</option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="deck-list">
             {filteredCards.length ? filteredCards.sort(compareCards).map((card) => {
@@ -117,10 +156,10 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
               const owned = collection[card.id] ?? 0;
               return (
                 <DeckRow
-                  actionLabel="追加"
+                  actionLabel={card.fusion ? "EX対象" : "追加"}
                   card={card}
                   count={`${used} / ${owned}`}
-                  disabled={used >= owned || used >= COPY_LIMIT}
+                  disabled={card.fusion || used >= owned || used >= COPY_LIMIT}
                   key={card.id}
                   onAction={() => addCard(card.id)}
                 />

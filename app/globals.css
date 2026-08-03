@@ -112,6 +112,14 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .type-filters button { border: 1px solid #aaa18f; border-right: 0; background: transparent; padding: 8px 3px; font-size: 10px; }
 .type-filters button:last-child { border-right: 1px solid #aaa18f; }
 .type-filters button.active { background: var(--ink); color: white; }
+.deck-advanced-filters { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; margin-bottom: 10px; }
+.monster-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.monster-filters button { border: 1px solid #aaa18f; border-right: 0; background: transparent; padding: 8px 2px; font-size: 9px; }
+.monster-filters button:last-child { border-right: 1px solid #aaa18f; }
+.monster-filters button.active { background: #8c241e; color: white; }
+.level-filter { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5px; border: 1px solid #aaa18f; padding: 4px 6px; }
+.level-filter span { font-size: 8px; font-weight: 800; white-space: nowrap; }
+.level-filter select { min-width: 0; width: 100%; border: 0; background: #f7f0e4; font: 800 9px monospace; padding: 4px 2px; }
 .deck-list { display: grid; gap: 6px; max-height: 56vh; overflow-y: auto; padding-right: 3px; scrollbar-color: #877d6b transparent; }
 .deck-row { min-height: 58px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; border-left: 5px solid #a56f3e; background: #f7f0e4; padding: 8px 8px 8px 10px; }
 .deck-row.row-spell { border-left-color: #3c7d70; }
