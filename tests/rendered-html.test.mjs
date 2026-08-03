@@ -26,6 +26,6 @@ test("Vol.1・Vol.2を各1日10パック開封できる初期画面を表示す�
   assert.match(html, /パックを開ける/);
   assert.match(html, /<button class="">デッキ<\/button>/);
   assert.match(html, /<button class="">デュエル<\/button>/);
-  assert.match(html, /PHASE 2 · BUILD 026/);
+  assert.match(html, /PHASE 2 · BUILD 027/);
   assert.doesNotMatch(html, /codex-preview/);
 });

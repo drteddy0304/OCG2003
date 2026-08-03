@@ -28,6 +28,11 @@ export const equipRules = Object.freeze({
   "vol2-vile-germs": "植物族",
   "vol2-machine-conversion-factory": "機械族",
   "vol2-raise-body-heat": "恐竜族",
+  "vol3-silver-bow-arrow": "天使族",
+  "vol3-dragon-treasure": "ドラゴン族",
+  "vol3-electro-whip": "雷族",
+  "vol3-mystical-moon": "獣戦士族",
+  "vol3-follow-wind": "鳥獣族",
 });
 
 const simpleSpellEffects = Object.freeze({

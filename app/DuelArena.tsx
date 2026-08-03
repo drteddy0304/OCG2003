@@ -66,7 +66,7 @@ type DuelState = {
 
 const CPU_DECK = cards
   .filter((card) => (
-    (card.id.startsWith("vol1-") || card.id.startsWith("vol2-"))
+    (card.id.startsWith("vol1-") || card.id.startsWith("vol2-") || card.id.startsWith("vol3-"))
     && !card.fusion
   ))
   .map((card) => card.id);
@@ -274,13 +274,17 @@ export function DuelArena({
     if (card.id === "vol2-swords-revealing-light") {
       if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
       const next = removeHandCard(duel, handIndex);
-      setDuel({
+      let revealed: DuelState = {
         ...next,
         cpuField: next.cpuField.map((zone) => ({ ...zone, faceDown: false })),
         playerSpellTrap: [...next.playerSpellTrap, card.id],
         playerSwordsTurns: [...next.playerSwordsTurns, 3],
         log: appendLog(next.log, "光の護封剣を発動。相手モンスターを表にし、3ターン攻撃を封じます。"),
-      });
+      };
+      for (const zone of next.cpuField.filter((item) => item.faceDown)) {
+        revealed = resolveFlipEffect(revealed, "cpu", zone.id);
+      }
+      setDuel(revealed);
       return;
     }
 
@@ -315,6 +319,32 @@ export function DuelArena({
         cpuSpellTrap: discardEquips(next.cpuSpellTrap, [next.cpuField[target]]),
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards([next.cpuField[target]])],
       };
+    } else if (card.id === "vol3-pot-of-greed") {
+      if (next.playerDeck.length < 2) return;
+      next = {
+        ...next,
+        playerHand: [...next.playerHand, ...next.playerDeck.slice(0, 2)],
+        playerDeck: next.playerDeck.slice(2),
+      };
+    } else if (card.id === "vol3-stop-defense") {
+      const target = next.cpuField.findIndex((zone) => zone.position === "defense");
+      if (target < 0) return;
+      const targetZone = next.cpuField[target];
+      next = {
+        ...next,
+        cpuField: next.cpuField.map((zone, index) => index === target
+          ? { ...zone, position: "attack", faceDown: false, positionChanged: true }
+          : zone),
+      };
+      if (targetZone.faceDown) next = resolveFlipEffect(next, "cpu", targetZone.id);
+    } else if (card.id === "vol3-gravedigger-ghoul") {
+      const targets = next.cpuGraveyard
+        .map((id, index) => ({ id, index }))
+        .filter(({ id }) => cardById.get(id)?.cardType === "monster")
+        .slice(0, 2)
+        .map(({ index }) => index);
+      if (targets.length === 0) return;
+      next = { ...next, cpuGraveyard: next.cpuGraveyard.filter((_, index) => !targets.includes(index)) };
     } else return;
     next.log = appendLog(next.log, `${card.name}を発動。`);
     setDuel(next);
@@ -553,7 +583,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 CPU · BUILD 026</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 027</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
@@ -814,6 +844,9 @@ export function DuelArena({
                             .some((id) => cardById.get(id)?.cardType === "monster")
                         ))
                         || (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0)
+                        || (card.id === "vol3-pot-of-greed" && duel.playerDeck.length < 2)
+                        || (card.id === "vol3-stop-defense" && !duel.cpuField.some((zone) => zone.position === "defense"))
+                        || (card.id === "vol3-gravedigger-ghoul" && !duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "monster"))
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
                           const monster = cardById.get(zone.id);
                           return Boolean(monster && canEquip(card.id, monster));
@@ -1159,6 +1192,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       FIELD_LIMIT,
     )
   ) {
+    const faceDownZones = state.playerField.filter((zone) => zone.faceDown);
     state = {
       ...removeCpuHandCard(state, "vol2-swords-revealing-light"),
       playerField: state.playerField.map((zone) => ({ ...zone, faceDown: false })),
@@ -1166,6 +1200,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       cpuSwordsTurns: [...state.cpuSwordsTurns, 3],
       log: appendLog(state.log, "CPUが光の護封剣を発動。3ターン攻撃を封じます。"),
     };
+    for (const zone of faceDownZones) state = resolveFlipEffect(state, "player", zone.id);
   }
 
   if (state.cpuHand.includes("vol2-monster-reborn") && state.cpuField.length < FIELD_LIMIT) {
@@ -1205,6 +1240,48 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
         ],
         playerGraveyard: choice.side === "player" ? taken.remaining : state.playerGraveyard,
         log: appendLog(state.log, `CPUが死者蘇生を発動。${monster.name}を特殊召喚。`),
+      };
+    }
+  }
+
+  while (state.cpuHand.includes("vol3-pot-of-greed") && state.cpuDeck.length >= 2) {
+    state = {
+      ...removeCpuHandCard(state, "vol3-pot-of-greed"),
+      cpuHand: [...removeCpuHandCard(state, "vol3-pot-of-greed").cpuHand, ...state.cpuDeck.slice(0, 2)],
+      cpuDeck: state.cpuDeck.slice(2),
+      cpuGraveyard: [...state.cpuGraveyard, "vol3-pot-of-greed"],
+      log: appendLog(state.log, "CPUが強欲な壺を発動。カードを2枚ドロー。"),
+    };
+  }
+
+  if (state.cpuHand.includes("vol3-stop-defense")) {
+    const targetIndex = state.playerField.findIndex((zone) => zone.position === "defense");
+    if (targetIndex >= 0) {
+      const target = state.playerField[targetIndex];
+      state = {
+        ...removeCpuHandCard(state, "vol3-stop-defense"),
+        playerField: state.playerField.map((zone, index) => index === targetIndex
+          ? { ...zone, position: "attack", faceDown: false, positionChanged: true }
+          : zone),
+        cpuGraveyard: [...state.cpuGraveyard, "vol3-stop-defense"],
+        log: appendLog(state.log, "CPUが『守備』封じを発動。守備モンスターを攻撃表示に変更。"),
+      };
+      if (target.faceDown) state = resolveFlipEffect(state, "player", target.id);
+    }
+  }
+
+  if (state.cpuHand.includes("vol3-gravedigger-ghoul")) {
+    const targets = state.playerGraveyard
+      .map((id, index) => ({ id, index }))
+      .filter(({ id }) => cardById.get(id)?.cardType === "monster")
+      .slice(0, 2)
+      .map(({ index }) => index);
+    if (targets.length > 0) {
+      state = {
+        ...removeCpuHandCard(state, "vol3-gravedigger-ghoul"),
+        playerGraveyard: state.playerGraveyard.filter((_, index) => !targets.includes(index)),
+        cpuGraveyard: [...state.cpuGraveyard, "vol3-gravedigger-ghoul"],
+        log: appendLog(state.log, `CPUが墓掘りグールを発動。墓地のモンスター${targets.length}体を除外。`),
       };
     }
   }
@@ -1531,6 +1608,9 @@ function spellDescription(id: string) {
   if (id === "vol2-monster-reborn") return "自分または相手の墓地からモンスター1体を特殊召喚";
   if (id === "vol2-de-spell") return "フィールドのカード1枚を確認し、魔法カードなら破壊";
   if (id === "vol1-fissure") return "相手の表側モンスターのうちATKが一番低い1体を破壊";
+  if (id === "vol3-pot-of-greed") return "デッキからカードを2枚ドロー";
+  if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
+  if (id === "vol3-gravedigger-ghoul") return "相手の墓地のモンスターを2体まで除外";
   return "";
 }
 

@@ -42,6 +42,19 @@ test("Vol.2の装備魔法5枚が正しい種族に対応する", () => {
   );
 });
 
+test("Vol.3の装備魔法5枚が正しい種族に対応する", () => {
+  assert.deepEqual(
+    Object.entries(equipRules).filter(([id]) => id.startsWith("vol3-")),
+    [
+      ["vol3-silver-bow-arrow", "天使族"],
+      ["vol3-dragon-treasure", "ドラゴン族"],
+      ["vol3-electro-whip", "雷族"],
+      ["vol3-mystical-moon", "獣戦士族"],
+      ["vol3-follow-wind", "鳥獣族"],
+    ],
+  );
+});
+
 test("Vol.2の回復・ダメージ魔法の数値を適用する", () => {
   assert.deepEqual(simpleSpellEffect("vol2-goblin-secret-remedy"), { gain: 600, damage: 0 });
   assert.deepEqual(simpleSpellEffect("vol2-final-flame"), { gain: 0, damage: 600 });
