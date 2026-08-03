@@ -173,6 +173,7 @@ export function GameHome() {
               ))}
             </div>
             <p>各パックを毎日10回まで開封できます。0:00（日本時間）にパックごとに回復します。</p>
+            <p className="rarity-note">レア枠：SE 2% ／ UR 5% ／ SR 15% ／ R 78%</p>
             <button className="primary" onClick={openPack} disabled={!ready || selectedRemaining === 0}>
               {selectedRemaining > 0 ? "パックを開ける" : "このパックの本日分は終了"} <span>5枚</span>
             </button>
@@ -209,7 +210,7 @@ export function GameHome() {
       ) : tab === "deck"
         ? <DeckEditor collection={collection} />
         : <DuelArena collection={collection} onReward={awardCard} />}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 028</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 029</span></footer>
     </main>
   );
 }
@@ -220,10 +221,10 @@ function CardTile({ card }: { card: Card }) {
     <article className={`card card-${card.cardType} rarity-${card.rarity.toLowerCase()}`}>
       <div className="card-name"><strong>{card.name}</strong><span>{card.attribute ?? (card.cardType === "spell" ? "魔" : "罠")}</span></div>
       <div className="stars">{isMonster ? "★".repeat(card.level ?? 0) : card.kind}</div>
-      <div className="card-art"><span>{card.kind}</span></div>
+      <div className="card-art"><span>{card.kind}</span>{card.effect && <em className="effect-badge">効果</em>}</div>
       <div className="card-text">
         <b>【{card.kind}】</b>
-        <p>{isMonster ? "通常モンスター" : card.cardType === "spell" ? "魔法カード" : "罠カード"}</p>
+        <p>{isMonster ? card.effect ? "効果モンスター" : card.fusion ? "融合モンスター" : "通常モンスター" : card.cardType === "spell" ? "魔法カード" : "罠カード"}</p>
         {isMonster && <strong>ATK/{card.atk} DEF/{card.def}</strong>}
       </div>
       <i>{card.rarity}</i>

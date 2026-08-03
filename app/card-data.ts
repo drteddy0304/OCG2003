@@ -11,6 +11,7 @@ export type Card = {
   def?: number;
   rarity: Rarity;
   fusion?: boolean;
+  effect?: boolean;
 };
 
 export type Pack = {
@@ -108,7 +109,7 @@ export const cards: Card[] = [
   { id: "vol3-rogue-doll", name: "ホーリー・ドール", cardType: "monster", kind: "魔法使い族", attribute: "光", level: 4, atk: 1600, def: 1000, rarity: "R" },
   { id: "vol3-giant-soldier-stone", name: "岩石の巨兵", cardType: "monster", kind: "岩石族", attribute: "地", level: 3, atk: 1300, def: 2000, rarity: "N" },
   { id: "vol3-red-eyes", name: "真紅眼の黒竜", cardType: "monster", kind: "ドラゴン族", attribute: "闇", level: 7, atk: 2400, def: 2000, rarity: "UR" },
-  { id: "vol3-reaper-cards", name: "カードを狩る死神", cardType: "monster", kind: "悪魔族", attribute: "闇", level: 5, atk: 1380, def: 1930, rarity: "N" },
+  { id: "vol3-reaper-cards", name: "カードを狩る死神", cardType: "monster", kind: "悪魔族", attribute: "闇", level: 5, atk: 1380, def: 1930, rarity: "N", effect: true },
   { id: "vol3-barox", name: "バロックス", cardType: "monster", kind: "悪魔族", attribute: "闇", level: 5, atk: 1380, def: 1530, rarity: "N", fusion: true },
   { id: "vol3-sleeping-lion", name: "眠れる獅子", cardType: "monster", kind: "獣族", attribute: "地", level: 4, atk: 700, def: 1700, rarity: "N" },
   { id: "vol3-ansatsu", name: "アサシン", cardType: "monster", kind: "戦士族", attribute: "地", level: 5, atk: 1700, def: 1200, rarity: "R" },
@@ -124,15 +125,15 @@ export const cards: Card[] = [
   { id: "vol3-spike-seadra", name: "スパイクシードラ", cardType: "monster", kind: "海竜族", attribute: "水", level: 5, atk: 1600, def: 1300, rarity: "N" },
   { id: "vol3-tripwire-beast", name: "地雷獣", cardType: "monster", kind: "雷族", attribute: "地", level: 4, atk: 1200, def: 1300, rarity: "N" },
   { id: "vol3-skull-red-bird", name: "スカイ・ハンター", cardType: "monster", kind: "鳥獣族", attribute: "風", level: 4, atk: 1550, def: 1200, rarity: "N" },
-  { id: "vol3-armed-ninja", name: "青い忍者", cardType: "monster", kind: "戦士族", attribute: "地", level: 1, atk: 300, def: 300, rarity: "N" },
+  { id: "vol3-armed-ninja", name: "青い忍者", cardType: "monster", kind: "戦士族", attribute: "地", level: 1, atk: 300, def: 300, rarity: "N", effect: true },
   { id: "vol3-ganigumo", name: "ガニグモ", cardType: "monster", kind: "昆虫族", attribute: "地", level: 2, atk: 600, def: 800, rarity: "N" },
   { id: "vol3-flower-wolf", name: "フラワー・ウルフ", cardType: "monster", kind: "獣族", attribute: "地", level: 5, atk: 1800, def: 1400, rarity: "N", fusion: true },
-  { id: "vol3-man-eater-bug", name: "人喰い虫", cardType: "monster", kind: "昆虫族", attribute: "地", level: 2, atk: 450, def: 600, rarity: "SR" },
+  { id: "vol3-man-eater-bug", name: "人喰い虫", cardType: "monster", kind: "昆虫族", attribute: "地", level: 2, atk: 450, def: 600, rarity: "SR", effect: true },
   { id: "vol3-sand-stone", name: "サンド・ストーン", cardType: "monster", kind: "岩石族", attribute: "地", level: 5, atk: 1300, def: 1600, rarity: "N" },
   { id: "vol3-eldeen", name: "エルディーン", cardType: "monster", kind: "魔法使い族", attribute: "光", level: 3, atk: 950, def: 1000, rarity: "N" },
   { id: "vol3-kamakiriman", name: "カマキラー", cardType: "monster", kind: "昆虫族", attribute: "地", level: 4, atk: 1150, def: 1400, rarity: "N" },
-  { id: "vol3-skelengel", name: "スケルエンジェル", cardType: "monster", kind: "天使族", attribute: "光", level: 2, atk: 900, def: 400, rarity: "N" },
-  { id: "vol3-hane-hane", name: "ハネハネ", cardType: "monster", kind: "獣族", attribute: "地", level: 2, atk: 450, def: 500, rarity: "SR" },
+  { id: "vol3-skelengel", name: "スケルエンジェル", cardType: "monster", kind: "天使族", attribute: "光", level: 2, atk: 900, def: 400, rarity: "N", effect: true },
+  { id: "vol3-hane-hane", name: "ハネハネ", cardType: "monster", kind: "獣族", attribute: "地", level: 2, atk: 450, def: 500, rarity: "SR", effect: true },
   { id: "vol3-misairuzame", name: "ナイル", cardType: "monster", kind: "魚族", attribute: "水", level: 5, atk: 1400, def: 1600, rarity: "N" },
   { id: "vol3-wandering-doomed", name: "さまよえる亡者", cardType: "monster", kind: "アンデット族", attribute: "闇", level: 2, atk: 800, def: 600, rarity: "N" },
   { id: "vol3-steel-ogre-grotto", name: "鋼鉄の巨神像", cardType: "monster", kind: "機械族", attribute: "地", level: 5, atk: 1400, def: 1800, rarity: "N" },

@@ -583,7 +583,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 028</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 029</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
@@ -820,7 +820,7 @@ export function DuelArena({
             return (
               <article className={`hand-card hand-${card.cardType}`} key={`${id}-${index}`}>
                 <strong>{card.name}</strong>
-                <span>{card.kind}</span>
+                <span>{card.kind}{card.effect ? "／効果" : card.fusion ? "／融合" : card.cardType === "monster" ? "／通常" : ""}</span>
                 <button className="card-detail-button" onClick={() => setDetailCardId(card.id)}>詳細</button>
                 {card.cardType === "monster" ? (
                   <>
@@ -928,7 +928,7 @@ function CardDetail({ cardId, onClose }: { cardId: string; onClose: () => void }
       <article className={`card-detail detail-${card.cardType}`}>
         <p className="section-label">CARD DETAIL</p>
         <h2>{card.name}</h2>
-        <strong>{card.kind}{card.fusion ? "／融合" : ""}</strong>
+        <strong>{card.kind}{card.effect ? "／効果" : card.fusion ? "／融合" : card.cardType === "monster" ? "／通常" : ""}</strong>
         {card.cardType === "monster" ? (
           <>
             <p>属性：{card.attribute}　レベル：{card.level}</p>
@@ -998,6 +998,7 @@ function FieldRow({
               <strong>{hidden ? "伏せモンスター" : card.name}</strong>
               <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone)}`}</span>
               {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
+              {!hidden && card.effect && <small className="field-effect-badge">効果モンスター</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
               {owner === "player" && zone.position === "attack" && <small>{zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
             </button>

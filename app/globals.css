@@ -65,11 +65,16 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .card { aspect-ratio: .69; background: #c7925b; color: #19140d; border: 7px solid #9e7045; padding: 8px; box-shadow: 0 7px 16px #0007; position: relative; font-family: "Yu Mincho", serif; }
 .card-spell { background: #4f9f8e; border-color: #3c7d70; }
 .card-trap { background: #a45b8a; border-color: #7f456c; }
+.rarity-se { box-shadow: 0 0 24px #f8f4ffcc, 0 0 10px #8bd9ffcc, 0 7px 16px #0007; }
 .rarity-ur { box-shadow: 0 0 20px #e9c95799, 0 7px 16px #0007; }
+.rarity-sr { box-shadow: 0 0 16px #d9dde899, 0 7px 16px #0007; }
+.rarity-r { box-shadow: 0 0 10px #c6a45a66, 0 7px 16px #0007; }
 .card-name { background: #ead8b9; padding: 5px; border: 1px solid #6b492a; display: flex; justify-content: space-between; gap: 4px; font-size: 11px; }
 .card-name span { border: 1px solid #777; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; font-size: 8px; }
 .stars { color: #b53624; text-align: right; font-size: 9px; white-space: nowrap; height: 16px; }
-.card-art { height: 43%; background: linear-gradient(135deg, #28313b, #c6a45a 50%, #3b251c); border: 3px ridge #bca56e; display: grid; place-items: center; color: white; text-shadow: 1px 1px #000; font-weight: 900; font-size: 11px; }
+.card-art { height: 43%; background: linear-gradient(135deg, #28313b, #c6a45a 50%, #3b251c); border: 3px ridge #bca56e; display: grid; place-items: center; color: white; text-shadow: 1px 1px #000; font-weight: 900; font-size: 11px; position: relative; }
+.effect-badge { position: absolute; right: 4px; bottom: 4px; background: #7d251f; color: #fff7dc; border: 1px solid #fff7dc; padding: 2px 5px; font: 900 7px sans-serif; font-style: normal; text-shadow: none; }
+.rarity-note { display: inline-block; margin-top: 8px; padding: 6px 9px; border: 1px solid #a89c88; background: #e8dfcf; font: 800 9px monospace; }
 .card-text { background: #e9dfc9; border: 1px solid #71553e; margin-top: 7px; padding: 5px; height: 27%; font-size: 7px; overflow: hidden; }
 .card-text p { margin: 3px 0; }
 .card-text strong { float: right; font-family: monospace; }
@@ -201,6 +206,7 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .hand-card > strong, .hand-card > span, .hand-card > small { display: block; }
 .hand-card > strong { font: 800 11px "Yu Mincho", serif; }
 .hand-card > span { font-size: 8px; margin-top: 5px; }
+.field-effect-badge { color: #fff0bd; background: #8c241e; padding: 2px 4px; }
 .hand-card > small { font: 700 8px monospace; margin-top: 18px; }
 .hand-card > div { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 10px; }
 .hand-card button { border: 1px solid #372b1d; background: #eee2cb; padding: 6px 2px; font-size: 9px; font-weight: 800; }

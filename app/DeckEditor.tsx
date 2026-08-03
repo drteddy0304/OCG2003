@@ -168,7 +168,7 @@ function DeckRow({
   disabled?: boolean;
   onAction: () => void;
 }) {
-  const typeLabel = card.cardType === "monster" ? `${card.attribute}・${card.kind}` : card.kind;
+  const typeLabel = card.cardType === "monster" ? `${card.attribute}・${card.kind}${card.effect ? "・効果" : card.fusion ? "・融合" : "・通常"}` : card.kind;
   return (
     <article className={`deck-row row-${card.cardType}`}>
       <div>
