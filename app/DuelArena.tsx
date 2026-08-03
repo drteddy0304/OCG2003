@@ -583,7 +583,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 031</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 032</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
@@ -832,7 +832,8 @@ export function DuelArena({
                     <small>{spellDescription(card.id)}</small>
                     <button
                       disabled={
-                        !isPlayerMainPhase
+                        !isSpellImplemented(card.id)
+                        || !isPlayerMainPhase
                         || pendingTribute !== null
                         || pendingReborn !== null
                         || pendingDeSpell !== null
@@ -1613,7 +1614,23 @@ function spellDescription(id: string) {
   if (id === "vol3-pot-of-greed") return "デッキからカードを2枚ドロー";
   if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
   if (id === "vol3-gravedigger-ghoul") return "相手の墓地のモンスターを2体まで除外";
+  if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
+}
+
+function isSpellImplemented(id: string) {
+  return Boolean(EQUIP_RULES[id])
+    || Boolean(simpleSpellEffect(id))
+    || [
+      "vol1-dark-hole",
+      "vol1-fissure",
+      "vol2-swords-revealing-light",
+      "vol2-monster-reborn",
+      "vol2-de-spell",
+      "vol3-pot-of-greed",
+      "vol3-stop-defense",
+      "vol3-gravedigger-ghoul",
+    ].includes(id);
 }
 
 function monsterDescription(id: string) {
