@@ -52,7 +52,7 @@ function drawPack(packId: string) {
   const pool = pack.cardIds.map((id) => cardById.get(id)).filter((card): card is Card => Boolean(card));
   const normalPool = pool.filter((card) => card.rarity === "N");
   const rarityRoll = Math.random();
-  const rareRarity: Rarity = rarityRoll < 0.05 ? "UR" : rarityRoll < 0.2 ? "SR" : "R";
+  const rareRarity: Rarity = rarityRoll < 0.02 ? "SE" : rarityRoll < 0.07 ? "UR" : rarityRoll < 0.22 ? "SR" : "R";
   const rarePool = pool.filter((card) => card.rarity === rareRarity);
   const result = Array.from({ length: 4 }, () => randomCard(normalPool));
   result.push(randomCard(rarePool.length ? rarePool : pool.filter((card) => card.rarity !== "N")));
@@ -209,7 +209,7 @@ export function GameHome() {
       ) : tab === "deck"
         ? <DeckEditor collection={collection} />
         : <DuelArena collection={collection} onReward={awardCard} />}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 024</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 025</span></footer>
     </main>
   );
 }

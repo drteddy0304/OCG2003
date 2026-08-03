@@ -18,12 +18,14 @@ test("Vol.1・Vol.2を各1日10パック開封できる初期画面を表示す�
   assert.match(html, /OCG 2003/);
   assert.match(html, /Vol\.1/);
   assert.match(html, /Vol\.2/);
+  assert.match(html, /Vol\.3/);
+  assert.match(html, /50(?:<!-- -->)?種/);
   assert.match(html, /40(?:<!-- -->)?種/);
   assert.match(html, /10(?:<!-- -->)? \/ (?:<!-- -->)?10(?:<!-- -->)? PACKS/);
   assert.match(html, /各パックを毎日10回/);
   assert.match(html, /パックを開ける/);
   assert.match(html, /<button class="">デッキ<\/button>/);
   assert.match(html, /<button class="">デュエル<\/button>/);
-  assert.match(html, /PHASE 2 · BUILD 024/);
+  assert.match(html, /PHASE 2 · BUILD 025/);
   assert.doesNotMatch(html, /codex-preview/);
 });
