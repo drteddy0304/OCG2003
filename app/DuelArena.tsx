@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -65,7 +65,6 @@ type DuelState = {
 };
 
 const CPU_PENDING_VOL2_EFFECTS = new Set([
-  "vol2-monster-reborn",
   "vol2-de-spell",
 ]);
 const CPU_DECK = cards
@@ -556,7 +555,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 CPU · BUILD 022</strong>
+          <strong>VOL.1 + VOL.2 CPU · BUILD 023</strong>
           <p>CPUがVol.2のモンスターと、装備・回復・ダメージ魔法も使用します。</p>
         </div>
         <dl>
@@ -1147,6 +1146,47 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       cpuSwordsTurns: [...state.cpuSwordsTurns, 3],
       log: appendLog(state.log, "CPUが光の護封剣を発動。3ターン攻撃を封じます。"),
     };
+  }
+
+  if (state.cpuHand.includes("vol2-monster-reborn") && state.cpuField.length < FIELD_LIMIT) {
+    const revivalCandidates = [
+      ...state.cpuGraveyard.map((id, index) => ({ id, index, side: "cpu" as const })),
+      ...state.playerGraveyard.map((id, index) => ({ id, index, side: "player" as const })),
+    ].filter(({ id }) => {
+      const card = cardById.get(id);
+      return card?.cardType === "monster" && !card.fusion;
+    });
+    const choiceIndex = strongestAttackIndex(
+      revivalCandidates.map(({ id }) => cardById.get(id)?.atk ?? 0),
+    );
+    const choice = choiceIndex === null ? null : revivalCandidates[choiceIndex];
+    const graveyard = choice?.side === "cpu" ? state.cpuGraveyard : state.playerGraveyard;
+    const taken = choice ? takeGraveyardCard(graveyard, choice.index) : null;
+    const monster = taken ? cardById.get(taken.cardId) : null;
+    if (choice && taken && monster?.cardType === "monster") {
+      const position: Position = (monster.def ?? 0) > (monster.atk ?? 0) ? "defense" : "attack";
+      state = {
+        ...removeCpuHandCard(state, "vol2-monster-reborn"),
+        cpuField: [
+          ...state.cpuField,
+          {
+            id: taken.cardId,
+            position,
+            faceDown: false,
+            attacked: false,
+            equipped: [],
+            summonedTurn: state.turnNumber,
+            positionChanged: false,
+          },
+        ],
+        cpuGraveyard: [
+          ...(choice.side === "cpu" ? taken.remaining : state.cpuGraveyard),
+          "vol2-monster-reborn",
+        ],
+        playerGraveyard: choice.side === "player" ? taken.remaining : state.playerGraveyard,
+        log: appendLog(state.log, `CPUが死者蘇生を発動。${monster.name}を特殊召喚。`),
+      };
+    }
   }
 
   for (const spellId of [...state.cpuHand]) {

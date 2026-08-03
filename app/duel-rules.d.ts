@@ -29,6 +29,8 @@ export function shouldCpuActivateSwords(
   fieldLimit?: number,
 ): boolean;
 
+export function strongestAttackIndex(attacks: number[]): number | null;
+
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];
   expired: number;

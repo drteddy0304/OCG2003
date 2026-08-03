@@ -51,6 +51,11 @@ export function shouldCpuActivateSwords(opponentMonsterCount, activeSwordsCount,
   return opponentMonsterCount > 0 && activeSwordsCount === 0 && spellTrapCount < fieldLimit;
 }
 
+export function strongestAttackIndex(attacks) {
+  if (attacks.length === 0) return null;
+  return attacks.reduce((bestIndex, attack, index) => attack > attacks[bestIndex] ? index : bestIndex, 0);
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };
