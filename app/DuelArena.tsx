@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, firstSpellTargetIndex, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -64,14 +64,10 @@ type DuelState = {
   log: string[];
 };
 
-const CPU_PENDING_VOL2_EFFECTS = new Set([
-  "vol2-de-spell",
-]);
 const CPU_DECK = cards
   .filter((card) => (
     (card.id.startsWith("vol1-") || card.id.startsWith("vol2-"))
     && !card.fusion
-    && !CPU_PENDING_VOL2_EFFECTS.has(card.id)
   ))
   .map((card) => card.id);
 const EQUIP_RULES = equipRules;
@@ -555,8 +551,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 CPU · BUILD 023</strong>
-          <p>CPUがVol.2のモンスターと、装備・回復・ダメージ魔法も使用します。</p>
+          <strong>VOL.1 + VOL.2 CPU · BUILD 024</strong>
+          <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -1099,6 +1095,28 @@ function finishCpuTurn(initial: DuelState): DuelState {
 
 function playCpuNormalSpells(initial: DuelState): DuelState {
   let state = initial;
+
+  const deSpellTarget = firstSpellTargetIndex(
+    state.playerSpellTrap.map((id) => cardById.get(id)?.cardType ?? "trap"),
+  );
+  if (state.cpuHand.includes("vol2-de-spell") && deSpellTarget !== null) {
+    const targetId = state.playerSpellTrap[deSpellTarget];
+    const target = cardById.get(targetId);
+    const swordsIndex = targetId === "vol2-swords-revealing-light"
+      ? state.playerSpellTrap.slice(0, deSpellTarget + 1).filter((id) => id === targetId).length - 1
+      : -1;
+    state = {
+      ...removeCpuHandCard(state, "vol2-de-spell"),
+      playerField: removeEquippedCard(state.playerField, targetId),
+      playerSpellTrap: state.playerSpellTrap.filter((_, index) => index !== deSpellTarget),
+      playerSwordsTurns: swordsIndex >= 0
+        ? state.playerSwordsTurns.filter((_, index) => index !== swordsIndex)
+        : state.playerSwordsTurns,
+      playerGraveyard: [...state.playerGraveyard, targetId],
+      cpuGraveyard: [...state.cpuGraveyard, "vol2-de-spell"],
+      log: appendLog(state.log, `CPUが魔法除去を発動。${target?.name ?? "魔法カード"}を破壊。`),
+    };
+  }
 
   if (
     state.cpuHand.includes("vol1-dark-hole")

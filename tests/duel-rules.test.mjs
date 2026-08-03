@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, firstSpellTargetIndex, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -82,4 +82,9 @@ test("CPUは相手モンスターがいる時だけ光の護封剣を発動す�
 test("CPUの死者蘇生は攻撃力が最も高いモンスターを選ぶ", () => {
   assert.equal(strongestAttackIndex([800, 2500, 1200]), 1);
   assert.equal(strongestAttackIndex([]), null);
+});
+
+test("CPUの魔法除去は表側魔法を選び、罠だけなら温存する", () => {
+  assert.equal(firstSpellTargetIndex(["trap", "spell", "spell"]), 1);
+  assert.equal(firstSpellTargetIndex(["trap", "trap"]), null);
 });

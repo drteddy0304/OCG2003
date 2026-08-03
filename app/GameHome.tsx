@@ -209,7 +209,7 @@ export function GameHome() {
       ) : tab === "deck"
         ? <DeckEditor collection={collection} />
         : <DuelArena collection={collection} onReward={awardCard} />}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 023</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 024</span></footer>
     </main>
   );
 }

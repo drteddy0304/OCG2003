@@ -72,3 +72,8 @@ export function takeGraveyardCard(cards, index) {
 export function deSpellDestroys(cardType) {
   return cardType === "spell";
 }
+
+export function firstSpellTargetIndex(cardTypes) {
+  const index = cardTypes.findIndex((cardType) => cardType === "spell");
+  return index >= 0 ? index : null;
+}

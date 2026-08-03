@@ -42,3 +42,5 @@ export function takeGraveyardCard(cards: string[], index: number): {
 } | null;
 
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
+
+export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
