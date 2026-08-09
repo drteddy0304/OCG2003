@@ -35,7 +35,7 @@ type PendingFlipTarget = {
   monsterId: string;
   effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap";
 };
-type DuelFeedback = { kind: DuelSound; title: string; detail: string; duration: number };
+type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
 type ZoneCard = {
   id: string;
@@ -714,7 +714,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 041</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 042</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -739,8 +739,14 @@ export function DuelArena({
       </div>
       {activeFeedback && (
         <div className={`duel-feedback-layer feedback-${activeFeedback.kind}`} key={`${activeFeedback.kind}-${feedbackKey}`} aria-live="assertive">
-          <strong>{activeFeedback.title}</strong>
-          <span>{activeFeedback.detail}</span>
+          <div className="action-speed-lines" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} />)}</div>
+          <div className="action-emblem" aria-hidden="true"><i /><i /><i /><i /></div>
+          <div className="action-cut-in">
+            <b>{activeFeedback.title}</b>
+            <strong>{activeFeedback.detail}</strong>
+            <small>{activeFeedback.message}</small>
+          </div>
+          <div className="action-particles" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} />)}</div>
         </div>
       )}
       <div className="phase-guide" aria-label="現在のフェイズ">

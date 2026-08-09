@@ -24,4 +24,10 @@ test("効果・魔法・罠を別々の演出として判定する", () => {
 
 test("直接攻撃には専用演出を出す", () => {
   assert.equal(feedbackForMessage("デーモンの召喚の直接攻撃。2500ダメージ。")[0].title, "DIRECT ATTACK");
+  assert.equal(feedbackForMessage("デーモンの召喚の直接攻撃。2500ダメージ。")[0].detail, "デーモンの召喚");
+});
+
+test("攻撃・魔法演出にはカード名を表示する", () => {
+  assert.equal(feedbackForMessage("暗黒騎士ガイアがワイトを攻撃。ワイトを破壊。")[0].detail, "暗黒騎士ガイア  VS  ワイト");
+  assert.equal(feedbackForMessage("CPUがブラック・ホールを発動。すべてのモンスターを破壊。")[0].detail, "ブラック・ホール");
 });

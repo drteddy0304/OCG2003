@@ -1,29 +1,56 @@
 export type DuelSound = "attack" | "destroy" | "guard" | "effect" | "spell" | "trap" | "summon";
 
 let audioContext: AudioContext | null = null;
+let masterInput: GainNode | null = null;
 
 function context() {
   if (typeof window === "undefined") return null;
-  audioContext ??= new (window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextClass) return null;
+  audioContext ??= new AudioContextClass();
   if (audioContext.state === "suspended") void audioContext.resume();
+  if (!masterInput) {
+    masterInput = audioContext.createGain();
+    const compressor = audioContext.createDynamicsCompressor();
+    const reverb = audioContext.createConvolver();
+    const wet = audioContext.createGain();
+    const impulse = audioContext.createBuffer(2, audioContext.sampleRate * 0.8, audioContext.sampleRate);
+    for (let channel = 0; channel < 2; channel += 1) {
+      const data = impulse.getChannelData(channel);
+      for (let index = 0; index < data.length; index += 1) data[index] = (Math.random() * 2 - 1) * (1 - index / data.length) ** 2.5;
+    }
+    reverb.buffer = impulse;
+    wet.gain.value = 0.18;
+    compressor.threshold.value = -18;
+    compressor.knee.value = 16;
+    compressor.ratio.value = 7;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.22;
+    masterInput.gain.value = 0.72;
+    masterInput.connect(compressor);
+    masterInput.connect(reverb).connect(wet).connect(compressor);
+    compressor.connect(audioContext.destination);
+  }
   return audioContext;
 }
 
 function tone(ctx: AudioContext, start: number, duration: number, from: number, to: number, type: OscillatorType, volume: number) {
+  if (!masterInput) return;
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
   oscillator.type = type;
-  oscillator.frequency.setValueAtTime(from, start);
+  oscillator.frequency.setValueAtTime(Math.max(20, from), start);
   oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, to), start + duration);
   gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(volume, start + 0.015);
+  gain.gain.exponentialRampToValueAtTime(volume, start + Math.min(0.025, duration / 4));
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  oscillator.connect(gain).connect(ctx.destination);
+  oscillator.connect(gain).connect(masterInput);
   oscillator.start(start);
-  oscillator.stop(start + duration + 0.02);
+  oscillator.stop(start + duration + 0.03);
 }
 
-function noise(ctx: AudioContext, start: number, duration: number, volume: number) {
+function noise(ctx: AudioContext, start: number, duration: number, volume: number, filterType: BiquadFilterType = "lowpass", from = 2400, to = 120) {
+  if (!masterInput) return;
   const length = Math.ceil(ctx.sampleRate * duration);
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -32,23 +59,25 @@ function noise(ctx: AudioContext, start: number, duration: number, volume: numbe
   const filter = ctx.createBiquadFilter();
   const gain = ctx.createGain();
   source.buffer = buffer;
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(1300, start);
-  filter.frequency.exponentialRampToValueAtTime(140, start + duration);
-  gain.gain.setValueAtTime(volume, start);
+  filter.type = filterType;
+  filter.Q.value = filterType === "bandpass" ? 1.4 : 0.7;
+  filter.frequency.setValueAtTime(from, start);
+  filter.frequency.exponentialRampToValueAtTime(Math.max(40, to), start + duration);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  source.connect(filter).connect(gain).connect(ctx.destination);
+  source.connect(filter).connect(gain).connect(masterInput);
   source.start(start);
 }
 
 export function unlockDuelAudio(enabled: boolean) {
   if (!enabled) return;
   const ctx = context();
-  if (!ctx) return;
+  if (!ctx || !masterInput) return;
   const gain = ctx.createGain();
   gain.gain.value = 0.0001;
   const oscillator = ctx.createOscillator();
-  oscillator.connect(gain).connect(ctx.destination);
+  oscillator.connect(gain).connect(masterInput);
   oscillator.start();
   oscillator.stop(ctx.currentTime + 0.01);
 }
@@ -57,34 +86,50 @@ export function playDuelSound(kind: DuelSound, enabled: boolean) {
   if (!enabled) return;
   const ctx = context();
   if (!ctx) return;
-  const now = ctx.currentTime + 0.01;
+  const now = ctx.currentTime + 0.015;
+
   if (kind === "attack") {
-    tone(ctx, now, 0.22, 520, 75, "sawtooth", 0.13);
+    noise(ctx, now, 0.46, 0.25, "bandpass", 5200, 380);
+    tone(ctx, now, 0.34, 980, 58, "sawtooth", 0.16);
+    tone(ctx, now + 0.12, 0.34, 105, 38, "sine", 0.22);
+    noise(ctx, now + 0.18, 0.16, 0.13, "highpass", 4800, 900);
     return;
   }
   if (kind === "destroy") {
-    noise(ctx, now, 0.32, 0.18);
-    tone(ctx, now, 0.34, 150, 42, "triangle", 0.16);
+    [0, 0.055, 0.12].forEach((delay, index) => noise(ctx, now + delay, 0.42 - index * 0.06, 0.23 - index * 0.03, "lowpass", 3800, 90));
+    tone(ctx, now, 0.55, 190, 34, "square", 0.18);
+    tone(ctx, now + 0.025, 0.42, 82, 31, "sine", 0.28);
+    [1200, 1660, 2240].forEach((frequency, index) => tone(ctx, now + index * 0.035, 0.14, frequency, frequency / 2, "triangle", 0.055));
     return;
   }
   if (kind === "guard") {
-    tone(ctx, now, 0.09, 190, 150, "square", 0.1);
-    tone(ctx, now + 0.1, 0.12, 230, 170, "square", 0.08);
+    noise(ctx, now, 0.12, 0.1, "highpass", 6500, 1800);
+    [220, 440, 790, 1180].forEach((frequency, index) => tone(ctx, now + index * 0.008, 0.52 - index * 0.045, frequency, frequency * 0.82, "sine", 0.105 / (1 + index * 0.22)));
+    tone(ctx, now + 0.06, 0.28, 95, 55, "triangle", 0.16);
     return;
   }
   if (kind === "trap") {
-    tone(ctx, now, 0.35, 920, 110, "square", 0.1);
-    noise(ctx, now + 0.04, 0.18, 0.08);
+    [0, 0.12, 0.24].forEach((delay) => tone(ctx, now + delay, 0.1, 1080, 720, "square", 0.085));
+    noise(ctx, now + 0.28, 0.38, 0.19, "bandpass", 3200, 260);
+    tone(ctx, now + 0.28, 0.46, 170, 39, "sawtooth", 0.18);
     return;
   }
   if (kind === "spell") {
-    [440, 660, 880].forEach((frequency, index) => tone(ctx, now + index * 0.075, 0.25, frequency, frequency * 1.08, "sine", 0.07));
+    [330, 440, 554, 660, 880].forEach((frequency, index) => {
+      tone(ctx, now + index * 0.075, 0.5, frequency, frequency * 1.07, index % 2 ? "sine" : "triangle", 0.075);
+      tone(ctx, now + 0.24 + index * 0.075, 0.42, frequency * 1.5, frequency * 1.58, "sine", 0.035);
+    });
+    noise(ctx, now, 0.7, 0.045, "highpass", 7000, 1800);
     return;
   }
   if (kind === "effect") {
-    tone(ctx, now, 0.42, 240, 720, "triangle", 0.09);
-    tone(ctx, now + 0.12, 0.35, 720, 310, "sine", 0.06);
+    tone(ctx, now, 0.72, 95, 760, "sawtooth", 0.09);
+    tone(ctx, now + 0.08, 0.65, 180, 980, "triangle", 0.075);
+    [520, 690, 910].forEach((frequency, index) => tone(ctx, now + 0.3 + index * 0.065, 0.34, frequency, frequency * 0.86, "sine", 0.06));
+    noise(ctx, now + 0.1, 0.58, 0.055, "bandpass", 800, 3600);
     return;
   }
-  tone(ctx, now, 0.32, 130, 520, "triangle", 0.09);
+  tone(ctx, now, 0.68, 70, 620, "triangle", 0.12);
+  tone(ctx, now + 0.18, 0.52, 140, 940, "sine", 0.08);
+  [392, 523, 659].forEach((frequency, index) => tone(ctx, now + 0.38 + index * 0.05, 0.4, frequency, frequency, "sine", 0.055));
 }
