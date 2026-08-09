@@ -77,7 +77,7 @@ export function DuelArena({
   onReward,
 }: {
   collection: Record<string, number>;
-  onReward: (cardId: string) => void;
+  onReward: (cardId: string) => boolean;
 }) {
   const [duel, setDuel] = useState<DuelState | null>(null);
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
@@ -90,6 +90,7 @@ export function DuelArena({
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
   const [rewardName, setRewardName] = useState<string | null>(null);
+  const [rewardDiscarded, setRewardDiscarded] = useState(false);
   const rewarded = useRef(false);
 
   const savedDeck = useMemo(() => {
@@ -110,8 +111,9 @@ export function DuelArena({
     if (duel?.result !== "win" || rewarded.current) return;
     rewarded.current = true;
     const rewardId = CPU_DECK[Math.floor(Math.random() * CPU_DECK.length)];
-    onReward(rewardId);
+    const kept = onReward(rewardId);
     setRewardName(cardById.get(rewardId)?.name ?? null);
+    setRewardDiscarded(!kept);
   }, [duel?.result, onReward]);
 
   function startDuel() {
@@ -125,6 +127,7 @@ export function DuelArena({
     const cpuDraw = shuffledCpu.slice(0, 5);
     rewarded.current = false;
     setRewardName(null);
+    setRewardDiscarded(false);
     setSelectedAttacker(null);
     setPendingTribute(null);
     setPendingReborn(null);
@@ -652,7 +655,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 038</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 039</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1042,7 +1045,12 @@ export function DuelArena({
         <div className="duel-result">
           <p className="section-label">DUEL RESULT</p>
           <h2>{duel.result === "win" ? "VICTORY" : "DEFEAT"}</h2>
-          {duel.result === "win" && <p>勝利報酬：<strong>{rewardName ?? "カード抽選中…"}</strong></p>}
+          {duel.result === "win" && (
+            <p>
+              勝利報酬：<strong>{rewardName ?? "カード抽選中…"}</strong>
+              {rewardName && rewardDiscarded && <><br /><small>所持上限5枚のため自動破棄</small></>}
+            </p>
+          )}
           <button onClick={() => setDuel(null)}>デュエルメニューへ</button>
         </div>
       )}

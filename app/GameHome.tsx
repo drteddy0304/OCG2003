@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cardById, cards, packs, type Card, type Rarity } from "./card-data";
 import { DeckEditor } from "./DeckEditor";
 import { DuelArena } from "./DuelArena";
+import { addCardsToCollection, MAX_OWNED_COPIES } from "./collection-rules.mjs";
 
 const STORAGE_KEY = "ocg2003.collection.v1";
 const DAILY_KEY = "ocg2003.daily-packs.v1";
@@ -15,6 +16,7 @@ const LEGACY_CARD_IDS: Record<string, string> = {
 };
 
 type DailyAllowance = { date: string; remainingByPack: Record<string, number> };
+type OpenedCard = { card: Card; discarded: boolean };
 
 function freshPackAllowances() {
   return Object.fromEntries(packs.map((pack) => [pack.id, DAILY_PACKS]));
@@ -61,7 +63,7 @@ function drawPack(packId: string) {
 
 export function GameHome() {
   const [collection, setCollection] = useState<Record<string, number>>({});
-  const [opened, setOpened] = useState<Card[]>([]);
+  const [opened, setOpened] = useState<OpenedCard[]>([]);
   const [tab, setTab] = useState<"pack" | "collection" | "deck" | "duel">("pack");
   const [selectedPackId, setSelectedPackId] = useState(packs[0].id);
   const [remainingByPack, setRemainingByPack] = useState<Record<string, number>>(freshPackAllowances);
@@ -75,7 +77,7 @@ export function GameHome() {
         const migrated = Object.entries(parsed).reduce<Record<string, number>>((result, [id, count]) => {
           const currentId = LEGACY_CARD_IDS[id] ?? id;
           if (cardById.has(currentId) && Number.isInteger(count) && count > 0) {
-            result[currentId] = (result[currentId] ?? 0) + count;
+            result[currentId] = Math.min(MAX_OWNED_COPIES, (result[currentId] ?? 0) + count);
           }
           return result;
         }, {});
@@ -104,10 +106,8 @@ export function GameHome() {
       return;
     }
     const result = drawPack(selectedPackId);
-    const next = { ...collection };
-    result.forEach((card) => {
-      next[card.id] = (next[card.id] ?? 0) + 1;
-    });
+    const addition = addCardsToCollection(collection, result.map((card) => card.id));
+    const next = addition.collection;
     const nextAllowance = {
       ...allowance,
       remainingByPack: { ...allowance.remainingByPack, [selectedPackId]: remaining - 1 },
@@ -116,13 +116,15 @@ export function GameHome() {
     setRemainingByPack(nextAllowance.remainingByPack);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     localStorage.setItem(DAILY_KEY, JSON.stringify(nextAllowance));
-    setOpened(result);
+    setOpened(result.map((card, index) => ({ card, discarded: !addition.kept[index] })));
   }
 
   function awardCard(cardId: string) {
-    const next = { ...collection, [cardId]: (collection[cardId] ?? 0) + 1 };
+    const addition = addCardsToCollection(collection, [cardId]);
+    const next = addition.collection;
     setCollection(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    return addition.kept[0];
   }
 
   return (
@@ -172,7 +174,7 @@ export function GameHome() {
                 </button>
               ))}
             </div>
-            <p>各パックを毎日10回まで開封できます。0:00（日本時間）にパックごとに回復します。</p>
+            <p>各パックを毎日10回まで開封できます。0:00（日本時間）にパックごとに回復します。カードは同名5枚まで所持でき、6枚目以降は自動で破棄されます。</p>
             <p className="rarity-note">レア枠：SE 2% ／ UR 5% ／ SR 15% ／ R 78%</p>
             <button className="primary" onClick={openPack} disabled={!ready || selectedRemaining === 0}>
               {selectedRemaining > 0 ? "パックを開ける" : "このパックの本日分は終了"} <span>5枚</span>
@@ -186,7 +188,12 @@ export function GameHome() {
                 <button onClick={() => setOpened([])}>閉じる</button>
               </div>
               <div className="card-row">
-                {opened.map((card, index) => <CardTile key={`${card.id}-${index}`} card={card} />)}
+                {opened.map(({ card, discarded }, index) => (
+                  <div className={discarded ? "opened-card discarded" : "opened-card"} key={`${card.id}-${index}`}>
+                    <CardTile card={card} />
+                    {discarded && <span>所持上限・自動破棄</span>}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -210,7 +217,7 @@ export function GameHome() {
       ) : tab === "deck"
         ? <DeckEditor collection={collection} />
         : <DuelArena collection={collection} onReward={awardCard} />}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 038</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 039</span></footer>
     </main>
   );
 }
