@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -153,6 +153,12 @@ test("大王目玉はデッキ上5枚を並べ替えるリバース効果を持�
   assert.equal(flipEffect("vol5-big-eye"), "reorder-five");
   assert.deepEqual(moveDeckCard(["a", "b", "c", "d", "e"], 3, 1), ["a", "d", "b", "c", "e"]);
   assert.deepEqual(moveDeckCard(["a", "b"], 0, 5), ["a", "b"]);
+});
+
+test("死者への手向けは捨てる手札と破壊対象がある時だけ発動できる", () => {
+  assert.equal(canActivateTributeToDoomed(2, 1), true);
+  assert.equal(canActivateTributeToDoomed(1, 1), false);
+  assert.equal(canActivateTributeToDoomed(3, 0), false);
 });
 
 test("万華鏡はハーピィ・レディと三姉妹だけを特殊召喚できる", () => {

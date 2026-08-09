@@ -113,6 +113,10 @@ export function moveDeckCard(cards, fromIndex, toIndex) {
   return next;
 }
 
+export function canActivateTributeToDoomed(handSize, fieldMonsterCount) {
+  return handSize >= 2 && fieldMonsterCount > 0;
+}
+
 export function deSpellDestroys(cardType, cardId = "") {
   return cardType === "spell" || cardId === "vol4-cocoon-evolution";
 }

@@ -53,6 +53,7 @@ export function takeGraveyardCard(cards: string[], index: number): {
 } | null;
 
 export function moveDeckCard(cards: string[], fromIndex: number, toIndex: number): string[];
+export function canActivateTributeToDoomed(handSize: number, fieldMonsterCount: number): boolean;
 
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 

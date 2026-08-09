@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -38,6 +38,10 @@ type PendingFlipTarget = {
 type PendingDeckReorder = {
   monsterId: string;
   cards: string[];
+};
+type PendingTributeToDoomed = {
+  spellIndex: number;
+  discardIndex: number | null;
 };
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
@@ -94,6 +98,7 @@ export function DuelArena({
   const [pendingReborn, setPendingReborn] = useState<number | null>(null);
   const [pendingDeSpell, setPendingDeSpell] = useState<number | null>(null);
   const [pendingEgotist, setPendingEgotist] = useState<number | null>(null);
+  const [pendingTributeToDoomed, setPendingTributeToDoomed] = useState<PendingTributeToDoomed | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -117,6 +122,7 @@ export function DuelArena({
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingFlipTarget
     && !duel.pendingDeckReorder
+    && pendingTributeToDoomed === null
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
@@ -186,6 +192,7 @@ export function DuelArena({
     setPendingReborn(null);
     setPendingDeSpell(null);
     setPendingEgotist(null);
+    setPendingTributeToDoomed(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -349,6 +356,14 @@ export function DuelArena({
     if (card.id === "vol4-elegant-egotist") {
       if (!canActivateElegantEgotist(duel, handIndex)) return;
       setPendingEgotist(handIndex);
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "vol5-tribute-doomed") {
+      if (!canActivateTributeToDoomed(duel.playerHand.length, duel.playerField.length + duel.cpuField.length)) return;
+      setPendingTributeToDoomed({ spellIndex: handIndex, discardIndex: null });
       setSelectedAttacker(null);
       setSelectedEquip(null);
       return;
@@ -555,6 +570,40 @@ export function DuelArena({
     setPendingDeSpell(null);
   }
 
+  function resolveTributeToDoomed(targetSide: Side, targetIndex: number) {
+    if (!duel || !pendingTributeToDoomed || pendingTributeToDoomed.discardIndex === null) return;
+    const { spellIndex, discardIndex } = pendingTributeToDoomed;
+    if (duel.playerHand[spellIndex] !== "vol5-tribute-doomed" || discardIndex === spellIndex) return;
+    const discardedId = duel.playerHand[discardIndex];
+    const targetField = targetSide === "player" ? duel.playerField : duel.cpuField;
+    const target = targetField[targetIndex];
+    if (!discardedId || !target) return;
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    let next: DuelState = {
+      ...duel,
+      playerHand: duel.playerHand.filter((_, index) => index !== spellIndex && index !== discardIndex),
+      playerGraveyard: [...duel.playerGraveyard, "vol5-tribute-doomed", discardedId],
+    };
+    if (targetSide === "player") {
+      next = {
+        ...next,
+        playerField: next.playerField.filter((_, index) => index !== targetIndex),
+        playerSpellTrap: discardEquips(next.playerSpellTrap, [target]),
+        playerGraveyard: [...next.playerGraveyard, ...graveCards([target])],
+      };
+    } else {
+      next = {
+        ...next,
+        cpuField: next.cpuField.filter((_, index) => index !== targetIndex),
+        cpuSpellTrap: discardEquips(next.cpuSpellTrap, [target]),
+        cpuGraveyard: [...next.cpuGraveyard, ...graveCards([target])],
+      };
+    }
+    next.log = appendLog(next.log, `死者への手向けを発動。手札を1枚捨て、${targetName}を破壊。`);
+    setDuel(next);
+    setPendingTributeToDoomed(null);
+  }
+
   function equipSpell(fieldIndex: number) {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
@@ -615,7 +664,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -638,7 +687,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -767,7 +816,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 049</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 050</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -961,6 +1010,32 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingTributeToDoomed && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">TRIBUTE TO THE DOOMED</p>
+            <h2>{pendingTributeToDoomed.discardIndex === null ? "捨てる手札を選ぶ" : "破壊するモンスターを選ぶ"}</h2>
+            <p>{pendingTributeToDoomed.discardIndex === null ? "発動カード以外の手札を1枚捨てます。" : "自分またはCPUのフィールドから1体選んでください。"}</p>
+            <div className="spell-target-list">
+              {pendingTributeToDoomed.discardIndex === null
+                ? duel.playerHand.map((id, index) => index === pendingTributeToDoomed.spellIndex ? null : (
+                    <button key={`${id}-${index}`} onClick={() => setPendingTributeToDoomed({ ...pendingTributeToDoomed, discardIndex: index })}>
+                      <span>手札コスト</span><strong>{cardById.get(id)?.name ?? "カード"}</strong>
+                    </button>
+                  ))
+                : (["player", "cpu"] as const).flatMap((side) =>
+                    (side === "player" ? duel.playerField : duel.cpuField).map((zone, index) => (
+                      <button key={`${side}-${zone.id}-${index}`} onClick={() => resolveTributeToDoomed(side, index)}>
+                        <span>{side === "player" ? "自分フィールド" : "CPUフィールド"}</span>
+                        <strong>{zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name ?? "モンスター"}</strong>
+                      </button>
+                    )),
+                  )}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingTributeToDoomed(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {duel.pendingFlipTarget && (
         <div className="card-overlay flip-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -1129,6 +1204,7 @@ export function DuelArena({
                         || pendingReborn !== null
                         || pendingDeSpell !== null
                         || pendingEgotist !== null
+                        || pendingTributeToDoomed !== null
                         || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
                         || (card.id === "vol2-monster-reborn" && (
@@ -1141,6 +1217,7 @@ export function DuelArena({
                         || (card.id === "vol3-stop-defense" && !duel.cpuField.some((zone) => zone.position === "defense"))
                         || (card.id === "vol3-gravedigger-ghoul" && !duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "monster"))
                         || (card.id === "vol4-elegant-egotist" && !canActivateElegantEgotist(duel, index))
+                        || (card.id === "vol5-tribute-doomed" && !canActivateTributeToDoomed(duel.playerHand.length, duel.playerField.length + duel.cpuField.length))
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
                           const monster = cardById.get(zone.id);
                           return Boolean(monster && canEquip(card.id, monster));
@@ -1162,13 +1239,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -2152,6 +2229,7 @@ function spellDescription(id: string) {
   if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
   if (id === "vol3-gravedigger-ghoul") return "相手の墓地のモンスターを2体まで除外";
   if (id === "vol4-elegant-egotist") return "ハーピィ・レディがいる時、手札・デッキからハーピィ1体を特殊召喚";
+  if (id === "vol5-tribute-doomed") return "手札を1枚捨て、フィールドのモンスター1体を破壊する";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
 }
@@ -2170,6 +2248,7 @@ function isSpellImplemented(id: string) {
       "vol3-stop-defense",
       "vol3-gravedigger-ghoul",
       "vol4-elegant-egotist",
+      "vol5-tribute-doomed",
     ].includes(id);
 }
 
