@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, type Card } from "./card-data";
 import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { feedbackForMessage } from "./duel-feedback.mjs";
+import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -33,6 +35,7 @@ type PendingFlipTarget = {
   monsterId: string;
   effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap";
 };
+type DuelFeedback = { kind: DuelSound; title: string; detail: string; duration: number };
 
 type ZoneCard = {
   id: string;
@@ -91,7 +94,11 @@ export function DuelArena({
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
   const [rewardName, setRewardName] = useState<string | null>(null);
   const [rewardDiscarded, setRewardDiscarded] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [feedbackQueue, setFeedbackQueue] = useState<DuelFeedback[]>([]);
+  const [activeFeedback, setActiveFeedback] = useState<DuelFeedback | null>(null);
   const rewarded = useRef(false);
+  const lastFeedbackKey = useRef("");
 
   const savedDeck = useMemo(() => {
     if (typeof window === "undefined") return [];
@@ -106,6 +113,45 @@ export function DuelArena({
     && !duel.pendingFlipTarget
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
+  const feedbackMessage = duel
+    ? cpuPlayback
+      ? cpuPlayback.messages[Math.min(cpuPlayback.index, cpuPlayback.messages.length - 1)] ?? ""
+      : duel.log.at(-1) ?? ""
+    : "";
+  const feedbackKey = duel
+    ? cpuPlayback
+      ? `cpu-${duel.turnNumber}-${cpuPlayback.index}-${feedbackMessage}`
+      : `log-${duel.log.length}-${feedbackMessage}`
+    : "";
+
+  useEffect(() => {
+    try {
+      setSoundEnabled(localStorage.getItem("ocg2003.duel-sound.v1") !== "off");
+    } catch {
+      setSoundEnabled(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!feedbackKey || lastFeedbackKey.current === feedbackKey) return;
+    lastFeedbackKey.current = feedbackKey;
+    const events = feedbackForMessage(feedbackMessage) as DuelFeedback[];
+    if (events.length) setFeedbackQueue((current) => [...current, ...events]);
+  }, [feedbackKey, feedbackMessage]);
+
+  useEffect(() => {
+    if (activeFeedback || feedbackQueue.length === 0) return;
+    const [next, ...remaining] = feedbackQueue;
+    setFeedbackQueue(remaining);
+    setActiveFeedback(next);
+  }, [activeFeedback, feedbackQueue]);
+
+  useEffect(() => {
+    if (!activeFeedback) return;
+    playDuelSound(activeFeedback.kind, soundEnabled);
+    const timer = window.setTimeout(() => setActiveFeedback(null), activeFeedback.duration);
+    return () => window.clearTimeout(timer);
+  }, [activeFeedback, soundEnabled]);
 
   useEffect(() => {
     if (duel?.result !== "win" || rewarded.current) return;
@@ -117,6 +163,7 @@ export function DuelArena({
   }, [duel?.result, onReward]);
 
   function startDuel() {
+    unlockDuelAudio(soundEnabled);
     const counts = JSON.parse(localStorage.getItem(DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
     const playerCards = expandDeck(counts);
     if (playerCards.length < MIN_DECK_SIZE) return;
@@ -134,6 +181,8 @@ export function DuelArena({
     setPendingDeSpell(null);
     setPendingEgotist(null);
     setCpuPlayback(null);
+    setFeedbackQueue([]);
+    setActiveFeedback(null);
     setDuel({
       playerDeck: shuffledPlayer.slice(6),
       cpuDeck: shuffledCpu.slice(5),
@@ -158,6 +207,16 @@ export function DuelArena({
       pendingFlipTarget: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
     });
+  }
+
+  function toggleSound() {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    localStorage.setItem("ocg2003.duel-sound.v1", next ? "on" : "off");
+    if (next) {
+      unlockDuelAudio(true);
+      playDuelSound("effect", true);
+    }
   }
 
   function summon(handIndex: number, position: Position) {
@@ -655,7 +714,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 039</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 041</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -666,17 +725,24 @@ export function DuelArena({
         <button className="duel-start" disabled={savedDeck.length < MIN_DECK_SIZE} onClick={startDuel}>
           {savedDeck.length >= MIN_DECK_SIZE ? "デュエル開始" : `あと${MIN_DECK_SIZE - savedDeck.length}枚必要`}
         </button>
+        <button className="sound-toggle lobby-sound-toggle" onClick={toggleSound}>効果音 {soundEnabled ? "ON" : "OFF"}</button>
       </section>
     );
   }
 
   return (
-    <section className="duel-screen">
+    <section className={`duel-screen${activeFeedback ? ` action-${activeFeedback.kind}` : ""}`}>
       <div className="duel-hud">
         <div><span>CPU</span><strong>{Math.max(0, duel.cpuLp)}</strong><small>LP</small></div>
-        <div className="turn-badge">TURN {duel.turnNumber}<b>{duel.turn === "player" ? "YOUR TURN" : "CPU TURN"}</b></div>
+        <div className="turn-badge">TURN {duel.turnNumber}<b>{duel.turn === "player" ? "YOUR TURN" : "CPU TURN"}</b><button className="sound-toggle" onClick={toggleSound} aria-label={`効果音を${soundEnabled ? "オフ" : "オン"}にする`}>{soundEnabled ? "SOUND ON" : "SOUND OFF"}</button></div>
         <div><span>PLAYER</span><strong>{Math.max(0, duel.playerLp)}</strong><small>LP</small></div>
       </div>
+      {activeFeedback && (
+        <div className={`duel-feedback-layer feedback-${activeFeedback.kind}`} key={`${activeFeedback.kind}-${feedbackKey}`} aria-live="assertive">
+          <strong>{activeFeedback.title}</strong>
+          <span>{activeFeedback.detail}</span>
+        </div>
+      )}
       <div className="phase-guide" aria-label="現在のフェイズ">
         {[
           ["DRAW", "ドロー"],
