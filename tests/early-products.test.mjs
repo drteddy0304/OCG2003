@@ -6,7 +6,7 @@ const source = await readFile(new URL("../app/early-product-data.ts", import.met
 const boosterCards = [...source.matchAll(/id: "bo1-[^"]+"/g)];
 const starterCards = [...source.matchAll(/id: "stb-[^"]+"/g)];
 
-test("Booster 1は再録5枚を含めて40種類になる", () => {
+test("Booster 1は史実どおり新規35種類と再録5種類の全40種類になる", () => {
   assert.equal(boosterCards.length, 35);
   assert.match(source, /"vol1-legendary-sword"/);
   assert.match(source, /"vol1-beast-fangs"/);
@@ -15,10 +15,10 @@ test("Booster 1は再録5枚を含めて40種類になる", () => {
   assert.match(source, /"vol1-power-kaishin"/);
 });
 
-test("STARTER BOX通常版50種類を40種類ずつの前編・後編に分ける", () => {
+test("STARTER BOX通常版は分割せず史実どおり全50種類で扱う", () => {
   assert.equal(starterCards.length, 50);
-  assert.match(source, /starterBoxIds\.slice\(0, 40\)/);
-  assert.match(source, /\.\.\.starterBoxIds\.slice\(40\), \.\.\.starterBoxIds\.slice\(0, 30\)/);
+  assert.match(source, /id: "starter-box", name: "STARTER BOX"[^\n]+category: "official", cardIds: starterBoxIds/);
+  assert.doesNotMatch(source, /starter-box-a|starter-box-b|STARTER BOX 前編|STARTER BOX 後編/);
 });
 
 test("代表カードの能力・レアリティを保持する", () => {

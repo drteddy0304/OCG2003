@@ -102,6 +102,5 @@ const starterBoxIds = earlyProductCards.filter((card) => card.id.startsWith("stb
 
 export const earlyProductPacks: Pack[] = [
   { id: "booster-1", name: "Booster 1", releaseDate: "1999-03-01", category: "official", cardIds: boosterOneIds },
-  { id: "starter-box-a", name: "STARTER BOX 前編", releaseDate: "1999-03-18", category: "original", cardIds: starterBoxIds.slice(0, 40) },
-  { id: "starter-box-b", name: "STARTER BOX 後編", releaseDate: "1999-03-18", category: "original", cardIds: [...starterBoxIds.slice(40), ...starterBoxIds.slice(0, 30)] },
+  { id: "starter-box", name: "STARTER BOX", releaseDate: "1999-03-18", category: "official", cardIds: starterBoxIds },
 ];
