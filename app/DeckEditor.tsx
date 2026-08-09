@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
+import { cardDescription } from "./card-text";
 import { matchesDeckFilters, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter } from "./deck-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
@@ -260,6 +261,7 @@ function DeckRow({
       <div>
         <strong>{card.name}</strong>
         <span>{typeLabel}</span>
+        {(card.effect || card.cardType !== "monster") && <span className="deck-effect-text">{cardDescription(card)}</span>}
         {card.cardType === "monster" && <span className="monster-stats">ATK {card.atk} / DEF {card.def}</span>}
       </div>
       <b>{count}</b>

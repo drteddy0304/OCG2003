@@ -69,16 +69,39 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .rarity-ur { box-shadow: 0 0 20px #e9c95799, 0 7px 16px #0007; }
 .rarity-sr { box-shadow: 0 0 16px #d9dde899, 0 7px 16px #0007; }
 .rarity-r { box-shadow: 0 0 10px #c6a45a66, 0 7px 16px #0007; }
+.card::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2; opacity: 0; }
+.rarity-r { border-color: #c39832; }
+.rarity-r .card-name strong { color: #805600; text-shadow: 0 1px #fff4bd; }
+.rarity-sr { border-color: #d8e4f2; outline: 2px solid #8293a8; }
+.rarity-sr::after { opacity: .32; background: linear-gradient(115deg, transparent 25%, #fff 43%, #b9dfff 50%, transparent 65%); background-size: 230% 100%; animation: rare-shine 3.2s linear infinite; }
+.rarity-ur { border-color: #ffd450; outline: 3px double #8f6710; transform: translateY(-2px); }
+.rarity-ur::after { opacity: .42; background: linear-gradient(120deg, transparent 20%, #fff7b8 40%, #ffcf33 49%, #fff 54%, transparent 72%); background-size: 250% 100%; animation: rare-shine 2.5s linear infinite; }
+.rarity-ur .card-name { background: linear-gradient(90deg, #fff1a8, #ffd251, #fff4bd); }
+.rarity-se { border-color: #f4f0ff; outline: 3px solid #a9e5ff; transform: translateY(-3px) scale(1.015); }
+.rarity-se::after { opacity: .48; background: linear-gradient(125deg, #ff5d6c22, #ffd85d77, #54e5bb66, #54a8ff77, #d86cff66, #fff8 52%, transparent 67%); background-size: 260% 100%; animation: secret-rainbow 1.8s linear infinite; }
+.rarity-se .card-name { background: linear-gradient(90deg, #d7f6ff, #fff, #ecd9ff); }
+.card-selectable { cursor: pointer; transition: transform .15s ease; }
+.card-selectable:hover, .card-selectable:focus-visible { transform: translateY(-6px) scale(1.02); outline: 3px solid #fff; outline-offset: 2px; }
+@keyframes rare-shine { from { background-position: 170% 0; } to { background-position: -120% 0; } }
+@keyframes secret-rainbow { from { background-position: 180% 0; filter: hue-rotate(0deg); } to { background-position: -120% 0; filter: hue-rotate(80deg); } }
 .card-name { background: #ead8b9; padding: 5px; border: 1px solid #6b492a; display: flex; justify-content: space-between; gap: 4px; font-size: 11px; }
 .card-name span { border: 1px solid #777; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; font-size: 8px; }
 .stars { color: #b53624; text-align: right; font-size: 9px; white-space: nowrap; height: 16px; }
 .card-art { height: 43%; background: linear-gradient(135deg, #28313b, #c6a45a 50%, #3b251c); border: 3px ridge #bca56e; display: grid; place-items: center; color: white; text-shadow: 1px 1px #000; font-weight: 900; font-size: 11px; position: relative; }
 .effect-badge { position: absolute; right: 4px; bottom: 4px; background: #7d251f; color: #fff7dc; border: 1px solid #fff7dc; padding: 2px 5px; font: 900 7px sans-serif; font-style: normal; text-shadow: none; }
 .rarity-note { display: inline-block; margin-top: 8px; padding: 6px 9px; border: 1px solid #a89c88; background: #e8dfcf; font: 800 9px monospace; }
+.pack-details-button { width: min(100%, 430px); margin-top: 9px; border: 1px solid var(--ink); background: transparent; padding: 11px 12px; text-align: left; font-size: 11px; font-weight: 900; }
+.pack-details-button::after { content: "→"; float: right; }
 .card-text { background: #e9dfc9; border: 1px solid #71553e; margin-top: 7px; padding: 5px; height: 27%; font-size: 7px; overflow: hidden; }
 .card-text p { margin: 3px 0; }
 .card-text strong { float: right; font-family: monospace; }
-.card > i { position: absolute; right: 6px; bottom: 2px; font: 800 8px monospace; }
+.card > i { position: absolute; right: 4px; bottom: 3px; z-index: 3; display: grid; min-width: 48px; padding: 3px 5px; background: #171510e8; color: white; border: 1px solid #fff8; text-align: center; font: 800 8px monospace; font-style: normal; }
+.card > i b { font-size: 11px; letter-spacing: .12em; }
+.card > i span { font-size: 5px; letter-spacing: .03em; }
+.rarity-r > i { background: #876111ee; }
+.rarity-sr > i { background: #61758bee; }
+.rarity-ur > i { background: #a06c00ee; color: #fff4b6; }
+.rarity-se > i { background: linear-gradient(90deg, #7d438eeb, #247e91eb); }
 .collection-screen { flex: 1; padding: 38px 0; }
 .collection-heading { display: flex; justify-content: space-between; align-items: end; border-bottom: 1px solid #aaa18f; margin-bottom: 28px; }
 .collection-heading h2 { font-size: clamp(36px, 6vw, 58px); margin-bottom: 13px; }
@@ -132,6 +155,7 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .deck-row > div strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .deck-row > div span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #756d60; font-size: 9px; margin-top: 3px; }
 .deck-row > div .monster-stats { color: var(--ink); font: 800 10px monospace; letter-spacing: .02em; }
+.deck-row > div .deck-effect-text { color: #4e473d; white-space: normal; line-height: 1.35; }
 .deck-row > b { white-space: nowrap; font: 800 10px monospace; }
 .deck-row button { border: 1px solid var(--ink); background: transparent; min-width: 48px; padding: 7px 6px; font-size: 10px; font-weight: 800; }
 .deck-row button:not(:disabled):active { background: var(--ink); color: white; }
@@ -259,6 +283,42 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .spell-target-list span, .spell-target-list strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .spell-target-list span { color: #63756d; font-size: 8px; }
 .overlay-close { width: 100%; margin-top: 14px; border: 0; background: var(--ink); color: white; padding: 11px; font-weight: 900; }
+.pack-details-overlay, .card-info-overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: #11100eee; padding: 18px; }
+.card-info-overlay { z-index: 50; }
+.pack-details-panel { width: min(760px, 100%); max-height: 90vh; overflow: auto; background: #eee5d4; border: 3px solid var(--ink); padding: 18px; box-shadow: 0 18px 55px #000b; }
+.pack-details-heading { display: flex; justify-content: space-between; gap: 15px; align-items: start; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.pack-details-heading h2 { margin: 4px 0 0; font: 900 clamp(30px, 7vw, 48px)/1 Georgia, "Yu Mincho", serif; }
+.pack-details-heading button { border: 1px solid var(--ink); background: transparent; padding: 8px 14px; font-weight: 800; }
+.odds-help { margin: 12px 0; font-size: 10px; line-height: 1.6; color: #665e52; }
+.rarity-odds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
+.rarity-odds > div { display: grid; min-width: 0; border: 2px solid #887f70; background: #e4d9c7; padding: 8px; }
+.rarity-odds span { font: 900 12px monospace; }
+.rarity-odds strong { font: 900 22px Georgia, serif; }
+.rarity-odds small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 7px; }
+.rarity-odds .odds-se { border-color: #65b8d4; background: linear-gradient(135deg, #dbf8ff, #f0dcff); }
+.rarity-odds .odds-ur { border-color: #bd8c13; background: #ffe49a; }
+.rarity-odds .odds-sr { border-color: #7f94a8; background: #e4edf4; }
+.rarity-odds .odds-r { border-color: #9e7622; background: #efe0af; }
+.pack-card-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.pack-card-entry { min-width: 0; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid #a29888; border-left: 5px solid #857c6d; background: #f8f1e4; padding: 8px; text-align: left; }
+.pack-card-entry > span:nth-child(2) { min-width: 0; }
+.pack-card-entry strong, .pack-card-entry small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pack-card-entry strong { font-size: 10px; }
+.pack-card-entry small { margin-top: 2px; color: #72695d; font-size: 7px; }
+.pack-card-entry > b { font: 900 11px monospace; color: var(--red); }
+.entry-rarity { display: grid; place-items: center; min-height: 28px; background: #70695e; color: white; font: 900 9px monospace; }
+.entry-se { border-left-color: #65b8d4; } .entry-se .entry-rarity { background: linear-gradient(135deg, #247e91, #884c98); }
+.entry-ur { border-left-color: #bd8c13; } .entry-ur .entry-rarity { background: #9b6900; }
+.entry-sr { border-left-color: #7f94a8; } .entry-sr .entry-rarity { background: #61758b; }
+.entry-r { border-left-color: #9e7622; } .entry-r .entry-rarity { background: #876111; }
+.card-info-panel { width: min(700px, 100%); max-height: 90vh; overflow: auto; display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 22px; background: #eee5d4; border: 5px solid #7a7164; padding: 22px; box-shadow: 0 20px 60px #000c; }
+.card-info-panel > .card { width: 100%; align-self: start; }
+.card-info-panel h2 { margin: 6px 0 10px; font: 900 clamp(28px, 6vw, 46px)/1.05 Georgia, "Yu Mincho", serif; }
+.rarity-title { display: inline-block; margin-bottom: 14px; padding: 6px 9px; background: #70695e; color: white; font: 900 9px monospace; }
+.title-se { background: linear-gradient(90deg, #247e91, #884c98); } .title-ur { background: #9b6900; } .title-sr { background: #61758b; } .title-r { background: #876111; }
+.full-card-text { min-height: 90px; margin: 0; border: 1px solid #9e927e; background: #fff8e9; padding: 14px; font: 700 14px/1.8 "Yu Mincho", serif; }
+.full-card-stats { border-top: 2px solid var(--ink); padding-top: 10px; font: 900 12px/1.8 monospace; }
+.info-se { border-color: #79cce5; } .info-ur { border-color: #d4a526; } .info-sr { border-color: #97aabc; } .info-r { border-color: #a67d28; }
 .card-detail { border-color: #93683e; }
 .card-detail.detail-spell { border-color: #3c7d70; }
 .card-detail.detail-trap { border-color: #7f456c; }
@@ -276,7 +336,11 @@ footer { border-top: 1px solid #aaa18f; padding-top: 12px; display: flex; justif
   .primary { grid-column: 1 / -1; }
   .card-row { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
   .collection-grid { grid-template-columns: repeat(2, minmax(130px, 1fr)); gap: 18px 10px; }
-  .card-row .card:last-child { grid-column: 1 / -1; width: calc(50% - 5px); justify-self: center; }
+  .card-row .opened-card:last-child { grid-column: 1 / -1; width: calc(50% - 5px); justify-self: center; }
+  .pack-card-list { grid-template-columns: 1fr; }
+  .rarity-odds { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card-info-panel { grid-template-columns: 120px minmax(0, 1fr); gap: 13px; padding: 14px; }
+  .card-info-panel .full-card-text { font-size: 12px; padding: 10px; }
   .deck-heading { align-items: center; }
   .deck-heading > div > p:not(.section-label) { font-size: 11px; }
   .deck-total { min-width: 78px; padding: 8px; }
@@ -310,4 +374,4 @@ footer { border-top: 1px solid #aaa18f; padding-top: 12px; display: flex; justif
   .tabs button { font-size: 12px; }
 }
 
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }

@@ -5,6 +5,8 @@ import { cardById, cards, packs, type Card, type Rarity } from "./card-data";
 import { DeckEditor } from "./DeckEditor";
 import { DuelArena } from "./DuelArena";
 import { addCardsToCollection, MAX_OWNED_COPIES } from "./collection-rules.mjs";
+import { calculatePackCardOdds, calculateRareSlotOdds } from "./pack-odds.mjs";
+import { cardDescription, rarityNames } from "./card-text";
 
 const STORAGE_KEY = "ocg2003.collection.v1";
 const DAILY_KEY = "ocg2003.daily-packs.v1";
@@ -67,6 +69,8 @@ export function GameHome() {
   const [tab, setTab] = useState<"pack" | "collection" | "deck" | "duel">("pack");
   const [selectedPackId, setSelectedPackId] = useState(packs[0].id);
   const [remainingByPack, setRemainingByPack] = useState<Record<string, number>>(freshPackAllowances);
+  const [showPackDetails, setShowPackDetails] = useState(false);
+  const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -97,6 +101,9 @@ export function GameHome() {
   );
   const selectedPack = packs.find((pack) => pack.id === selectedPackId) ?? packs[0];
   const selectedRemaining = remainingByPack[selectedPackId] ?? DAILY_PACKS;
+  const selectedPackCards = selectedPack.cardIds.map((id) => cardById.get(id)).filter((card): card is Card => Boolean(card));
+  const selectedPackOdds = new Map(calculatePackCardOdds(selectedPackCards).map((item) => [item.cardId, item]));
+  const selectedRareOdds = calculateRareSlotOdds(selectedPackCards);
 
   function openPack() {
     const allowance = loadDailyAllowance();
@@ -166,7 +173,10 @@ export function GameHome() {
                 <button
                   className={selectedPackId === pack.id ? "selected" : ""}
                   key={pack.id}
-                  onClick={() => setSelectedPackId(pack.id)}
+                  onClick={() => {
+                    setSelectedPackId(pack.id);
+                    setOpened([]);
+                  }}
                   role="listitem"
                 >
                   <span><b>{pack.name}</b><small>{pack.releaseDate.replaceAll("-", ".")} · 残り{remainingByPack[pack.id] ?? DAILY_PACKS}</small></span>
@@ -175,7 +185,10 @@ export function GameHome() {
               ))}
             </div>
             <p>各パックを毎日10回まで開封できます。0:00（日本時間）にパックごとに回復します。カードは同名5枚まで所持でき、6枚目以降は自動で破棄されます。</p>
-            <p className="rarity-note">レア枠：SE 2% ／ UR 5% ／ SR 15% ／ R 78%</p>
+            <p className="rarity-note">レア枠の基準：SE 2% ／ UR 5% ／ SR 15% ／ R 78%（未収録分は再配分）</p>
+            <button className="pack-details-button" onClick={() => setShowPackDetails(true)}>
+              収録カード・このパックの排出率を見る
+            </button>
             <button className="primary" onClick={openPack} disabled={!ready || selectedRemaining === 0}>
               {selectedRemaining > 0 ? "パックを開ける" : "このパックの本日分は終了"} <span>5枚</span>
             </button>
@@ -190,7 +203,7 @@ export function GameHome() {
               <div className="card-row">
                 {opened.map(({ card, discarded }, index) => (
                   <div className={discarded ? "opened-card discarded" : "opened-card"} key={`${card.id}-${index}`}>
-                    <CardTile card={card} />
+                    <CardTile card={card} onSelect={() => setDetailCardId(card.id)} />
                     {discarded && <span>所持上限・自動破棄</span>}
                   </div>
                 ))}
@@ -209,7 +222,7 @@ export function GameHome() {
           ) : (
             <div className="collection-grid">
               {cards.filter((card) => collection[card.id]).map((card) => (
-                <div className="owned-card" key={card.id}><CardTile card={card} /><span>× {collection[card.id]}</span></div>
+                <div className="owned-card" key={card.id}><CardTile card={card} onSelect={() => setDetailCardId(card.id)} /><span>× {collection[card.id]}</span></div>
               ))}
             </div>
           )}
@@ -217,24 +230,84 @@ export function GameHome() {
       ) : tab === "deck"
         ? <DeckEditor collection={collection} />
         : <DuelArena collection={collection} onReward={awardCard} />}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 039</span></footer>
+      {showPackDetails && (
+        <div className="pack-details-overlay" role="dialog" aria-modal="true" aria-label={`${selectedPack.name}の収録カード`}>
+          <section className="pack-details-panel">
+            <div className="pack-details-heading">
+              <div><p className="section-label">PACK CONTENTS</p><h2>{selectedPack.name}</h2></div>
+              <button onClick={() => setShowPackDetails(false)}>閉じる</button>
+            </div>
+            <p className="odds-help">1パックは通常枠4枚＋レア枠1枚です。表示率は、そのカードが1パックに1枚以上含まれる確率です。</p>
+            <div className="rarity-odds" aria-label="レア枠の排出率">
+              {selectedRareOdds.filter((item) => item.probability > 0).map((item) => (
+                <div className={`odds-${item.rarity.toLowerCase()}`} key={item.rarity}>
+                  <span>{item.rarity}</span><strong>{formatRate(item.probability)}</strong><small>{rarityNames[item.rarity as Rarity]}</small>
+                </div>
+              ))}
+            </div>
+            <div className="pack-card-list">
+              {selectedPackCards.map((card) => {
+                const odds = selectedPackOdds.get(card.id);
+                return (
+                  <button className={`pack-card-entry entry-${card.rarity.toLowerCase()}`} key={card.id} onClick={() => setDetailCardId(card.id)}>
+                    <span className="entry-rarity">{card.rarity}</span>
+                    <span><strong>{card.name}</strong><small>{card.cardType === "monster" ? `${card.attribute}属性・${card.kind}・★${card.level}` : card.kind}</small></span>
+                    <b>{odds ? formatRate(odds.probability) : "—"}</b>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      )}
+      {detailCardId && cardById.get(detailCardId) && (
+        <div className="card-info-overlay" role="dialog" aria-modal="true" aria-label="カード詳細">
+          <section className={`card-info-panel info-${cardById.get(detailCardId)!.rarity.toLowerCase()}`}>
+            <CardTile card={cardById.get(detailCardId)!} />
+            <div>
+              <p className="section-label">CARD TEXT</p>
+              <h2>{cardById.get(detailCardId)!.name}</h2>
+              <span className={`rarity-title title-${cardById.get(detailCardId)!.rarity.toLowerCase()}`}>
+                {cardById.get(detailCardId)!.rarity} · {rarityNames[cardById.get(detailCardId)!.rarity]}
+              </span>
+              <p className="full-card-text">{cardDescription(cardById.get(detailCardId)!)}</p>
+              {cardById.get(detailCardId)!.cardType === "monster" && (
+                <p className="full-card-stats">{cardById.get(detailCardId)!.attribute}属性　{cardById.get(detailCardId)!.kind}　★{cardById.get(detailCardId)!.level}<br />ATK {cardById.get(detailCardId)!.atk} / DEF {cardById.get(detailCardId)!.def}</p>
+              )}
+              <button className="overlay-close" onClick={() => setDetailCardId(null)}>閉じる</button>
+            </div>
+          </section>
+        </div>
+      )}
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 040</span></footer>
     </main>
   );
 }
 
-function CardTile({ card }: { card: Card }) {
+function CardTile({ card, onSelect }: { card: Card; onSelect?: () => void }) {
   const isMonster = card.cardType === "monster";
   return (
-    <article className={`card card-${card.cardType} rarity-${card.rarity.toLowerCase()}`}>
+    <article
+      className={`card card-${card.cardType} rarity-${card.rarity.toLowerCase()}${onSelect ? " card-selectable" : ""}`}
+      onClick={onSelect}
+      onKeyDown={onSelect ? (event) => { if (event.key === "Enter" || event.key === " ") onSelect(); } : undefined}
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
+    >
       <div className="card-name"><strong>{card.name}</strong><span>{card.attribute ?? (card.cardType === "spell" ? "魔" : "罠")}</span></div>
       <div className="stars">{isMonster ? "★".repeat(card.level ?? 0) : card.kind}</div>
       <div className="card-art"><span>{card.kind}</span>{card.effect && <em className="effect-badge">効果</em>}</div>
       <div className="card-text">
         <b>【{card.kind}】</b>
-        <p>{isMonster ? card.effect ? "効果モンスター" : card.fusion ? "融合モンスター" : "通常モンスター" : card.cardType === "spell" ? "魔法カード" : "罠カード"}</p>
+        <p>{cardDescription(card)}</p>
         {isMonster && <strong>ATK/{card.atk} DEF/{card.def}</strong>}
       </div>
-      <i>{card.rarity}</i>
+      <i><b>{card.rarity}</b><span>{rarityNames[card.rarity]}</span></i>
     </article>
   );
+}
+
+function formatRate(probability: number) {
+  const percent = probability * 100;
+  return `${percent < 0.1 ? percent.toFixed(2) : percent.toFixed(1)}%`;
 }
