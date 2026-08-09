@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -34,6 +34,10 @@ type PendingTrapResponse = {
 type PendingFlipTarget = {
   monsterId: string;
   effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap";
+};
+type PendingDeckReorder = {
+  monsterId: string;
+  cards: string[];
 };
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
@@ -69,6 +73,7 @@ type DuelState = {
   result: Result;
   pendingTrapResponse: PendingTrapResponse | null;
   pendingFlipTarget: PendingFlipTarget | null;
+  pendingDeckReorder: PendingDeckReorder | null;
   log: string[];
 };
 
@@ -111,6 +116,7 @@ export function DuelArena({
   }, [collection, duel]);
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingFlipTarget
+    && !duel.pendingDeckReorder
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
@@ -205,6 +211,7 @@ export function DuelArena({
       result: null,
       pendingTrapResponse: null,
       pendingFlipTarget: null,
+      pendingDeckReorder: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
     });
   }
@@ -608,7 +615,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -631,7 +638,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -724,13 +731,43 @@ export function DuelArena({
     setDuel(resolved);
   }
 
+  function movePendingDeckCard(fromIndex: number, toIndex: number) {
+    if (!duel?.pendingDeckReorder) return;
+    setDuel({
+      ...duel,
+      pendingDeckReorder: {
+        ...duel.pendingDeckReorder,
+        cards: moveDeckCard(duel.pendingDeckReorder.cards, fromIndex, toIndex),
+      },
+    });
+  }
+
+  function confirmDeckOrder() {
+    if (!duel?.pendingDeckReorder) return;
+    const monsterName = cardById.get(duel.pendingDeckReorder.monsterId)?.name ?? "大王目玉";
+    const resolved: DuelState = {
+      ...duel,
+      playerDeck: [...duel.pendingDeckReorder.cards, ...duel.playerDeck],
+      pendingDeckReorder: null,
+      log: appendLog(duel.log, `${monsterName}の効果でデッキの上を並べ替えた。`),
+    };
+    if (duel.turn === "cpu") {
+      const marker = "デッキの並べ替えが終了。";
+      const resumed = { ...resolved, log: appendLog(resolved.log, marker) };
+      const finalState = finishCpuTurn(resumed, true);
+      beginCpuPlayback(resumed, finalState, marker);
+      return;
+    }
+    setDuel(resolved);
+  }
+
   if (!duel) {
     return (
       <section className="duel-lobby">
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 048</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 049</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -814,7 +851,11 @@ export function DuelArena({
             <div className="cpu-playback-actions">
               <button className="cpu-next" onClick={advanceCpuPlayback}>
                 {cpuPlayback.index >= cpuPlayback.messages.length - 1
-                  ? cpuPlayback.finalState.pendingTrapResponse ? "3. 落とし穴の発動確認へ" : "自分のターンへ"
+                  ? cpuPlayback.finalState.pendingTrapResponse
+                    ? "落とし穴の発動確認へ"
+                    : cpuPlayback.finalState.pendingDeckReorder
+                      ? "大王目玉の並べ替えへ"
+                      : "自分のターンへ"
                   : "次の行動"}
               </button>
               <button onClick={() => {
@@ -934,6 +975,26 @@ export function DuelArena({
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+      {duel.pendingDeckReorder && (
+        <div className="card-overlay deck-reorder-overlay">
+          <div className="graveyard-panel deck-reorder-panel">
+            <p className="section-label">BIG EYE · FLIP EFFECT</p>
+            <h2>デッキ上の順番を決める</h2>
+            <p>一番上にしたいカードを1番へ移動してください。</p>
+            <div className="deck-reorder-list">
+              {duel.pendingDeckReorder.cards.map((id, index) => (
+                <div key={`${id}-${index}`}>
+                  <b>{index + 1}</b>
+                  <span><strong>{cardById.get(id)?.name ?? "カード"}</strong><small>{cardById.get(id)?.kind}</small></span>
+                  <button disabled={index === 0} onClick={() => movePendingDeckCard(index, index - 1)}>↑</button>
+                  <button disabled={index === duel.pendingDeckReorder!.cards.length - 1} onClick={() => movePendingDeckCard(index, index + 1)}>↓</button>
+                </div>
+              ))}
+            </div>
+            <button className="overlay-close" onClick={confirmDeckOrder}>この順番でデッキに戻す</button>
           </div>
         </div>
       )}
@@ -1329,7 +1390,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerSwordsTurns.length > 0) {
     state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
   } else {
-    for (let index = state.cpuField.length - 1; index >= 0 && !state.result && !state.pendingFlipTarget; index -= 1) {
+    for (let index = state.cpuField.length - 1; index >= 0 && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked) continue;
       if (state.playerField.length === 0) {
@@ -1348,7 +1409,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       if (targetIndex !== null) state = resolveBattle(state, "cpu", index, targetIndex);
     }
   }
-  if (state.result || state.pendingFlipTarget) return state;
+  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder) return state;
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
   if (swords.expired > 0) {
@@ -1834,6 +1895,23 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
 function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
   const ownerName = owner === "player" ? "あなた" : "CPU";
   const effect = flipEffect(monsterId);
+  if (effect === "reorder-five") {
+    const deck = owner === "player" ? state.playerDeck : state.cpuDeck;
+    const topCards = deck.slice(0, 5);
+    if (topCards.length === 0) return state;
+    if (owner === "player" && shouldPlayerChooseFlipTarget(owner, state.turn, state.phase)) {
+      return {
+        ...state,
+        playerDeck: deck.slice(topCards.length),
+        pendingDeckReorder: { monsterId, cards: topCards },
+        log: appendLog(state.log, `${ownerName}の大王目玉がリバース。デッキ上${topCards.length}枚の順番を選択してください。`),
+      };
+    }
+    return {
+      ...state,
+      log: appendLog(state.log, `${ownerName}の大王目玉がリバース。デッキ上${topCards.length}枚を確認して並べ替えた。`),
+    };
+  }
   if (effect === "draw") {
     const deck = owner === "player" ? state.playerDeck : state.cpuDeck;
     if (deck.length === 0) return state;

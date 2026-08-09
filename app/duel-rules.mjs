@@ -104,6 +104,15 @@ export function takeGraveyardCard(cards, index) {
   };
 }
 
+export function moveDeckCard(cards, fromIndex, toIndex) {
+  if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return [...cards];
+  if (fromIndex < 0 || fromIndex >= cards.length || toIndex < 0 || toIndex >= cards.length) return [...cards];
+  const next = [...cards];
+  const [card] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, card);
+  return next;
+}
+
 export function deSpellDestroys(cardType, cardId = "") {
   return cardType === "spell" || cardId === "vol4-cocoon-evolution";
 }
@@ -121,6 +130,7 @@ const flipEffects = Object.freeze({
   "vol3-hane-hane": "return-monster",
   "vol4-magician-faith": "recover-spell",
   "vol4-mask-darkness": "recover-trap",
+  "vol5-big-eye": "reorder-five",
 });
 
 export function flipEffect(id) {

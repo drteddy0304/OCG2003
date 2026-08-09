@@ -52,10 +52,12 @@ export function takeGraveyardCard(cards: string[], index: number): {
   remaining: string[];
 } | null;
 
+export function moveDeckCard(cards: string[], fromIndex: number, toIndex: number): string[];
+
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five";
 
 export function flipEffect(id: string): FlipEffect | null;
