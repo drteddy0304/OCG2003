@@ -37,6 +37,8 @@ export function shouldPlayerChooseFlipTarget(
   phase: "main1" | "battle" | "main2",
 ): boolean;
 
+export function canMonsterAttackDirectly(id: string): boolean;
+
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];
   expired: number;

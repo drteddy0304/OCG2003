@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -599,6 +599,14 @@ export function DuelArena({
     setSelectedAttacker(null);
   }
 
+  function attackDirectly() {
+    if (!duel || selectedAttacker === null) return;
+    const attacker = duel.playerField[selectedAttacker];
+    if (!attacker || !canMonsterAttackDirectly(attacker.id)) return;
+    setDuel(resolveBattle(duel, "player", selectedAttacker, null));
+    setSelectedAttacker(null);
+  }
+
   function advancePhase() {
     if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
     setSelectedAttacker(null);
@@ -947,6 +955,13 @@ export function DuelArena({
           ))}
         </div>
         <FieldRow zones={duel.cpuField} owner="cpu" selectedTarget={selectedAttacker !== null} onTarget={attackTarget} onInspect={setDetailCardId} />
+        {selectedAttacker !== null
+          && duel.cpuField.length > 0
+          && canMonsterAttackDirectly(duel.playerField[selectedAttacker]?.id ?? "") && (
+            <button className="direct-attack-choice" onClick={attackDirectly}>
+              モンスターを無視して直接攻撃
+            </button>
+          )}
         <div className="phase-line"><span>BATTLE FIELD</span></div>
         <FieldRow
           zones={duel.playerField}

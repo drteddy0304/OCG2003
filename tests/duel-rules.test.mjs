@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -134,6 +134,13 @@ test("自分のリバース効果はCPUのバトル中でも自分で対象を�
   assert.equal(shouldPlayerChooseFlipTarget("player", "cpu", "battle"), true);
   assert.equal(shouldPlayerChooseFlipTarget("player", "cpu", "main1"), false);
   assert.equal(shouldPlayerChooseFlipTarget("cpu", "player", "battle"), false);
+});
+
+test("Vol.5の直接攻撃モンスター6体を判定する", () => {
+  for (const id of ["vol5-mystic-lamp", "vol5-leghul", "vol5-ooguchi", "vol5-jinzo-7", "vol5-rainbow-flower", "vol5-queens-double"]) {
+    assert.equal(canMonsterAttackDirectly(id), true);
+  }
+  assert.equal(canMonsterAttackDirectly("vol5-feral-imp"), false);
 });
 
 test("万華鏡はハーピィ・レディと三姉妹だけを特殊召喚できる", () => {

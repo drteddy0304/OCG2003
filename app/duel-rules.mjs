@@ -69,6 +69,19 @@ export function shouldPlayerChooseFlipTarget(owner, turn, phase) {
   return owner === "player" && (turn === "player" || phase === "battle");
 }
 
+const directAttackMonsters = new Set([
+  "vol5-mystic-lamp",
+  "vol5-leghul",
+  "vol5-ooguchi",
+  "vol5-jinzo-7",
+  "vol5-rainbow-flower",
+  "vol5-queens-double",
+]);
+
+export function canMonsterAttackDirectly(id) {
+  return directAttackMonsters.has(id);
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };
