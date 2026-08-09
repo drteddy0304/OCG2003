@@ -69,6 +69,13 @@ test("Vol.2の回復・ダメージ魔法の数値を適用する", () => {
   assert.deepEqual(simpleSpellEffect("vol2-final-flame"), { gain: 0, damage: 600 });
 });
 
+test("Booster 1・STARTER BOXの回復・ダメージ魔法の数値を適用する", () => {
+  assert.deepEqual(simpleSpellEffect("bo1-blue-potion"), { gain: 400, damage: 0 });
+  assert.deepEqual(simpleSpellEffect("bo1-thunder"), { gain: 0, damage: 300 });
+  assert.deepEqual(simpleSpellEffect("stb-moyan-curry"), { gain: 200, damage: 0 });
+  assert.deepEqual(simpleSpellEffect("stb-fireball"), { gain: 0, damage: 500 });
+});
+
 test("光の護封剣はCPUターン3回で終了する", () => {
   assert.deepEqual(advanceSwordsTurns([3]), { remaining: [2], expired: 0 });
   assert.deepEqual(advanceSwordsTurns([2]), { remaining: [1], expired: 0 });

@@ -316,6 +316,13 @@ export function DuelArena({
         playerGraveyard: [...next.playerGraveyard, ...graveCards(next.playerField)],
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField)],
       };
+    } else if (card.id === "stb-raigeki") {
+      next = {
+        ...next,
+        cpuField: [],
+        cpuSpellTrap: discardEquips(next.cpuSpellTrap, next.cpuField),
+        cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField)],
+      };
     } else if (simpleSpellEffect(card.id)) {
       const effect = simpleSpellEffect(card.id)!;
       next = {
@@ -504,7 +511,7 @@ export function DuelArena({
   function setTrap(handIndex: number) {
     if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
     const card = cardById.get(duel.playerHand[handIndex]);
-    if (!card || card.cardType !== "trap") return;
+    if (!card || card.cardType !== "trap" || !isTrapImplemented(card.id)) return;
     setDuel({
       ...removeHandCard(duel, handIndex),
       playerSpellTrap: [...duel.playerSpellTrap, card.id],
@@ -645,7 +652,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 037</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 038</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -982,8 +989,8 @@ export function DuelArena({
                   </>
                 ) : (
                   <>
-                    <small>ATK1000以上の召喚モンスターを破壊</small>
-                    <button disabled={!isPlayerMainPhase || pendingTribute !== null || duel.playerSpellTrap.length >= FIELD_LIMIT} onClick={() => setTrap(index)}>セット</button>
+                    <small>{trapDescription(card.id)}</small>
+                    <button disabled={!isTrapImplemented(card.id) || !isPlayerMainPhase || pendingTribute !== null || duel.playerSpellTrap.length >= FIELD_LIMIT} onClick={() => setTrap(index)}>セット</button>
                   </>
                 )}
               </article>
@@ -1059,7 +1066,7 @@ function CardDetail({ cardId, onClose }: { cardId: string; onClose: () => void }
             {monsterDescription(card.id) && <p>{monsterDescription(card.id)}</p>}
           </>
         ) : (
-          <p>{card.cardType === "spell" ? spellDescription(card.id) : "ATK1000以上で召喚された相手モンスターを破壊"}</p>
+          <p>{card.cardType === "spell" ? spellDescription(card.id) : trapDescription(card.id)}</p>
         )}
         <small>レアリティ：{card.rarity}</small>
         <button className="overlay-close" onClick={onClose}>閉じる</button>
@@ -1893,6 +1900,7 @@ function graveCards(zones: ZoneCard[]) {
 function spellDescription(id: string) {
   if (EQUIP_RULES[id]) return `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
   if (id === "vol1-dark-hole") return "フィールドのモンスターをすべて破壊";
+  if (id === "stb-raigeki") return "相手フィールドのモンスターをすべて破壊";
   const effect = simpleSpellEffect(id);
   if (effect?.gain) return `自分のLPを${effect.gain}回復`;
   if (effect?.damage) return `相手に${effect.damage}ダメージ`;
@@ -1913,6 +1921,7 @@ function isSpellImplemented(id: string) {
     || Boolean(simpleSpellEffect(id))
     || [
       "vol1-dark-hole",
+      "stb-raigeki",
       "vol1-fissure",
       "vol2-swords-revealing-light",
       "vol2-monster-reborn",
@@ -1922,6 +1931,15 @@ function isSpellImplemented(id: string) {
       "vol3-gravedigger-ghoul",
       "vol4-elegant-egotist",
     ].includes(id);
+}
+
+function trapDescription(id: string) {
+  if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
+  return "効果処理は次の更新で対応";
+}
+
+function isTrapImplemented(id: string) {
+  return id === "vol1-trap-hole";
 }
 
 function monsterDescription(id: string) {

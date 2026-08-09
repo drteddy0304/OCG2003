@@ -1,3 +1,5 @@
+import { earlyProductCards, earlyProductPacks } from "./early-product-data";
+
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
 export type Card = {
@@ -203,6 +205,7 @@ export const cards: Card[] = [
   { id: "vol4-warrior-elimination", name: "戦士抹殺", cardType: "spell", kind: "通常魔法", rarity: "R" },
   { id: "vol4-insecticide", name: "トゲトゲ神の殺虫剤", cardType: "spell", kind: "通常魔法", rarity: "R" },
   { id: "vol4-elegant-egotist", name: "万華鏡－華麗なる分身－", cardType: "spell", kind: "通常魔法", rarity: "UR" },
+  ...earlyProductCards,
 ];
 
 export const packs: Pack[] = [
@@ -234,6 +237,7 @@ export const packs: Pack[] = [
     category: "official",
     cardIds: cards.filter((card) => card.id.startsWith("vol4-")).map((card) => card.id),
   },
+  ...earlyProductPacks,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));

@@ -40,6 +40,10 @@ const simpleSpellEffects = Object.freeze({
   "vol1-sparks": { gain: 0, damage: 200 },
   "vol2-goblin-secret-remedy": { gain: 600, damage: 0 },
   "vol2-final-flame": { gain: 0, damage: 600 },
+  "bo1-blue-potion": { gain: 400, damage: 0 },
+  "bo1-thunder": { gain: 0, damage: 300 },
+  "stb-moyan-curry": { gain: 200, damage: 0 },
+  "stb-fireball": { gain: 0, damage: 500 },
 });
 
 export function simpleSpellEffect(id) {
