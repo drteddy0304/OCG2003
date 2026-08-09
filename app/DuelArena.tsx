@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, canNormalSummonMonster, deSpellDestroys, equipRules, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, canNormalSummonMonster, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -448,7 +448,7 @@ export function DuelArena({
       ...removeHandCard(duel, pendingDeSpell),
       playerGraveyard: [...duel.playerGraveyard, "vol2-de-spell"],
     };
-    if (deSpellDestroys(target.cardType)) {
+    if (deSpellDestroys(target.cardType, target.id)) {
       if (targetSide === "player") {
         const swordsIndex = targetId === "vol2-swords-revealing-light"
           ? duel.playerSpellTrap.slice(0, targetIndex + 1).filter((id) => id === targetId).length - 1
@@ -489,14 +489,19 @@ export function DuelArena({
     const spell = cardById.get(duel.playerHand[selectedEquip]);
     const zone = duel.playerField[fieldIndex];
     const monster = zone ? cardById.get(zone.id) : null;
-    if (!spell || !monster || !canEquip(spell.id, monster)) return;
+    if (!spell || !zone || zone.faceDown || !monster || !canEquip(spell.id, monster) || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
     setDuel({
       ...removeHandCard(duel, selectedEquip),
       playerField: duel.playerField.map((item, index) =>
         index === fieldIndex ? { ...item, equipped: [...item.equipped, spell.id] } : item,
       ),
       playerSpellTrap: [...duel.playerSpellTrap, spell.id],
-      log: appendLog(duel.log, `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`),
+      log: appendLog(
+        duel.log,
+        spell.id === "vol4-cocoon-evolution"
+          ? `進化の繭を${monster.name}に装備。ATK 0・DEF 2000を適用。`
+          : `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`,
+      ),
     });
     setSelectedEquip(null);
   }
@@ -645,7 +650,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 034</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 035</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
@@ -931,6 +936,21 @@ export function DuelArena({
                   <>
                     <small>★{card.level}　ATK {card.atk} / DEF {card.def}</small>
                     <div><button disabled={!canSummon} onClick={() => summon(index, "attack")}>召喚</button><button disabled={!canSummon} onClick={() => summon(index, "defense")}>セット</button></div>
+                    {card.id === "vol4-cocoon-evolution" && (
+                      <button
+                        disabled={
+                          !isPlayerMainPhase
+                          || duel.playerSpellTrap.length >= FIELD_LIMIT
+                          || !duel.playerField.some((zone) => !zone.faceDown && zone.id === "vol4-petit-moth")
+                        }
+                        onClick={() => {
+                          setSelectedEquip(index);
+                          setSelectedAttacker(null);
+                        }}
+                      >
+                        {selectedEquip === index ? "プチモスを選択中" : "プチモスに装備"}
+                      </button>
+                    )}
                   </>
                 ) : card.cardType === "spell" ? (
                   <>
@@ -1094,7 +1114,7 @@ function FieldRow({
         const card = cardById.get(zone.id);
         if (!card) return null;
         const hidden = owner === "cpu" && zone.faceDown;
-        const validEquipTarget = equipTarget && Boolean(equipId && canEquip(equipId, card));
+        const validEquipTarget = equipTarget && !zone.faceDown && Boolean(equipId && canEquip(equipId, card));
         const showPositionChange = owner === "player" && canChangePosition?.(index);
         return (
           <div className="field-slot" key={`${zone.id}-${index}`}>
@@ -1242,7 +1262,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
   let state = initial;
 
   const deSpellTarget = firstSpellTargetIndex(
-    state.playerSpellTrap.map((id) => cardById.get(id)?.cardType ?? "trap"),
+    state.playerSpellTrap.map(fieldCardType),
   );
   if (state.cpuHand.includes("vol2-de-spell") && deSpellTarget !== null) {
     const targetId = state.playerSpellTrap[deSpellTarget];
@@ -1608,7 +1628,7 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
     const target = targetId ? cardById.get(targetId) : null;
     if (!targetId || !target) return base;
     const expectedType = pending.effect === "destroy-spell" ? "spell" : "trap";
-    if (target.cardType !== expectedType) {
+    if (fieldCardType(targetId) !== expectedType) {
       return {
         ...base,
         log: appendLog(state.log, `${effectMonsterName}の効果でセットカードを確認。対象の種類ではないため破壊しなかった。`),
@@ -1741,7 +1761,7 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
   const targetType = effect === "destroy-spell" ? "spell" : effect === "destroy-trap" ? "trap" : null;
   if (!targetType) return state;
   const opponentSpellTrap = owner === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
-  const targetIndex = opponentSpellTrap.findIndex((id) => cardById.get(id)?.cardType === targetType);
+  const targetIndex = opponentSpellTrap.findIndex((id) => fieldCardType(id) === targetType);
   if (targetIndex < 0) return state;
   const targetId = opponentSpellTrap[targetIndex];
   const targetName = cardById.get(targetId)?.name ?? (targetType === "spell" ? "魔法カード" : "罠カード");
@@ -1825,15 +1845,24 @@ function lowestFaceUpAttackIndex(field: ZoneCard[]) {
 }
 
 function effectiveAtk(zone: ZoneCard) {
-  return (cardById.get(zone.id)?.atk ?? 0) + zone.equipped.length * 300;
+  const card = cardById.get(zone.id);
+  return equippedMonsterStats(card?.atk ?? 0, card?.def ?? 0, zone.equipped).atk;
 }
 
 function effectiveDef(zone: ZoneCard) {
-  return (cardById.get(zone.id)?.def ?? 0) + zone.equipped.length * 300;
+  const card = cardById.get(zone.id);
+  return equippedMonsterStats(card?.atk ?? 0, card?.def ?? 0, zone.equipped).def;
 }
 
 function canEquip(spellId: string, monster: Card) {
+  if (spellId === "vol4-cocoon-evolution") return monster.id === "vol4-petit-moth";
   return monster.cardType === "monster" && EQUIP_RULES[spellId] === monster.kind;
+}
+
+function fieldCardType(cardId: string) {
+  return cardId === "vol4-cocoon-evolution"
+    ? "spell"
+    : cardById.get(cardId)?.cardType ?? "trap";
 }
 
 function removeHandCard(state: DuelState, handIndex: number): DuelState {
@@ -1907,6 +1936,7 @@ function monsterDescription(id: string) {
   if (id === "vol4-magician-faith") return "リバース：自分の墓地から魔法カード1枚を選び、手札に戻す";
   if (id === "vol4-mask-darkness") return "リバース：自分の墓地から罠カード1枚を選び、手札に戻す";
   if (id === "vol4-harpie-sisters") return "通常召喚できず、万華鏡－華麗なる分身－の効果で特殊召喚する";
+  if (id === "vol4-cocoon-evolution") return "手札から表側のプチモスに装備でき、ATK 0・DEF 2000を適用する";
   return "";
 }
 

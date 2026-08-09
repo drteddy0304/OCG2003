@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, canNormalSummonMonster, deSpellDestroys, equipRules, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, canNormalSummonMonster, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -77,6 +77,7 @@ test("死者蘇生で選んだ墓地のモンスターだけを取り出す", ()
 test("魔法除去は魔法だけを破壊し、罠は元に戻す", () => {
   assert.equal(deSpellDestroys("spell"), true);
   assert.equal(deSpellDestroys("trap"), false);
+  assert.equal(deSpellDestroys("monster", "vol4-cocoon-evolution"), true);
 });
 
 test("CPUは回復量が無駄にならない時だけ回復魔法を使う", () => {
@@ -123,4 +124,9 @@ test("ハーピィ・レディ三姉妹は通常召喚できない", () => {
   assert.equal(canNormalSummonMonster("vol4-harpie-sisters"), false);
   assert.equal(canNormalSummonMonster("vol4-harpie-lady"), true);
   assert.equal(canNormalSummonMonster("vol4-deepsea-shark", true), false);
+});
+
+test("進化の繭を装備したプチモスはATK0・DEF2000になる", () => {
+  assert.deepEqual(equippedMonsterStats(300, 200, ["vol4-cocoon-evolution"]), { atk: 0, def: 2000 });
+  assert.deepEqual(equippedMonsterStats(300, 200, ["vol4-cocoon-evolution", "equip-card"]), { atk: 300, def: 2300 });
 });

@@ -74,8 +74,8 @@ export function takeGraveyardCard(cards, index) {
   };
 }
 
-export function deSpellDestroys(cardType) {
-  return cardType === "spell";
+export function deSpellDestroys(cardType, cardId = "") {
+  return cardType === "spell" || cardId === "vol4-cocoon-evolution";
 }
 
 export function firstSpellTargetIndex(cardTypes) {
@@ -103,4 +103,13 @@ export function isElegantEgotistTarget(id) {
 
 export function canNormalSummonMonster(id, fusion = false) {
   return !fusion && id !== "vol4-harpie-sisters";
+}
+
+export function equippedMonsterStats(atk, defense, equippedIds) {
+  const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
+  const regularEquipCount = equippedIds.filter((id) => id !== "vol4-cocoon-evolution").length;
+  return {
+    atk: (cocoonEquipped ? 0 : atk) + regularEquipCount * 300,
+    def: (cocoonEquipped ? 2000 : defense) + regularEquipCount * 300,
+  };
 }
