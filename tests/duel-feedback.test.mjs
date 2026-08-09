@@ -31,3 +31,15 @@ test("攻撃・魔法演出にはカード名を表示する", () => {
   assert.equal(feedbackForMessage("暗黒騎士ガイアがワイトを攻撃。ワイトを破壊。")[0].detail, "暗黒騎士ガイア  VS  ワイト");
   assert.equal(feedbackForMessage("CPUがブラック・ホールを発動。すべてのモンスターを破壊。")[0].detail, "ブラック・ホール");
 });
+
+test("アクション演出はテキストを読める表示時間を確保する", () => {
+  const messages = [
+    "暗黒騎士ガイアがワイトを攻撃。ワイトを破壊。",
+    "人喰い虫がリバース。モンスターを破壊した。",
+    "ブラック・ホールを発動。",
+    "落とし穴を発動。モンスターを破壊。",
+  ];
+  for (const message of messages) {
+    assert.ok(feedbackForMessage(message).every((item) => item.duration >= 1800));
+  }
+});

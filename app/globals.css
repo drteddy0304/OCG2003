@@ -177,12 +177,12 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .lobby-sound-toggle { width: 100%; margin-top: 13px; padding: 10px; color: var(--ink); font-size: 9px; }
 .duel-screen { flex: 1; padding: 18px 0 34px; position: relative; }
 .duel-screen::before { content: ""; position: fixed; inset: 0; z-index: 26; pointer-events: none; opacity: 0; }
-.duel-feedback-layer { position: fixed; inset: 0; z-index: 27; overflow: hidden; display: grid; place-items: center; pointer-events: none; color: white; background: #05050799; animation: action-scene 1.15s ease-out both; }
-.action-cut-in { position: relative; z-index: 4; width: min(92vw, 900px); padding: clamp(18px, 4vw, 34px) clamp(26px, 7vw, 70px); border-block: 4px solid currentColor; background: linear-gradient(100deg, transparent, #09090bed 12% 88%, transparent); text-align: center; text-shadow: 0 4px 0 #000, 0 0 25px #000; transform: skewX(-8deg); animation: cut-in 1.05s cubic-bezier(.12,.9,.18,1) both; }
+.duel-feedback-layer { position: fixed; inset: 0; z-index: 27; overflow: hidden; display: grid; place-items: center; pointer-events: none; color: white; background: #05050799; animation: action-scene var(--duel-feedback-duration, 2200ms) ease-out both; }
+.action-cut-in { position: relative; z-index: 4; width: min(92vw, 900px); padding: clamp(18px, 4vw, 34px) clamp(26px, 7vw, 70px); border-block: 4px solid currentColor; background: linear-gradient(100deg, transparent, #09090bed 12% 88%, transparent); text-align: center; text-shadow: 0 4px 0 #000, 0 0 25px #000; transform: skewX(-8deg); animation: cut-in var(--duel-feedback-duration, 2200ms) cubic-bezier(.12,.9,.18,1) both; }
 .action-cut-in > * { display: block; transform: skewX(8deg); }
 .action-cut-in b { font: 900 clamp(18px, 5vw, 42px)/1 Impact, sans-serif; letter-spacing: .18em; opacity: .85; }
 .action-cut-in strong { margin-top: 7px; font: 900 clamp(28px, 8vw, 70px)/1 "Yu Mincho", serif; letter-spacing: -.04em; }
-.action-cut-in small { max-width: 650px; margin: 13px auto 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 clamp(9px, 2vw, 13px)/1.3 "Yu Gothic", sans-serif; color: #fff; letter-spacing: .04em; }
+.action-cut-in small { max-width: 720px; margin: 15px auto 0; white-space: normal; font: 800 clamp(13px, 3vw, 18px)/1.55 "Yu Gothic", sans-serif; color: #fff; letter-spacing: .03em; }
 .feedback-attack { color: #ffdc35; } .feedback-destroy { color: #ff4c2f; } .feedback-guard { color: #74d9ff; }
 .feedback-effect { color: #c28aff; } .feedback-spell { color: #5dffd1; } .feedback-trap { color: #ff58be; } .feedback-summon { color: #fff0a6; }
 .action-speed-lines, .action-particles, .action-emblem { position: absolute; inset: 0; }
@@ -255,7 +255,7 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .cpu-playback { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: #11100eb8; padding: 20px; }
 .cpu-playback > div { width: min(440px, 100%); border: 3px solid var(--red); background: #eee5d4; color: var(--ink); padding: 20px; text-align: center; box-shadow: 0 16px 44px #0009; animation: cpu-action-in .25s ease-out; }
 .cpu-playback strong, .cpu-playback span { display: block; }
-.cpu-playback strong { min-height: 48px; margin: 10px 0; font: 800 16px/1.5 "Yu Mincho", serif; }
+.cpu-playback strong { min-height: 76px; margin: 12px 0; font: 800 clamp(17px, 4vw, 21px)/1.65 "Yu Mincho", serif; }
 .cpu-playback span { font: 800 9px monospace; color: #766c5e; }
 .cpu-playback button { margin-top: 14px; border: 1px solid var(--ink); background: transparent; padding: 8px 14px; font-weight: 800; }
 .cpu-playback-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }

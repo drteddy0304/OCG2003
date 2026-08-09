@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
 import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
@@ -746,7 +746,12 @@ export function DuelArena({
         <div><span>PLAYER</span><strong>{Math.max(0, duel.playerLp)}</strong><small>LP</small></div>
       </div>
       {activeFeedback && (
-        <div className={`duel-feedback-layer feedback-${activeFeedback.kind}`} key={`${activeFeedback.kind}-${feedbackKey}`} aria-live="assertive">
+        <div
+          className={`duel-feedback-layer feedback-${activeFeedback.kind}`}
+          key={`${activeFeedback.kind}-${feedbackKey}`}
+          aria-live="assertive"
+          style={{ "--duel-feedback-duration": `${activeFeedback.duration}ms` } as CSSProperties}
+        >
           <div className="action-speed-lines" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} />)}</div>
           <div className="action-emblem" aria-hidden="true"><i /><i /><i /><i /></div>
           <div className="action-cut-in">
