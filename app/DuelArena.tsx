@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, firstSpellTargetIndex, flipEffect, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, canNormalSummonMonster, deSpellDestroys, equipRules, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -90,6 +90,7 @@ export function DuelArena({
   const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
   const [pendingReborn, setPendingReborn] = useState<number | null>(null);
   const [pendingDeSpell, setPendingDeSpell] = useState<number | null>(null);
+  const [pendingEgotist, setPendingEgotist] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -107,6 +108,7 @@ export function DuelArena({
   }, [collection, duel]);
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingFlipTarget
+    && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
 
   useEffect(() => {
@@ -132,6 +134,7 @@ export function DuelArena({
     setPendingTribute(null);
     setPendingReborn(null);
     setPendingDeSpell(null);
+    setPendingEgotist(null);
     setCpuPlayback(null);
     setDuel({
       playerDeck: shuffledPlayer.slice(6),
@@ -163,7 +166,7 @@ export function DuelArena({
     if (!duel || !isPlayerMainPhase || duel.normalSummoned || duel.result || pendingReborn !== null || pendingDeSpell !== null) return;
     const id = duel.playerHand[handIndex];
     const card = cardById.get(id);
-    if (!card || card.cardType !== "monster") return;
+    if (!card || card.cardType !== "monster" || !canNormalSummonMonster(card.id, card.fusion)) return;
     const tributes = tributeCount(card);
     if (duel.playerField.length < tributes || duel.playerField.length - tributes >= FIELD_LIMIT) return;
     if (tributes > 0) {
@@ -179,7 +182,7 @@ export function DuelArena({
     if (!duel) return;
     const id = duel.playerHand[handIndex];
     const card = cardById.get(id);
-    if (!card || card.cardType !== "monster" || tributeIndexes.length !== tributeCount(card)) return;
+    if (!card || card.cardType !== "monster" || !canNormalSummonMonster(card.id, card.fusion) || tributeIndexes.length !== tributeCount(card)) return;
     const tributedZones = duel.playerField.filter((_, index) => tributeIndexes.includes(index));
     const tributeNames = tributeIndexes.map((index) => cardById.get(duel.playerField[index].id)?.name).filter(Boolean);
     const nextField = duel.playerField.filter((_, index) => !tributeIndexes.includes(index));
@@ -251,7 +254,7 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
     if (EQUIP_RULES[card.id]) {
@@ -274,6 +277,14 @@ export function DuelArena({
     if (card.id === "vol2-de-spell") {
       if (duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0) return;
       setPendingDeSpell(handIndex);
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "vol4-elegant-egotist") {
+      if (!canActivateElegantEgotist(duel, handIndex)) return;
+      setPendingEgotist(handIndex);
       setSelectedAttacker(null);
       setSelectedEquip(null);
       return;
@@ -356,6 +367,44 @@ export function DuelArena({
     } else return;
     next.log = appendLog(next.log, `${card.name}を発動。`);
     setDuel(next);
+  }
+
+  function summonHarpie(source: "hand" | "deck", cardId: string, position: Position) {
+    if (!duel || pendingEgotist === null || !isElegantEgotistTarget(cardId)) return;
+    if (duel.playerHand[pendingEgotist] !== "vol4-elegant-egotist" || duel.playerField.length >= FIELD_LIMIT) return;
+    if (!duel.playerField.some((zone) => !zone.faceDown && zone.id === "vol4-harpie-lady")) return;
+
+    const handWithoutSpell = duel.playerHand.filter((_, index) => index !== pendingEgotist);
+    const sourceCards = source === "hand" ? handWithoutSpell : duel.playerDeck;
+    const targetIndex = sourceCards.indexOf(cardId);
+    if (targetIndex < 0) return;
+    const nextHand = source === "hand"
+      ? handWithoutSpell.filter((_, index) => index !== targetIndex)
+      : handWithoutSpell;
+    const nextDeck = source === "deck"
+      ? duel.playerDeck.filter((_, index) => index !== targetIndex)
+      : duel.playerDeck;
+    const target = cardById.get(cardId);
+    setDuel({
+      ...duel,
+      playerHand: nextHand,
+      playerDeck: nextDeck,
+      playerField: [
+        ...duel.playerField,
+        {
+          id: cardId,
+          position,
+          faceDown: false,
+          attacked: false,
+          equipped: [],
+          summonedTurn: duel.turnNumber,
+          positionChanged: false,
+        },
+      ],
+      playerGraveyard: [...duel.playerGraveyard, "vol4-elegant-egotist"],
+      log: appendLog(duel.log, `万華鏡－華麗なる分身－を発動。${target?.name ?? "ハーピィ"}を${source === "hand" ? "手札" : "デッキ"}から特殊召喚。`),
+    });
+    setPendingEgotist(null);
   }
 
   function reviveMonster(graveSide: Side, graveIndex: number, position: Position) {
@@ -482,7 +531,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -505,7 +554,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -596,7 +645,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 033</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 034</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
@@ -743,6 +792,31 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingEgotist !== null && (
+        <div className="card-overlay revive-overlay">
+          <div className="graveyard-panel revive-panel">
+            <p className="section-label">ELEGANT EGOTIST</p>
+            <h2>特殊召喚するハーピィを選択</h2>
+            <div className="revive-list">
+              {elegantEgotistChoices(duel, pendingEgotist).map((choice) => {
+                const target = cardById.get(choice.cardId);
+                return (
+                  <div key={`${choice.source}-${choice.cardId}`}>
+                    <span>{choice.source === "hand" ? "自分の手札" : "自分のデッキ"}</span>
+                    <strong>{target?.name}</strong>
+                    <small>ATK {target?.atk} / DEF {target?.def}</small>
+                    <div>
+                      <button onClick={() => summonHarpie(choice.source, choice.cardId, "attack")}>攻撃表示</button>
+                      <button onClick={() => summonHarpie(choice.source, choice.cardId, "defense")}>守備表示</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingEgotist(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {duel.pendingFlipTarget && (
         <div className="card-overlay flip-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -842,6 +916,7 @@ export function DuelArena({
             if (!card) return null;
             const tributes = tributeCount(card);
             const canSummon = card.cardType === "monster"
+              && canNormalSummonMonster(card.id, card.fusion)
               && isPlayerMainPhase
               && !duel.normalSummoned
               && !pendingTribute
@@ -867,6 +942,7 @@ export function DuelArena({
                         || pendingTribute !== null
                         || pendingReborn !== null
                         || pendingDeSpell !== null
+                        || pendingEgotist !== null
                         || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
                         || (card.id === "vol2-monster-reborn" && (
@@ -878,6 +954,7 @@ export function DuelArena({
                         || (card.id === "vol3-pot-of-greed" && duel.playerDeck.length < 2)
                         || (card.id === "vol3-stop-defense" && !duel.cpuField.some((zone) => zone.position === "defense"))
                         || (card.id === "vol3-gravedigger-ghoul" && !duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "monster"))
+                        || (card.id === "vol4-elegant-egotist" && !canActivateElegantEgotist(duel, index))
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
                           const monster = cardById.get(zone.id);
                           return Boolean(monster && canEquip(card.id, monster));
@@ -899,13 +976,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -1693,6 +1770,20 @@ function expandDeck(counts: Record<string, number>) {
   );
 }
 
+function elegantEgotistChoices(state: DuelState, spellHandIndex: number) {
+  const handIds = state.playerHand.filter((_, index) => index !== spellHandIndex);
+  return (["hand", "deck"] as const).flatMap((source) => {
+    const ids = source === "hand" ? handIds : state.playerDeck;
+    return [...new Set(ids.filter(isElegantEgotistTarget))].map((cardId) => ({ source, cardId }));
+  });
+}
+
+function canActivateElegantEgotist(state: DuelState, spellHandIndex: number) {
+  return state.playerField.length < FIELD_LIMIT
+    && state.playerField.some((zone) => !zone.faceDown && zone.id === "vol4-harpie-lady")
+    && elegantEgotistChoices(state, spellHandIndex).length > 0;
+}
+
 function shuffle<T>(values: T[]) {
   const result = [...values];
   for (let index = result.length - 1; index > 0; index -= 1) {
@@ -1786,6 +1877,7 @@ function spellDescription(id: string) {
   if (id === "vol3-pot-of-greed") return "デッキからカードを2枚ドロー";
   if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
   if (id === "vol3-gravedigger-ghoul") return "相手の墓地のモンスターを2体まで除外";
+  if (id === "vol4-elegant-egotist") return "ハーピィ・レディがいる時、手札・デッキからハーピィ1体を特殊召喚";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
 }
@@ -1802,6 +1894,7 @@ function isSpellImplemented(id: string) {
       "vol3-pot-of-greed",
       "vol3-stop-defense",
       "vol3-gravedigger-ghoul",
+      "vol4-elegant-egotist",
     ].includes(id);
 }
 
@@ -1813,6 +1906,7 @@ function monsterDescription(id: string) {
   if (id === "vol3-hane-hane") return "リバース：フィールドのモンスター1体を持ち主の手札に戻す";
   if (id === "vol4-magician-faith") return "リバース：自分の墓地から魔法カード1枚を選び、手札に戻す";
   if (id === "vol4-mask-darkness") return "リバース：自分の墓地から罠カード1枚を選び、手札に戻す";
+  if (id === "vol4-harpie-sisters") return "通常召喚できず、万華鏡－華麗なる分身－の効果で特殊召喚する";
   return "";
 }
 

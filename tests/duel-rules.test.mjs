@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, deSpellDestroys, equipRules, firstSpellTargetIndex, flipEffect, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, canNormalSummonMonster, deSpellDestroys, equipRules, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -111,4 +111,16 @@ test("Vol.3のリバースモンスター5体を正しい効果として扱う",
   assert.equal(flipEffect("vol4-magician-faith"), "recover-spell");
   assert.equal(flipEffect("vol4-mask-darkness"), "recover-trap");
   assert.equal(flipEffect("vol3-red-eyes"), null);
+});
+
+test("万華鏡はハーピィ・レディと三姉妹だけを特殊召喚できる", () => {
+  assert.equal(isElegantEgotistTarget("vol4-harpie-lady"), true);
+  assert.equal(isElegantEgotistTarget("vol4-harpie-sisters"), true);
+  assert.equal(isElegantEgotistTarget("vol4-summoned-skull"), false);
+});
+
+test("ハーピィ・レディ三姉妹は通常召喚できない", () => {
+  assert.equal(canNormalSummonMonster("vol4-harpie-sisters"), false);
+  assert.equal(canNormalSummonMonster("vol4-harpie-lady"), true);
+  assert.equal(canNormalSummonMonster("vol4-deepsea-shark", true), false);
 });

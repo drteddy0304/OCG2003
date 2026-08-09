@@ -96,3 +96,11 @@ const flipEffects = Object.freeze({
 export function flipEffect(id) {
   return flipEffects[id] ?? null;
 }
+
+export function isElegantEgotistTarget(id) {
+  return id === "vol4-harpie-lady" || id === "vol4-harpie-sisters";
+}
+
+export function canNormalSummonMonster(id, fusion = false) {
+  return !fusion && id !== "vol4-harpie-sisters";
+}
