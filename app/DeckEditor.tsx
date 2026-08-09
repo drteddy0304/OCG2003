@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { cardById, cards, type Card, type Rarity } from "./card-data";
+import { cardById, cards, packs, type Card, type Rarity } from "./card-data";
 import { cardDescription, rarityNames } from "./card-text";
 import { matchesDeckFilters, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter, type RarityFilter } from "./deck-rules.mjs";
 
@@ -23,6 +23,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   const [attribute, setAttribute] = useState<AttributeFilter>("all");
   const [race, setRace] = useState<RaceFilter>("all");
   const [rarity, setRarity] = useState<RarityFilter>("all");
+  const [packFilter, setPackFilter] = useState("all");
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>("name");
@@ -65,9 +66,10 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     return cards.filter((card) => {
       if (!collection[card.id]) return false;
       if (favoritesOnly && !favorites[card.id]) return false;
-      return matchesDeckFilters(card, query, filter, monsterClass, level, attribute, race, rarity);
+      if (packFilter !== "all" && !packs.find((pack) => pack.id === packFilter)?.cardIds.includes(card.id)) return false;
+      return matchesDeckFilters(card, query, filter, monsterClass, level, attribute, race, rarity, cardDescription(card));
     });
-  }, [attribute, collection, favorites, favoritesOnly, filter, level, monsterClass, query, race, rarity]);
+  }, [attribute, collection, favorites, favoritesOnly, filter, level, monsterClass, packFilter, query, race, rarity]);
 
   const deckCards = useMemo(
     () => cards.filter((card) => deck[card.id]).sort(compareCards),
@@ -103,6 +105,18 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
   }
 
+  function resetFilters() {
+    setQuery("");
+    setFilter("all");
+    setMonsterClass("all");
+    setLevel("all");
+    setAttribute("all");
+    setRace("all");
+    setRarity("all");
+    setPackFilter("all");
+    setFavoritesOnly(false);
+  }
+
   return (
     <section className="deck-screen">
       <div className="deck-heading">
@@ -128,7 +142,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
           <div className="panel-title"><h3>所持カード</h3><span>{filteredCards.length}種</span></div>
           <label className="card-search">
             <span>カード検索</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="名前・種族・属性" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="名前・効果・種族・属性" />
           </label>
           <div className="type-filters" aria-label="カード種類">
             {([
@@ -224,13 +238,23 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
               </select>
             </label>
           </div>
-          <button
-            className={`favorite-filter ${favoritesOnly ? "active" : ""}`}
-            onClick={() => setFavoritesOnly((current) => !current)}
-            aria-pressed={favoritesOnly}
-          >
-            ★ お気に入りだけ表示
-          </button>
+          <div className="deck-filter-actions">
+            <label className="pack-filter">
+              <span>収録商品</span>
+              <select value={packFilter} onChange={(event) => setPackFilter(event.target.value)}>
+                <option value="all">すべての商品</option>
+                {packs.map((pack) => <option value={pack.id} key={pack.id}>{pack.name}</option>)}
+              </select>
+            </label>
+            <button
+              className={`favorite-filter ${favoritesOnly ? "active" : ""}`}
+              onClick={() => setFavoritesOnly((current) => !current)}
+              aria-pressed={favoritesOnly}
+            >
+              ★ お気に入りだけ表示
+            </button>
+            <button className="reset-deck-filters" onClick={resetFilters}>条件をリセット</button>
+          </div>
           <div className="deck-list">
             {filteredCards.length ? [...filteredCards].sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || compareCardsBy(a, b, sortOrder)).map((card) => {
               const used = deck[card.id] ?? 0;

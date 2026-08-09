@@ -39,3 +39,9 @@ test("レア度を他の条件と組み合わせて絞り込める", () => {
   assert.equal(matchesDeckFilters(rareEffectMonster, "", "monster", "effect", "all", "all", "all", "SR"), true);
   assert.equal(matchesDeckFilters(rareEffectMonster, "", "monster", "effect", "all", "all", "all", "UR"), false);
 });
+
+test("カードの効果文でも検索できる", () => {
+  const directAttacker = { name: "魔法のランプ", cardType: "monster", kind: "魔法使い族", attribute: "闇", level: 1, effect: true, rarity: "N" };
+  assert.equal(matchesDeckFilters(directAttacker, "直接攻撃", "all", "all", "all", "all", "all", "all", "相手に直接攻撃できる。"), true);
+  assert.equal(matchesDeckFilters(directAttacker, "破壊する", "all", "all", "all", "all", "all", "all", "相手に直接攻撃できる。"), false);
+});

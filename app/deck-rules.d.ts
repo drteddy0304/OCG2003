@@ -16,4 +16,5 @@ export function matchesDeckFilters(
   attribute?: AttributeFilter,
   race?: RaceFilter,
   rarity?: RarityFilter,
+  description?: string,
 ): boolean;
