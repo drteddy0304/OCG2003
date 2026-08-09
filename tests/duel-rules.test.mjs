@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, canNormalSummonMonster, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -129,4 +129,28 @@ test("ハーピィ・レディ三姉妹は通常召喚できない", () => {
 test("進化の繭を装備したプチモスはATK0・DEF2000になる", () => {
   assert.deepEqual(equippedMonsterStats(300, 200, ["vol4-cocoon-evolution"]), { atk: 0, def: 2000 });
   assert.deepEqual(equippedMonsterStats(300, 200, ["vol4-cocoon-evolution", "equip-card"]), { atk: 300, def: 2300 });
+});
+
+test("強化CPUは40枚デッキを使い、同名カードは3枚までにする", () => {
+  assert.equal(competitiveCpuDeck.length, 40);
+  const counts = competitiveCpuDeck.reduce((result, id) => ({ ...result, [id]: (result[id] ?? 0) + 1 }), {});
+  assert.ok(Math.max(...Object.values(counts)) <= 3);
+  assert.equal(counts["vol1-dark-hole"], 1);
+  assert.equal(counts["vol2-monster-reborn"], 1);
+  assert.equal(counts["vol3-pot-of-greed"], 1);
+  assert.ok(counts["vol3-man-eater-bug"] >= 1);
+});
+
+test("CPUは勝てる相手を攻撃し、表側の強敵へ自滅攻撃しない", () => {
+  assert.equal(bestCpuBattleTargetIndex(1600, [
+    { position: "attack", faceDown: false, atk: 2000, def: 1000 },
+    { position: "defense", faceDown: false, atk: 800, def: 1200 },
+  ]), 1);
+  assert.equal(bestCpuBattleTargetIndex(1600, [
+    { position: "attack", faceDown: false, atk: 2000, def: 1000 },
+    { position: "defense", faceDown: false, atk: 800, def: 2000 },
+  ]), null);
+  assert.equal(bestCpuBattleTargetIndex(1600, [
+    { position: "defense", faceDown: true, atk: 0, def: 2000 },
+  ]), 0);
 });

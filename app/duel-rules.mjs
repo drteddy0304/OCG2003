@@ -113,3 +113,39 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
     def: (cocoonEquipped ? 2000 : defense) + regularEquipCount * 300,
   };
 }
+
+export const competitiveCpuDeck = Object.freeze([
+  ...Array(3).fill("vol3-rogue-doll"),
+  ...Array(3).fill("vol3-skull-red-bird"),
+  ...Array(3).fill("vol2-wild-raptor"),
+  ...Array(3).fill("vol2-holy-elf"),
+  ...Array(3).fill("vol3-giant-soldier-stone"),
+  ...Array(3).fill("vol3-man-eater-bug"),
+  ...Array(3).fill("vol3-hane-hane"),
+  ...Array(3).fill("vol3-witty-phantom"),
+  ...Array(2).fill("vol2-curse-of-dragon"),
+  ...Array(2).fill("vol1-dark-magician"),
+  "vol1-dark-hole",
+  ...Array(3).fill("vol1-fissure"),
+  ...Array(3).fill("vol1-trap-hole"),
+  "vol2-swords-revealing-light",
+  "vol2-monster-reborn",
+  "vol3-pot-of-greed",
+  ...Array(2).fill("vol3-stop-defense"),
+]);
+
+export function bestCpuBattleTargetIndex(attack, targets) {
+  let bestIndex = null;
+  let bestScore = -1;
+  targets.forEach((target, index) => {
+    let score = -1;
+    if (target.faceDown) score = 1;
+    else if (target.position === "attack" && attack > target.atk) score = 2000 + attack - target.atk;
+    else if (target.position === "defense" && attack > target.def) score = 1000 + target.def;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}

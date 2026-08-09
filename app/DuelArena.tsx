@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { cardById, cards, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, canNormalSummonMonster, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { cardById, type Card } from "./card-data";
+import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const MIN_DECK_SIZE = 40;
@@ -69,12 +69,7 @@ type DuelState = {
   log: string[];
 };
 
-const CPU_DECK = cards
-  .filter((card) => (
-    (card.id.startsWith("vol1-") || card.id.startsWith("vol2-") || card.id.startsWith("vol3-"))
-    && !card.fusion
-  ))
-  .map((card) => card.id);
+const CPU_DECK = [...competitiveCpuDeck];
 const EQUIP_RULES = equipRules;
 
 export function DuelArena({
@@ -650,8 +645,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 035</strong>
-          <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 036</strong>
+          <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -1220,8 +1215,20 @@ function finishCpuTurn(initial: DuelState): DuelState {
     for (let index = state.cpuField.length - 1; index >= 0 && !state.result; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked) continue;
-      const targetIndex = weakestTargetIndex(state.playerField);
-      state = resolveBattle(state, "cpu", index, targetIndex);
+      if (state.playerField.length === 0) {
+        state = resolveBattle(state, "cpu", index, null);
+        continue;
+      }
+      const targetIndex = bestCpuBattleTargetIndex(
+        effectiveAtk(attacker),
+        state.playerField.map((zone) => ({
+          position: zone.position,
+          faceDown: zone.faceDown,
+          atk: effectiveAtk(zone),
+          def: effectiveDef(zone),
+        })),
+      );
+      if (targetIndex !== null) state = resolveBattle(state, "cpu", index, targetIndex);
     }
   }
   if (state.result) return state;
@@ -1824,16 +1831,6 @@ function lowestAttackIndexes(field: ZoneCard[], count: number) {
     .sort((a, b) => a.value - b.value)
     .slice(0, count)
     .map((item) => item.index);
-}
-
-function weakestTargetIndex(field: ZoneCard[]) {
-  if (field.length === 0) return null;
-  return field
-    .map((zone, index) => ({
-      index,
-      value: zone.position === "attack" ? effectiveAtk(zone) : effectiveDef(zone),
-    }))
-    .sort((a, b) => a.value - b.value)[0].index;
 }
 
 function lowestFaceUpAttackIndex(field: ZoneCard[]) {
