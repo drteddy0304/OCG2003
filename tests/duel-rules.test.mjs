@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -128,6 +128,12 @@ test("Vol.3のリバースモンスター5体を正しい効果として扱う",
   assert.equal(flipEffect("vol4-magician-faith"), "recover-spell");
   assert.equal(flipEffect("vol4-mask-darkness"), "recover-trap");
   assert.equal(flipEffect("vol3-red-eyes"), null);
+});
+
+test("自分のリバース効果はCPUのバトル中でも自分で対象を選べる", () => {
+  assert.equal(shouldPlayerChooseFlipTarget("player", "cpu", "battle"), true);
+  assert.equal(shouldPlayerChooseFlipTarget("player", "cpu", "main1"), false);
+  assert.equal(shouldPlayerChooseFlipTarget("cpu", "player", "battle"), false);
 });
 
 test("万華鏡はハーピィ・レディと三姉妹だけを特殊召喚できる", () => {

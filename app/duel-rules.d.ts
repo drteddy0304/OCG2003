@@ -31,6 +31,12 @@ export function shouldCpuActivateSwords(
 
 export function strongestAttackIndex(attacks: number[]): number | null;
 
+export function shouldPlayerChooseFlipTarget(
+  owner: "player" | "cpu",
+  turn: "player" | "cpu",
+  phase: "main1" | "battle" | "main2",
+): boolean;
+
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];
   expired: number;

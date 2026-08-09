@@ -65,6 +65,10 @@ export function strongestAttackIndex(attacks) {
   return attacks.reduce((bestIndex, attack, index) => attack > attacks[bestIndex] ? index : bestIndex, 0);
 }
 
+export function shouldPlayerChooseFlipTarget(owner, turn, phase) {
+  return owner === "player" && (turn === "player" || phase === "battle");
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };

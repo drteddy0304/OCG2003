@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -705,7 +705,15 @@ export function DuelArena({
 
   function chooseFlipTarget(targetIndex: number) {
     if (!duel?.pendingFlipTarget) return;
-    setDuel(resolvePendingFlipTarget(duel, targetIndex));
+    const resolved = resolvePendingFlipTarget(duel, targetIndex);
+    if (duel.turn === "cpu") {
+      const marker = "効果対象の選択が終了。";
+      const resumed = { ...resolved, log: appendLog(resolved.log, marker) };
+      const finalState = finishCpuTurn(resumed, true);
+      beginCpuPlayback(resumed, finalState, marker);
+      return;
+    }
+    setDuel(resolved);
   }
 
   if (!duel) {
@@ -714,7 +722,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 042</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 043</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1268,7 +1276,7 @@ function runCpuTurn(initial: DuelState): DuelState {
       log: appendLog(
         state.log,
         defensive
-          ? "CPUがモンスターをセット。セットには落とし穴を発動できません。"
+          ? "CPUがモンスターをセット。"
           : `CPUが${summonChoice.card.name}を召喚。`,
       ),
     };
@@ -1288,18 +1296,20 @@ function runCpuTurn(initial: DuelState): DuelState {
   return finishCpuTurn(state);
 }
 
-function finishCpuTurn(initial: DuelState): DuelState {
+function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   let state: DuelState = { ...initial, pendingTrapResponse: null };
-  state = setCpuTrapAndEquips(state);
-
-  state = {
-    ...state,
-    cpuField: state.cpuField.map((zone) => ({ ...zone, attacked: false })),
-  };
+  if (!resumeBattle) {
+    state = setCpuTrapAndEquips(state);
+    state = {
+      ...state,
+      cpuField: state.cpuField.map((zone) => ({ ...zone, attacked: false })),
+    };
+  }
+  state = { ...state, phase: "battle" };
   if (state.playerSwordsTurns.length > 0) {
     state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
   } else {
-    for (let index = state.cpuField.length - 1; index >= 0 && !state.result; index -= 1) {
+    for (let index = state.cpuField.length - 1; index >= 0 && !state.result && !state.pendingFlipTarget; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked) continue;
       if (state.playerField.length === 0) {
@@ -1318,7 +1328,7 @@ function finishCpuTurn(initial: DuelState): DuelState {
       if (targetIndex !== null) state = resolveBattle(state, "cpu", index, targetIndex);
     }
   }
-  if (state.result) return state;
+  if (state.result || state.pendingFlipTarget) return state;
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
   if (swords.expired > 0) {
@@ -1770,7 +1780,7 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
         };
   }
 
-  const playerChooses = owner === "player" && state.turn === "player";
+  const playerChooses = shouldPlayerChooseFlipTarget(owner, state.turn, state.phase);
   if (playerChooses && effect) {
     const pending = { monsterId, effect } as PendingFlipTarget;
     if (flipTargetChoices(state, pending).length > 0) {
