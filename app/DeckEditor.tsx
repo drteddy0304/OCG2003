@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { cardById, cards, type Card } from "./card-data";
-import { cardDescription } from "./card-text";
-import { matchesDeckFilters, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter } from "./deck-rules.mjs";
+import { cardById, cards, type Card, type Rarity } from "./card-data";
+import { cardDescription, rarityNames } from "./card-text";
+import { matchesDeckFilters, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter, type RarityFilter } from "./deck-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
+const FAVORITES_STORAGE_KEY = "ocg2003.deck.favorites.v1";
 const COPY_LIMIT = 3;
 const MIN_DECK_SIZE = 40;
 type SortOrder = "name" | "level" | "atk" | "def";
@@ -21,6 +22,9 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   const [level, setLevel] = useState<LevelFilter>("all");
   const [attribute, setAttribute] = useState<AttributeFilter>("all");
   const [race, setRace] = useState<RaceFilter>("all");
+  const [rarity, setRarity] = useState<RarityFilter>("all");
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>("name");
   const [ready, setReady] = useState(false);
 
@@ -36,6 +40,17 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
       }, {});
       setDeck(valid);
       localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(valid));
+      const savedFavorites = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? "{}") as Record<string, boolean>;
+      const validFavorites = Object.fromEntries(
+        Object.entries(savedFavorites).filter(([id, value]) => cardById.has(id) && value === true),
+      );
+      setFavorites(validFavorites);
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(validFavorites));
+    } catch {
+      setDeck({});
+      setFavorites({});
+      localStorage.removeItem(DECK_STORAGE_KEY);
+      localStorage.removeItem(FAVORITES_STORAGE_KEY);
     } finally {
       setReady(true);
     }
@@ -49,9 +64,10 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   const filteredCards = useMemo(() => {
     return cards.filter((card) => {
       if (!collection[card.id]) return false;
-      return matchesDeckFilters(card, query, filter, monsterClass, level, attribute, race);
+      if (favoritesOnly && !favorites[card.id]) return false;
+      return matchesDeckFilters(card, query, filter, monsterClass, level, attribute, race, rarity);
     });
-  }, [attribute, collection, filter, level, monsterClass, query, race]);
+  }, [attribute, collection, favorites, favoritesOnly, filter, level, monsterClass, query, race, rarity]);
 
   const deckCards = useMemo(
     () => cards.filter((card) => deck[card.id]).sort(compareCards),
@@ -77,6 +93,14 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     if (current === 1) delete next[id];
     else next[id] = current - 1;
     saveDeck(next);
+  }
+
+  function toggleFavorite(id: string) {
+    const next = { ...favorites };
+    if (next[id]) delete next[id];
+    else next[id] = true;
+    setFavorites(next);
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
   }
 
   return (
@@ -181,6 +205,15 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                 {MONSTER_RACES.map((value) => <option value={value} key={value}>{value}</option>)}
               </select>
             </label>
+            <label className="rarity-filter">
+              <span>レア度</span>
+              <select value={rarity} onChange={(event) => setRarity(event.target.value as RarityFilter)}>
+                <option value="all">すべて</option>
+                {(["SE", "UR", "SR", "R", "N"] as Rarity[]).map((value) => (
+                  <option value={value} key={value}>{value}：{rarityNames[value]}</option>
+                ))}
+              </select>
+            </label>
             <label className="sort-filter">
               <span>並び順</span>
               <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as SortOrder)}>
@@ -191,8 +224,15 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
               </select>
             </label>
           </div>
+          <button
+            className={`favorite-filter ${favoritesOnly ? "active" : ""}`}
+            onClick={() => setFavoritesOnly((current) => !current)}
+            aria-pressed={favoritesOnly}
+          >
+            ★ お気に入りだけ表示
+          </button>
           <div className="deck-list">
-            {filteredCards.length ? filteredCards.sort((a, b) => compareCardsBy(a, b, sortOrder)).map((card) => {
+            {filteredCards.length ? [...filteredCards].sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || compareCardsBy(a, b, sortOrder)).map((card) => {
               const used = deck[card.id] ?? 0;
               const owned = collection[card.id] ?? 0;
               return (
@@ -203,6 +243,8 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                   disabled={card.fusion || used >= owned || used >= COPY_LIMIT}
                   key={card.id}
                   onAction={() => addCard(card.id)}
+                  favorite={Boolean(favorites[card.id])}
+                  onToggleFavorite={() => toggleFavorite(card.id)}
                 />
               );
             }) : <p className="deck-empty">条件に合う所持カードがありません。</p>}
@@ -219,6 +261,8 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                 count={`× ${deck[card.id]}`}
                 key={card.id}
                 onAction={() => removeCard(card.id)}
+                favorite={Boolean(favorites[card.id])}
+                onToggleFavorite={() => toggleFavorite(card.id)}
               />
             )) : <p className="deck-empty">左の所持カードから追加してください。</p>}
           </div>
@@ -247,15 +291,21 @@ function DeckRow({
   card,
   count,
   disabled = false,
+  favorite,
   onAction,
+  onToggleFavorite,
 }: {
   actionLabel: string;
   card: Card;
   count: string;
   disabled?: boolean;
+  favorite: boolean;
   onAction: () => void;
+  onToggleFavorite: () => void;
 }) {
-  const typeLabel = card.cardType === "monster" ? `${card.attribute}属性｜${card.kind}｜${card.effect ? "効果" : card.fusion ? "融合" : "通常"}｜★${card.level}` : card.kind;
+  const typeLabel = card.cardType === "monster"
+    ? `${card.rarity}｜${card.attribute}属性｜${card.kind}｜${card.effect ? "効果" : card.fusion ? "融合" : "通常"}｜★${card.level}`
+    : `${card.rarity}｜${card.kind}`;
   return (
     <article className={`deck-row row-${card.cardType}`}>
       <div>
@@ -265,6 +315,12 @@ function DeckRow({
         {card.cardType === "monster" && <span className="monster-stats">ATK {card.atk} / DEF {card.def}</span>}
       </div>
       <b>{count}</b>
+      <button
+        className={`favorite-card ${favorite ? "active" : ""}`}
+        onClick={onToggleFavorite}
+        aria-label={`${card.name}をお気に入り${favorite ? "から外す" : "に登録"}`}
+        aria-pressed={favorite}
+      >★</button>
       <button disabled={disabled} onClick={onAction} aria-label={`${card.name}を${actionLabel}`}>{actionLabel}</button>
     </article>
   );

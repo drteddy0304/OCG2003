@@ -5,6 +5,7 @@ export type MonsterClassFilter = "all" | "normal" | "effect" | "fusion";
 export type LevelFilter = "all" | `${number}`;
 export type AttributeFilter = "all" | string;
 export type RaceFilter = "all" | string;
+export type RarityFilter = "all" | Card["rarity"];
 
 export function matchesDeckFilters(
   card: Card,
@@ -14,4 +15,5 @@ export function matchesDeckFilters(
   level: LevelFilter,
   attribute?: AttributeFilter,
   race?: RaceFilter,
+  rarity?: RarityFilter,
 ): boolean;

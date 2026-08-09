@@ -33,3 +33,9 @@ test("ATKとDEFの数値でも文字検索できる", () => {
   assert.equal(matchesDeckFilters(card, "ATK 450", "all", "all", "all"), true);
   assert.equal(matchesDeckFilters(card, "DEF 450", "all", "all", "all"), false);
 });
+
+test("レア度を他の条件と組み合わせて絞り込める", () => {
+  const rareEffectMonster = { ...effectMonster, rarity: "SR" };
+  assert.equal(matchesDeckFilters(rareEffectMonster, "", "monster", "effect", "all", "all", "all", "SR"), true);
+  assert.equal(matchesDeckFilters(rareEffectMonster, "", "monster", "effect", "all", "all", "all", "UR"), false);
+});

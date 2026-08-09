@@ -730,7 +730,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 045</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 046</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>

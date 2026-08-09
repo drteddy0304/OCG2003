@@ -1,4 +1,4 @@
-export function matchesDeckFilters(card, query, cardType, monsterClass, level, attribute = "all", race = "all") {
+export function matchesDeckFilters(card, query, cardType, monsterClass, level, attribute = "all", race = "all", rarity = "all") {
   if (cardType !== "all" && card.cardType !== cardType) return false;
   if (monsterClass !== "all") {
     if (card.cardType !== "monster") return false;
@@ -9,6 +9,7 @@ export function matchesDeckFilters(card, query, cardType, monsterClass, level, a
   if (level !== "all" && (card.cardType !== "monster" || card.level !== Number(level))) return false;
   if (attribute !== "all" && (card.cardType !== "monster" || card.attribute !== attribute)) return false;
   if (race !== "all" && (card.cardType !== "monster" || card.kind !== race)) return false;
+  if (rarity !== "all" && card.rarity !== rarity) return false;
 
   const normalized = query.trim().toLocaleLowerCase("ja");
   if (!normalized) return true;
