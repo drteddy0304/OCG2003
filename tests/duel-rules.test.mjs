@@ -29,6 +29,15 @@ test("攻撃力と守備力が同じ場合は守備モンスターが破壊さ�
   });
 });
 
+test("守備力に負けても攻撃モンスターは破壊されず差分ダメージだけ受ける", () => {
+  assert.deepEqual(battleOutcome(700, 1200, "defense"), {
+    attackerDestroyed: false,
+    defenderDestroyed: false,
+    attackerDamage: 500,
+    defenderDamage: 0,
+  });
+});
+
 test("Vol.2の装備魔法5枚が正しい種族に対応する", () => {
   assert.deepEqual(
     Object.entries(equipRules).filter(([id]) => id.startsWith("vol2-")),

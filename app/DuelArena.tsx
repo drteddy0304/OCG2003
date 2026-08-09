@@ -645,7 +645,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 036</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 037</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1545,7 +1545,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
             ? `${defender.name}を破壊。${defenderDamage ? `${defenderDamage}ダメージ。` : ""}`
             : attackerDestroyed
               ? `${attacker.name}を破壊。${attackerDamage ? `${attackerDamage}ダメージ。` : ""}`
-              : "モンスターは破壊されない。"
+              : `モンスターは破壊されない。${attackerDamage ? `${attackerDamage}ダメージ。` : ""}`
       }`,
     ),
   } as DuelState;
