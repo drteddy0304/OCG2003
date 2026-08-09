@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -141,6 +141,12 @@ test("Vol.5の直接攻撃モンスター6体を判定する", () => {
     assert.equal(canMonsterAttackDirectly(id), true);
   }
   assert.equal(canMonsterAttackDirectly("vol5-feral-imp"), false);
+});
+
+test("Vol.5の戦闘ダメージ発動効果を判定する", () => {
+  assert.equal(battleDamageEffect("vol5-white-magical-hat"), "discard-random");
+  assert.equal(battleDamageEffect("vol5-masked-sorcerer"), "draw");
+  assert.equal(battleDamageEffect("vol5-feral-imp"), null);
 });
 
 test("万華鏡はハーピィ・レディと三姉妹だけを特殊召喚できる", () => {

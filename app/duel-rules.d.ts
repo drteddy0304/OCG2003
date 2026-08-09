@@ -39,6 +39,9 @@ export function shouldPlayerChooseFlipTarget(
 
 export function canMonsterAttackDirectly(id: string): boolean;
 
+export type BattleDamageEffect = "discard-random" | "draw";
+export function battleDamageEffect(id: string): BattleDamageEffect | null;
+
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];
   expired: number;

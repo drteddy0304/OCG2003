@@ -82,6 +82,15 @@ export function canMonsterAttackDirectly(id) {
   return directAttackMonsters.has(id);
 }
 
+const battleDamageEffects = Object.freeze({
+  "vol5-white-magical-hat": "discard-random",
+  "vol5-masked-sorcerer": "draw",
+});
+
+export function battleDamageEffect(id) {
+  return battleDamageEffects[id] ?? null;
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };

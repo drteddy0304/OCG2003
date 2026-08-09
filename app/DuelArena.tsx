@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -730,7 +730,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 047</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 048</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1617,8 +1617,9 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
 
   if (defenderIndex === null || !defenderField[defenderIndex]) {
     const damage = effectiveAtk(attackerZone);
-    const next = { ...state, [attackerFieldKey]: attackerField, [defenderLpKey]: state[defenderLpKey] - damage } as DuelState;
+    let next = { ...state, [attackerFieldKey]: attackerField, [defenderLpKey]: state[defenderLpKey] - damage } as DuelState;
     next.log = appendLog(state.log, `${attacker.name}の直接攻撃。${damage}ダメージ。`);
+    if (next[defenderLpKey] > 0) next = resolveBattleDamageEffect(next, attackerSide, attacker.id, damage);
     if (next[defenderLpKey] <= 0) next.result = attackerSide === "player" ? "win" : "lose";
     return next;
   }
@@ -1666,10 +1667,61 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
       }`,
     ),
   } as DuelState;
+  if (defenderDamage > 0 && next[defenderLpKey] > 0) {
+    next = resolveBattleDamageEffect(next, attackerSide, attacker.id, defenderDamage);
+  }
   if (wasFaceDown) next = resolveFlipEffect(next, attackerSide === "player" ? "cpu" : "player", defender.id);
   if (next.cpuLp <= 0) next.result = "win";
   if (next.playerLp <= 0) next.result = "lose";
   return next;
+}
+
+function resolveBattleDamageEffect(state: DuelState, attackerSide: Side, attackerId: string, damage: number): DuelState {
+  if (damage <= 0) return state;
+  const effect = battleDamageEffect(attackerId);
+  const attackerName = cardById.get(attackerId)?.name ?? "モンスター";
+  if (effect === "discard-random") {
+    const opponentHand = attackerSide === "player" ? state.cpuHand : state.playerHand;
+    if (opponentHand.length === 0) return state;
+    const discardIndex = Math.floor(Math.random() * opponentHand.length);
+    const discardedId = opponentHand[discardIndex];
+    const discardedName = cardById.get(discardedId)?.name ?? "カード";
+    return attackerSide === "player"
+      ? {
+          ...state,
+          cpuHand: opponentHand.filter((_, index) => index !== discardIndex),
+          cpuGraveyard: [...state.cpuGraveyard, discardedId],
+          log: appendLog(state.log, `${attackerName}の効果でCPUの手札から${discardedName}を捨てた。`),
+        }
+      : {
+          ...state,
+          playerHand: opponentHand.filter((_, index) => index !== discardIndex),
+          playerGraveyard: [...state.playerGraveyard, discardedId],
+          log: appendLog(state.log, `${attackerName}の効果で手札から${discardedName}を捨てた。`),
+        };
+  }
+  if (effect !== "draw") return state;
+  const deck = attackerSide === "player" ? state.playerDeck : state.cpuDeck;
+  if (deck.length === 0) {
+    return {
+      ...state,
+      result: attackerSide === "player" ? "lose" : "win",
+      log: appendLog(state.log, `${attackerName}の効果でドローできず敗北。`),
+    };
+  }
+  return attackerSide === "player"
+    ? {
+        ...state,
+        playerDeck: deck.slice(1),
+        playerHand: [...state.playerHand, deck[0]],
+        log: appendLog(state.log, `${attackerName}の効果でカードを1枚ドロー。`),
+      }
+    : {
+        ...state,
+        cpuDeck: deck.slice(1),
+        cpuHand: [...state.cpuHand, deck[0]],
+        log: appendLog(state.log, `${attackerName}の効果でCPUがカードを1枚ドロー。`),
+      };
 }
 
 type FlipTargetChoice = {
