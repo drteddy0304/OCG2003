@@ -89,6 +89,8 @@ const flipEffects = Object.freeze({
   "vol3-man-eater-bug": "destroy-monster",
   "vol3-skelengel": "draw",
   "vol3-hane-hane": "return-monster",
+  "vol4-magician-faith": "recover-spell",
+  "vol4-mask-darkness": "recover-trap",
 });
 
 export function flipEffect(id) {

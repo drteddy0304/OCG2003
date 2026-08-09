@@ -29,6 +29,10 @@ type PendingTrapResponse = {
   monsterIndex: number;
   monsterId: string;
 };
+type PendingFlipTarget = {
+  monsterId: string;
+  effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap";
+};
 
 type ZoneCard = {
   id: string;
@@ -61,6 +65,7 @@ type DuelState = {
   normalSummoned: boolean;
   result: Result;
   pendingTrapResponse: PendingTrapResponse | null;
+  pendingFlipTarget: PendingFlipTarget | null;
   log: string[];
 };
 
@@ -100,7 +105,9 @@ export function DuelArena({
       return [];
     }
   }, [collection, duel]);
-  const isPlayerMainPhase = duel?.turn === "player" && (duel.phase === "main1" || duel.phase === "main2");
+  const isPlayerMainPhase = duel?.turn === "player"
+    && !duel.pendingFlipTarget
+    && (duel.phase === "main1" || duel.phase === "main2");
 
   useEffect(() => {
     if (duel?.result !== "win" || rewarded.current) return;
@@ -147,6 +154,7 @@ export function DuelArena({
       normalSummoned: false,
       result: null,
       pendingTrapResponse: null,
+      pendingFlipTarget: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
     });
   }
@@ -474,7 +482,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -497,7 +505,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -577,13 +585,18 @@ export function DuelArena({
     setCpuPlayback({ ...cpuPlayback, index: cpuPlayback.index + 1 });
   }
 
+  function chooseFlipTarget(targetIndex: number) {
+    if (!duel?.pendingFlipTarget) return;
+    setDuel(resolvePendingFlipTarget(duel, targetIndex));
+  }
+
   if (!duel) {
     return (
       <section className="duel-lobby">
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 032</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 CPU · BUILD 033</strong>
           <p>CPUがVol.1・Vol.2の全通常モンスターと魔法・罠を使用します。</p>
         </div>
         <dl>
@@ -727,6 +740,23 @@ export function DuelArena({
               )}
             </div>
             <button className="overlay-close" onClick={() => setPendingDeSpell(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
+      {duel.pendingFlipTarget && (
+        <div className="card-overlay flip-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">FLIP EFFECT</p>
+            <h2>{flipTargetHeading(duel.pendingFlipTarget.effect)}</h2>
+            <p>{cardById.get(duel.pendingFlipTarget.monsterId)?.name}の効果対象を選んでください。</p>
+            <div className="spell-target-list">
+              {flipTargetChoices(duel, duel.pendingFlipTarget).map((choice) => (
+                <button key={`${choice.id}-${choice.index}`} onClick={() => chooseFlipTarget(choice.index)}>
+                  <span>{choice.zone}</span>
+                  <strong>{choice.name}</strong>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -1421,6 +1451,113 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   return next;
 }
 
+type FlipTargetChoice = {
+  id: string;
+  index: number;
+  zone: string;
+  name: string;
+};
+
+function flipTargetChoices(state: DuelState, pending: PendingFlipTarget): FlipTargetChoice[] {
+  if (pending.effect === "destroy-monster" || pending.effect === "return-monster") {
+    return state.cpuField.map((zone, index) => ({
+      id: zone.id,
+      index,
+      zone: `相手モンスターゾーン ${index + 1}`,
+      name: zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name ?? "モンスター",
+    }));
+  }
+  if (pending.effect === "destroy-spell" || pending.effect === "destroy-trap") {
+    return state.cpuSpellTrap.map((id, index) => {
+      const card = cardById.get(id);
+      return {
+        id,
+        index,
+        zone: `相手魔法・罠ゾーン ${index + 1}`,
+        name: card?.cardType === "trap" ? "セットカード" : card?.name ?? "魔法・罠カード",
+      };
+    });
+  }
+  const targetType = pending.effect === "recover-spell" ? "spell" : "trap";
+  return state.playerGraveyard.flatMap((id, index) => {
+    const card = cardById.get(id);
+    return card?.cardType === targetType
+      ? [{ id, index, zone: "自分の墓地", name: card.name }]
+      : [];
+  });
+}
+
+function flipTargetHeading(effect: PendingFlipTarget["effect"]): string {
+  if (effect === "destroy-monster") return "破壊するモンスターを選択";
+  if (effect === "return-monster") return "手札に戻すモンスターを選択";
+  if (effect === "destroy-spell") return "確認する魔法・罠カードを選択";
+  if (effect === "destroy-trap") return "確認する魔法・罠カードを選択";
+  return effect === "recover-spell" ? "手札に戻す魔法カードを選択" : "手札に戻す罠カードを選択";
+}
+
+function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelState {
+  const pending = state.pendingFlipTarget;
+  if (!pending) return state;
+  const base = { ...state, pendingFlipTarget: null };
+  const effectMonsterName = cardById.get(pending.monsterId)?.name ?? "モンスター";
+
+  if (pending.effect === "destroy-monster" || pending.effect === "return-monster") {
+    const target = state.cpuField[targetIndex];
+    if (!target) return base;
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    const remainingField = state.cpuField.filter((_, index) => index !== targetIndex);
+    const remainingSpellTrap = discardEquips(state.cpuSpellTrap, [target]);
+    if (pending.effect === "return-monster") {
+      return {
+        ...base,
+        cpuField: remainingField,
+        cpuSpellTrap: remainingSpellTrap,
+        cpuHand: [...state.cpuHand, target.id],
+        cpuGraveyard: [...state.cpuGraveyard, ...target.equipped],
+        log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を手札に戻した。`),
+      };
+    }
+    return {
+      ...base,
+      cpuField: remainingField,
+      cpuSpellTrap: remainingSpellTrap,
+      cpuGraveyard: [...state.cpuGraveyard, ...graveCards([target])],
+      log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を破壊した。`),
+    };
+  }
+
+  if (pending.effect === "destroy-spell" || pending.effect === "destroy-trap") {
+    const targetId = state.cpuSpellTrap[targetIndex];
+    const target = targetId ? cardById.get(targetId) : null;
+    if (!targetId || !target) return base;
+    const expectedType = pending.effect === "destroy-spell" ? "spell" : "trap";
+    if (target.cardType !== expectedType) {
+      return {
+        ...base,
+        log: appendLog(state.log, `${effectMonsterName}の効果でセットカードを確認。対象の種類ではないため破壊しなかった。`),
+      };
+    }
+    return {
+      ...base,
+      cpuField: removeEquippedCard(state.cpuField, targetId),
+      cpuSpellTrap: state.cpuSpellTrap.filter((_, index) => index !== targetIndex),
+      cpuGraveyard: [...state.cpuGraveyard, targetId],
+      log: appendLog(state.log, `${effectMonsterName}の効果で${target.name}を破壊した。`),
+    };
+  }
+
+  const targetId = state.playerGraveyard[targetIndex];
+  const target = targetId ? cardById.get(targetId) : null;
+  const expectedType = pending.effect === "recover-spell" ? "spell" : "trap";
+  if (!targetId || target?.cardType !== expectedType) return base;
+  return {
+    ...base,
+    playerGraveyard: state.playerGraveyard.filter((_, index) => index !== targetIndex),
+    playerHand: [...state.playerHand, targetId],
+    log: appendLog(state.log, `${effectMonsterName}の効果で墓地の${target.name}を手札に戻した。`),
+  };
+}
+
 function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
   const ownerName = owner === "player" ? "あなた" : "CPU";
   const effect = flipEffect(monsterId);
@@ -1439,6 +1576,41 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
           cpuDeck: deck.slice(1),
           cpuHand: [...state.cpuHand, deck[0]],
           log: appendLog(state.log, `${ownerName}のスケルエンジェルがリバース。カードを1枚ドロー。`),
+        };
+  }
+
+  const playerChooses = owner === "player" && state.turn === "player";
+  if (playerChooses && effect) {
+    const pending = { monsterId, effect } as PendingFlipTarget;
+    if (flipTargetChoices(state, pending).length > 0) {
+      return {
+        ...state,
+        pendingFlipTarget: pending,
+        log: appendLog(state.log, `${ownerName}の${cardById.get(monsterId)?.name ?? "モンスター"}がリバース。効果対象を選択してください。`),
+      };
+    }
+  }
+
+  if (effect === "recover-spell" || effect === "recover-trap") {
+    const ownerGraveyard = owner === "player" ? state.playerGraveyard : state.cpuGraveyard;
+    const targetType = effect === "recover-spell" ? "spell" : "trap";
+    const targetIndex = ownerGraveyard.findIndex((id) => cardById.get(id)?.cardType === targetType);
+    if (targetIndex < 0) return state;
+    const targetId = ownerGraveyard[targetIndex];
+    const targetName = cardById.get(targetId)?.name ?? (targetType === "spell" ? "魔法カード" : "罠カード");
+    const effectName = effect === "recover-spell" ? "聖なる魔術師" : "闇の仮面";
+    return owner === "player"
+      ? {
+          ...state,
+          playerGraveyard: ownerGraveyard.filter((_, index) => index !== targetIndex),
+          playerHand: [...state.playerHand, targetId],
+          log: appendLog(state.log, `${ownerName}の${effectName}がリバース。墓地の${targetName}を手札に戻した。`),
+        }
+      : {
+          ...state,
+          cpuGraveyard: ownerGraveyard.filter((_, index) => index !== targetIndex),
+          cpuHand: [...state.cpuHand, targetId],
+          log: appendLog(state.log, `${ownerName}の${effectName}がリバース。墓地の${targetName}を手札に戻した。`),
         };
   }
 
@@ -1639,6 +1811,8 @@ function monsterDescription(id: string) {
   if (id === "vol3-man-eater-bug") return "リバース：フィールドのモンスター1体を破壊する";
   if (id === "vol3-skelengel") return "リバース：デッキからカードを1枚ドローする";
   if (id === "vol3-hane-hane") return "リバース：フィールドのモンスター1体を持ち主の手札に戻す";
+  if (id === "vol4-magician-faith") return "リバース：自分の墓地から魔法カード1枚を選び、手札に戻す";
+  if (id === "vol4-mask-darkness") return "リバース：自分の墓地から罠カード1枚を選び、手札に戻す";
   return "";
 }
 

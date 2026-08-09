@@ -108,5 +108,7 @@ test("Vol.3のリバースモンスター5体を正しい効果として扱う",
   assert.equal(flipEffect("vol3-man-eater-bug"), "destroy-monster");
   assert.equal(flipEffect("vol3-skelengel"), "draw");
   assert.equal(flipEffect("vol3-hane-hane"), "return-monster");
+  assert.equal(flipEffect("vol4-magician-faith"), "recover-spell");
+  assert.equal(flipEffect("vol4-mask-darkness"), "recover-trap");
   assert.equal(flipEffect("vol3-red-eyes"), null);
 });
