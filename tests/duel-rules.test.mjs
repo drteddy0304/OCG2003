@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -159,6 +159,13 @@ test("死者への手向けは捨てる手札と破壊対象がある時だけ�
   assert.equal(canActivateTributeToDoomed(2, 1), true);
   assert.equal(canActivateTributeToDoomed(1, 1), false);
   assert.equal(canActivateTributeToDoomed(3, 0), false);
+});
+
+test("魂の解放は墓地のカードを5枚まで選択できる", () => {
+  const five = ["player:0", "player:1", "cpu:0", "cpu:1", "cpu:2"];
+  assert.deepEqual(toggleLimitedSelection(five, "cpu:3"), five);
+  assert.deepEqual(toggleLimitedSelection(five, "cpu:1"), ["player:0", "player:1", "cpu:0", "cpu:2"]);
+  assert.deepEqual(toggleLimitedSelection([], "player:0"), ["player:0"]);
 });
 
 test("万華鏡はハーピィ・レディと三姉妹だけを特殊召喚できる", () => {

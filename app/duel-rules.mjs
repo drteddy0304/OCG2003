@@ -117,6 +117,12 @@ export function canActivateTributeToDoomed(handSize, fieldMonsterCount) {
   return handSize >= 2 && fieldMonsterCount > 0;
 }
 
+export function toggleLimitedSelection(values, value, limit = 5) {
+  if (values.includes(value)) return values.filter((item) => item !== value);
+  if (values.length >= limit) return [...values];
+  return [...values, value];
+}
+
 export function deSpellDestroys(cardType, cardId = "") {
   return cardType === "spell" || cardId === "vol4-cocoon-evolution";
 }
