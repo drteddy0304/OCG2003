@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -148,6 +148,12 @@ test("マジック・ジャマーは捨てる手札がある時だけ発動で�
   assert.equal(canActivateMagicJammer(1, ["vol6-magic-jammer"]), true);
   assert.equal(canActivateMagicJammer(0, ["vol6-magic-jammer"]), false);
   assert.equal(canActivateMagicJammer(3, ["vol1-trap-hole"]), false);
+});
+
+test("昇天の角笛は生け贄にできるモンスターがいる時だけ発動できる", () => {
+  assert.equal(canActivateHornOfHeaven(1, ["vol6-horn-heaven"]), true);
+  assert.equal(canActivateHornOfHeaven(0, ["vol6-horn-heaven"]), false);
+  assert.equal(canActivateHornOfHeaven(2, ["vol1-trap-hole"]), false);
 });
 
 test("自分のリバース効果はCPUのバトル中でも自分で対象を選べる", () => {

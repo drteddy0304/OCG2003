@@ -205,6 +205,10 @@ export function canActivateMagicJammer(handSize, trapIds) {
   return handSize > 0 && trapIds.includes("vol6-magic-jammer");
 }
 
+export function canActivateHornOfHeaven(monsterCount, trapIds) {
+  return monsterCount > 0 && trapIds.includes("vol6-horn-heaven");
+}
+
 export function isMonsterRebornBlocked(playerSpellTrap, cpuSpellTrap) {
   return [...playerSpellTrap, ...cpuSpellTrap].includes("vol5-call-darkness");
 }

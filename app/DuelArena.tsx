@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -42,6 +42,11 @@ type PendingSevenTools = {
 type PendingMagicJammer = {
   trapIndex: number;
   spellId: string;
+};
+type PendingHornOfHeaven = {
+  trapIndex: number;
+  monsterIndex: number;
+  monsterId: string;
 };
 type PendingGuardianResponse = {
   attackerIndex: number;
@@ -124,6 +129,7 @@ type DuelState = {
   pendingTrapResponse: PendingTrapResponse | null;
   pendingSevenTools: PendingSevenTools | null;
   pendingMagicJammer: PendingMagicJammer | null;
+  pendingHornOfHeaven: PendingHornOfHeaven | null;
   pendingGuardianResponse: PendingGuardianResponse | null;
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
@@ -290,6 +296,7 @@ export function DuelArena({
       pendingTrapResponse: null,
       pendingSevenTools: null,
       pendingMagicJammer: null,
+      pendingHornOfHeaven: null,
       pendingGuardianResponse: null,
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
@@ -1108,6 +1115,60 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToHornOfHeaven(tributeIndex: number | null) {
+    if (!duel?.pendingHornOfHeaven) return;
+    const pending = duel.pendingHornOfHeaven;
+    const summoned = duel.cpuField[pending.monsterIndex];
+    if (!summoned || summoned.id !== pending.monsterId) return;
+    const marker = "昇天の角笛の発動確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingHornOfHeaven: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (tributeIndex !== null) {
+      const tribute = resumed.playerField[tributeIndex];
+      if (!tribute || resumed.playerSpellTrap[pending.trapIndex] !== "vol6-horn-heaven") return;
+      const cpuOwnedTribute = tribute.controlReturn === "cpu";
+      resumed = {
+        ...resumed,
+        playerField: resumed.playerField.filter((_, index) => index !== tributeIndex),
+        cpuField: resumed.cpuField.filter((_, index) => index !== pending.monsterIndex),
+        playerSpellTrap: removeCardCopies(discardEquips(resumed.playerSpellTrap, [tribute]), "vol6-horn-heaven", 1),
+        cpuSpellTrap: discardEquips(resumed.cpuSpellTrap, [summoned]),
+        playerGraveyard: [
+          ...resumed.playerGraveyard,
+          ...(cpuOwnedTribute ? tribute.equipped : graveCards([tribute])),
+          "vol6-horn-heaven",
+        ],
+        cpuGraveyard: [
+          ...resumed.cpuGraveyard,
+          ...(cpuOwnedTribute ? [tribute.id] : []),
+          ...graveCards([summoned]),
+        ],
+        log: appendLog(resumed.log, `${cardById.get(tribute.id)?.name ?? "モンスター"}を生け贄にして昇天の角笛を発動。${cardById.get(summoned.id)?.name ?? "モンスター"}の召喚を無効にして破壊した。`),
+      };
+      resumed = applyDeckSearchTriggers(resumed, cpuOwnedTribute ? [] : [tribute], cpuOwnedTribute ? [tribute] : []);
+    } else {
+      resumed = { ...resumed, log: appendLog(resumed.log, "昇天の角笛を発動しませんでした。") };
+      const trapIndex = resumed.playerSpellTrap.indexOf("vol1-trap-hole");
+      const summonedCard = cardById.get(summoned.id);
+      if ((summonedCard?.atk ?? 0) >= 1000 && trapIndex >= 0) {
+        setDuel({
+          ...resumed,
+          pendingTrapResponse: {
+            trapIndex,
+            monsterIndex: pending.monsterIndex,
+            monsterId: pending.monsterId,
+          },
+        });
+        return;
+      }
+    }
+    const finalState = finishCpuTurn(resumed);
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
   function respondToTrap(activate: boolean) {
     if (!duel?.pendingTrapResponse) return;
     const pending = duel.pendingTrapResponse;
@@ -1360,7 +1421,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 067</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 068</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1448,6 +1509,8 @@ export function DuelArena({
                     ? "落とし穴の発動確認へ"
                     : cpuPlayback.finalState.pendingMagicJammer
                       ? "マジック・ジャマーの発動確認へ"
+                    : cpuPlayback.finalState.pendingHornOfHeaven
+                      ? "昇天の角笛の発動確認へ"
                     : cpuPlayback.finalState.pendingAntiRaigeki
                       ? "避雷針の発動確認へ"
                     : cpuPlayback.finalState.pendingGuardianResponse
@@ -1515,6 +1578,27 @@ export function DuelArena({
               ))}
             </div>
             <button onClick={() => respondToMagicJammer(null)}>発動しない</button>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingHornOfHeaven && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">COUNTER TRAP</p>
+            <h2>昇天の角笛を発動しますか？</h2>
+            <p>
+              CPUが<strong>{cardById.get(duel.pendingHornOfHeaven.monsterId)?.name ?? "モンスター"}</strong>を召喚しました。
+              生け贄にする自分フィールドのモンスターを選んでください。
+            </p>
+            <div className="target-list">
+              {duel.playerField.map((zone, index) => (
+                <button key={`${zone.id}-${index}`} onClick={() => respondToHornOfHeaven(index)}>
+                  <strong>{cardById.get(zone.id)?.name ?? "モンスター"}</strong>
+                  <small>このモンスターを生け贄にする</small>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => respondToHornOfHeaven(null)}>発動しない</button>
           </div>
         </div>
       )}
@@ -2237,6 +2321,18 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
       ),
     };
     state = applyDeckSearchTriggers(state, [], tributedZones);
+    const hornIndex = state.playerSpellTrap.indexOf("vol6-horn-heaven");
+    if (!defensive && canActivateHornOfHeaven(state.playerField.length, state.playerSpellTrap) && hornIndex >= 0) {
+      return {
+        ...state,
+        pendingHornOfHeaven: {
+          trapIndex: hornIndex,
+          monsterIndex: state.cpuField.length - 1,
+          monsterId: summonChoice.card.id,
+        },
+        log: appendLog(state.log, `CPUが${summonChoice.card.name}を召喚。昇天の角笛を発動しますか？`),
+      };
+    }
     const trapIndex = state.playerSpellTrap.indexOf("vol1-trap-hole");
     if (!defensive && (summonChoice.card.atk ?? 0) >= 1000 && trapIndex >= 0) {
       return {
@@ -3316,11 +3412,12 @@ function trapDescription(id: string) {
   if (id === "stb-dragon-capture-jar") return "表側のドラゴン族を守備表示にし、表示形式の変更を封じる";
   if (id === "vol6-seven-tools") return "1000LPを払い、罠カードの発動を無効にして破壊する";
   if (id === "vol6-magic-jammer") return "手札を1枚捨て、魔法カードの発動を無効にして破壊する";
+  if (id === "vol6-horn-heaven") return "自分のモンスター1体を生け贄にし、モンスターの召喚を無効にして破壊する";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "vol6-seven-tools" || id === "vol6-magic-jammer";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven";
 }
 
 function monsterDescription(id: string) {
