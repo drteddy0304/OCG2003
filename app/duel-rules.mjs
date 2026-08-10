@@ -170,7 +170,11 @@ export function isElegantEgotistTarget(id) {
 }
 
 export function canNormalSummonMonster(id, fusion = false) {
-  return !fusion && id !== "vol4-harpie-sisters";
+  return !fusion && id !== "vol4-harpie-sisters" && id !== "vol5-larvae-moth";
+}
+
+export function canSpecialSummonLarvaeMoth(currentTurn, cocoonEquippedTurn) {
+  return Number.isInteger(cocoonEquippedTurn) && currentTurn - cocoonEquippedTurn >= 4;
 }
 
 export function equippedMonsterStats(atk, defense, equippedIds) {

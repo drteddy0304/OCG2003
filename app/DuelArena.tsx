@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -72,6 +72,7 @@ type ZoneCard = {
   positionChanged: boolean;
   guardianEffectUsed?: boolean;
   blastPromptedTurn?: number;
+  cocoonEquippedTurn?: number;
 };
 
 type DuelState = {
@@ -718,7 +719,13 @@ export function DuelArena({
     setDuel({
       ...removeHandCard(duel, selectedEquip),
       playerField: duel.playerField.map((item, index) =>
-        index === fieldIndex ? { ...item, equipped: [...item.equipped, spell.id] } : item,
+        index === fieldIndex
+          ? {
+              ...item,
+              equipped: [...item.equipped, spell.id],
+              ...(spell.id === "vol4-cocoon-evolution" ? { cocoonEquippedTurn: duel.turnNumber } : {}),
+            }
+          : item,
       ),
       playerSpellTrap: [...duel.playerSpellTrap, spell.id],
       log: appendLog(
@@ -728,6 +735,34 @@ export function DuelArena({
           : `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`,
       ),
     });
+    setSelectedEquip(null);
+  }
+
+  function summonLarvaeMoth(handIndex: number, position: Position) {
+    if (!duel || !isPlayerMainPhase || duel.playerHand[handIndex] !== "vol5-larvae-moth") return;
+    const targetIndex = larvaeMothTargetIndex(duel);
+    if (targetIndex < 0) return;
+    const petitMoth = duel.playerField[targetIndex];
+    setDuel({
+      ...duel,
+      playerHand: duel.playerHand.filter((_, index) => index !== handIndex),
+      playerField: [
+        ...duel.playerField.filter((_, index) => index !== targetIndex),
+        {
+          id: "vol5-larvae-moth",
+          position,
+          faceDown: false,
+          attacked: false,
+          equipped: [],
+          summonedTurn: duel.turnNumber,
+          positionChanged: false,
+        },
+      ],
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, [petitMoth]),
+      playerGraveyard: [...duel.playerGraveyard, ...graveCards([petitMoth])],
+      log: appendLog(duel.log, `プチモスを生け贄にし、ラーバモスを${position === "attack" ? "攻撃" : "守備"}表示で特殊召喚。`),
+    });
+    setSelectedAttacker(null);
     setSelectedEquip(null);
   }
 
@@ -1001,7 +1036,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 054</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 055</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1451,7 +1486,17 @@ export function DuelArena({
                 {card.cardType === "monster" ? (
                   <>
                     <small>★{card.level}　ATK {card.atk} / DEF {card.def}</small>
-                    <div><button disabled={!canSummon} onClick={() => summon(index, "attack")}>召喚</button><button disabled={!canSummon} onClick={() => summon(index, "defense")}>セット</button></div>
+                    {card.id === "vol5-larvae-moth" ? (
+                      <>
+                        <small>{larvaeMothTargetIndex(duel) >= 0 ? "進化条件を満たしています" : "進化の繭を装備して2回目の自分ターンを待ちます"}</small>
+                        <div>
+                          <button disabled={!isPlayerMainPhase || larvaeMothTargetIndex(duel) < 0} onClick={() => summonLarvaeMoth(index, "attack")}>特殊召喚（攻）</button>
+                          <button disabled={!isPlayerMainPhase || larvaeMothTargetIndex(duel) < 0} onClick={() => summonLarvaeMoth(index, "defense")}>特殊召喚（守）</button>
+                        </div>
+                      </>
+                    ) : (
+                      <div><button disabled={!canSummon} onClick={() => summon(index, "attack")}>召喚</button><button disabled={!canSummon} onClick={() => summon(index, "defense")}>セット</button></div>
+                    )}
                     {card.id === "vol4-cocoon-evolution" && (
                       <button
                         disabled={
@@ -2498,6 +2543,15 @@ function effectiveDef(zone: ZoneCard) {
 function canEquip(spellId: string, monster: Card) {
   if (spellId === "vol4-cocoon-evolution") return monster.id === "vol4-petit-moth";
   return monster.cardType === "monster" && EQUIP_RULES[spellId] === monster.kind;
+}
+
+function larvaeMothTargetIndex(state: DuelState) {
+  return state.playerField.findIndex((zone) =>
+    zone.id === "vol4-petit-moth"
+    && !zone.faceDown
+    && zone.equipped.includes("vol4-cocoon-evolution")
+    && canSpecialSummonLarvaeMoth(state.turnNumber, zone.cocoonEquippedTurn),
+  );
 }
 
 function fieldCardType(cardId: string) {

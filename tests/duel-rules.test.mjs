@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -199,6 +199,13 @@ test("ハーピィ・レディ三姉妹は通常召喚できない", () => {
   assert.equal(canNormalSummonMonster("vol4-harpie-sisters"), false);
   assert.equal(canNormalSummonMonster("vol4-harpie-lady"), true);
   assert.equal(canNormalSummonMonster("vol4-deepsea-shark", true), false);
+});
+
+test("ラーバモスは通常召喚できず進化の繭から2回目の自分ターン以降に特殊召喚できる", () => {
+  assert.equal(canNormalSummonMonster("vol5-larvae-moth"), false);
+  assert.equal(canSpecialSummonLarvaeMoth(4, 1), false);
+  assert.equal(canSpecialSummonLarvaeMoth(5, 1), true);
+  assert.equal(canSpecialSummonLarvaeMoth(5), false);
 });
 
 test("進化の繭を装備したプチモスはATK0・DEF2000になる", () => {

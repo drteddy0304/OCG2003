@@ -59,6 +59,7 @@ export function canActivateCheerfulCoffin(cardTypes: string[]): boolean;
 export function isGuardianMonster(id: string): boolean;
 export function guardianAdjustedAttack(attack: number, activate: boolean): number;
 export function canBlastJugglerTarget(faceDown: boolean, attack: number): boolean;
+export function canSpecialSummonLarvaeMoth(currentTurn: number, cocoonEquippedTurn?: number): boolean;
 
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 
