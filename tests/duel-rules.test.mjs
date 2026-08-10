@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -257,6 +257,14 @@ test("ムカムカは自分の手札1枚につきATK・DEF300アップする", (
 test("Vol.6の属性強化効果は強化500・弱体化400として重複適用する", () => {
   assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "光", atk: 1000, def: 1000, auraIds: ["vol6-hoshiningen", "vol6-witch-apprentice"] }), { atk: 1100, def: 1000 });
   assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "水", atk: 1000, def: 1000, auraIds: ["vol6-star-boy", "vol6-little-chimera"] }), { atk: 1100, def: 1000 });
+});
+
+test("クリッターと黒き森のウィッチはそれぞれATK・DEF1500以下を検索する", () => {
+  assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "monster", atk: 1500, def: 2000 }), true);
+  assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "monster", atk: 1501, def: 0 }), false);
+  assert.equal(canDeckSearchTarget("vol6-witch-black-forest", { cardType: "monster", atk: 2000, def: 1500 }), true);
+  assert.equal(canDeckSearchTarget("vol6-witch-black-forest", { cardType: "monster", atk: 0, def: 1501 }), false);
+  assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "spell" }), false);
 });
 
 test("強化CPUは40枚デッキを使い、同名カードは3枚までにする", () => {

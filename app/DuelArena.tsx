@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -56,6 +56,9 @@ type PendingFlipTarget = {
 type PendingDeckReorder = {
   monsterId: string;
   cards: string[];
+};
+type PendingDeckSearch = {
+  monsterIds: string[];
 };
 type PendingTributeToDoomed = {
   spellIndex: number;
@@ -113,6 +116,7 @@ type DuelState = {
   pendingFakeTrap: PendingFakeTrap | null;
   pendingFlipTarget: PendingFlipTarget | null;
   pendingDeckReorder: PendingDeckReorder | null;
+  pendingDeckSearch: PendingDeckSearch | null;
   log: string[];
 };
 
@@ -164,6 +168,7 @@ export function DuelArena({
     && !duel.pendingFakeTrap
     && !duel.pendingFlipTarget
     && !duel.pendingDeckReorder
+    && !duel.pendingDeckSearch
     && pendingTributeToDoomed === null
     && pendingSoulRelease === null
     && pendingCheerfulCoffin === null
@@ -271,6 +276,7 @@ export function DuelArena({
       pendingFakeTrap: null,
       pendingFlipTarget: null,
       pendingDeckReorder: null,
+      pendingDeckSearch: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
     });
   }
@@ -331,8 +337,10 @@ export function DuelArena({
       normalSummoned: true,
       log: appendLog(duel.log, `${card.name}を${position === "attack" ? "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
     };
+    nextState = applyDeckSearchTriggers(nextState, playerTributes, returnedTributes);
     const cpuTrapIndex = nextState.cpuSpellTrap.indexOf("vol1-trap-hole");
     if (position === "attack" && (card.atk ?? 0) >= 1000 && cpuTrapIndex >= 0) {
+      const trappedMonster = nextState.playerField[nextState.playerField.length - 1];
       nextState = {
         ...nextState,
         playerField: nextState.playerField.filter((_, index) => index !== nextState.playerField.length - 1),
@@ -341,6 +349,7 @@ export function DuelArena({
         cpuGraveyard: [...nextState.cpuGraveyard, "vol1-trap-hole"],
         log: appendLog(nextState.log, `CPUが落とし穴を発動。${card.name}を破壊。`),
       };
+      nextState = applyDeckSearchTriggers(nextState, trappedMonster ? [trappedMonster] : []);
     }
     setDuel(nextState);
     setPendingTribute(null);
@@ -477,6 +486,7 @@ export function DuelArena({
     if (card.id === "vol1-dark-hole") {
       const returnedMonsters = next.playerField.filter((zone) => zone.controlReturn === "cpu");
       const playerMonsters = next.playerField.filter((zone) => zone.controlReturn !== "cpu");
+      const cpuMonsters = next.cpuField;
       next = {
         ...next,
         playerField: [],
@@ -486,13 +496,16 @@ export function DuelArena({
         playerGraveyard: [...next.playerGraveyard, ...graveCards(playerMonsters)],
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField), ...graveCards(returnedMonsters)],
       };
+      next = applyDeckSearchTriggers(next, playerMonsters, [...cpuMonsters, ...returnedMonsters]);
     } else if (card.id === "stb-raigeki") {
+      const destroyedCpu = next.cpuField;
       next = {
         ...next,
         cpuField: [],
         cpuSpellTrap: discardEquips(next.cpuSpellTrap, next.cpuField),
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField)],
       };
+      next = applyDeckSearchTriggers(next, [], destroyedCpu);
     } else if (simpleSpellEffect(card.id)) {
       const effect = simpleSpellEffect(card.id)!;
       next = {
@@ -504,12 +517,14 @@ export function DuelArena({
     } else if (card.id === "vol1-fissure") {
       const target = lowestFaceUpAttackIndex(next.cpuField, next, "cpu");
       if (target === null) return;
+      const destroyedCpu = next.cpuField[target];
       next = {
         ...next,
         cpuField: next.cpuField.filter((_, index) => index !== target),
         cpuSpellTrap: discardEquips(next.cpuSpellTrap, [next.cpuField[target]]),
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards([next.cpuField[target]])],
       };
+      next = applyDeckSearchTriggers(next, [], destroyedCpu ? [destroyedCpu] : []);
     } else if (card.id === "vol3-pot-of-greed") {
       if (next.playerDeck.length < 2) return;
       next = {
@@ -686,6 +701,7 @@ export function DuelArena({
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards([target])],
       };
     }
+    next = applyDeckSearchTriggers(next, targetSide === "player" ? [target] : [], targetSide === "cpu" ? [target] : []);
     next.log = appendLog(next.log, `死者への手向けを発動。手札を1枚捨て、${targetName}を破壊。`);
     setDuel(next);
     setPendingTributeToDoomed(null);
@@ -832,7 +848,7 @@ export function DuelArena({
     if (card.id === "vol5-call-darkness") {
       const revivedPlayer = duel.playerField.filter((zone) => zone.revivedByMonsterReborn);
       const revivedCpu = duel.cpuField.filter((zone) => zone.revivedByMonsterReborn);
-      setDuel({
+      setDuel(applyDeckSearchTriggers({
         ...removeHandCard(duel, handIndex),
         playerField: duel.playerField.filter((zone) => !zone.revivedByMonsterReborn),
         cpuField: duel.cpuField.filter((zone) => !zone.revivedByMonsterReborn),
@@ -841,7 +857,7 @@ export function DuelArena({
         playerGraveyard: [...duel.playerGraveyard, ...graveCards(revivedPlayer)],
         cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(revivedCpu)],
         log: appendLog(duel.log, `闇からの呼び声を発動。死者蘇生を封じ、蘇生されていたモンスター${revivedPlayer.length + revivedCpu.length}体を墓地へ送った。`),
-      });
+      }, revivedPlayer, revivedCpu));
       return;
     }
     setDuel({
@@ -878,7 +894,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -901,7 +917,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -957,6 +973,7 @@ export function DuelArena({
       log: appendLog(duel.log, marker),
     };
     if (activate) {
+      const trappedMonster = resumed.cpuField[pending.monsterIndex];
       resumed = {
         ...resumed,
         cpuField: resumed.cpuField.filter((_, index) => index !== pending.monsterIndex),
@@ -965,6 +982,7 @@ export function DuelArena({
         playerGraveyard: [...resumed.playerGraveyard, "vol1-trap-hole"],
         log: appendLog(resumed.log, `落とし穴を発動。${monster?.name ?? "モンスター"}を破壊。`),
       };
+      resumed = applyDeckSearchTriggers(resumed, [], trappedMonster ? [trappedMonster] : []);
     } else {
       resumed = { ...resumed, log: appendLog(resumed.log, "落とし穴を発動しませんでした。") };
     }
@@ -1001,6 +1019,8 @@ export function DuelArena({
       pendingAntiRaigeki: null,
       log: appendLog(duel.log, marker),
     };
+    const destroyedCpu = activate ? [...resumed.cpuField] : [];
+    const destroyedPlayer = activate ? [] : [...resumed.playerField];
     if (activate) {
       resumed = {
         ...resumed,
@@ -1020,6 +1040,7 @@ export function DuelArena({
         log: appendLog(resumed.log, "避雷針を発動せず、サンダー・ボルトで自分のモンスターがすべて破壊された。"),
       };
     }
+    resumed = applyDeckSearchTriggers(resumed, destroyedPlayer, destroyedCpu);
     const finalState = continueCpuTurnAfterSpells(resumed);
     beginCpuPlayback(resumed, finalState, marker);
   }
@@ -1091,7 +1112,7 @@ export function DuelArena({
     const destroyedCpu = duel.cpuField.filter((zone, index) =>
       cpuIndexes.has(index) && canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone, duel, "cpu")),
     );
-    const resolved: DuelState = {
+    let resolved: DuelState = {
       ...duel,
       playerField: duel.playerField.filter((_, index) => index !== monsterIndex && !playerIndexes.has(index)),
       cpuField: duel.cpuField.filter((_, index) => !cpuIndexes.has(index)),
@@ -1102,6 +1123,7 @@ export function DuelArena({
       pendingBlastJuggler: null,
       log: appendLog(duel.log, `ミスター・ボンバーの効果を発動。モンスター${destroyedPlayer.length + destroyedCpu.length - 1}体を破壊。`),
     };
+    resolved = applyDeckSearchTriggers(resolved, destroyedPlayer, destroyedCpu);
     setDuel(openBlastJugglerPrompt(resolved));
   }
 
@@ -1158,13 +1180,41 @@ export function DuelArena({
     setDuel(resolved);
   }
 
+  function chooseDeckSearchCard(deckIndex: number) {
+    if (!duel?.pendingDeckSearch) return;
+    const sourceId = duel.pendingDeckSearch.monsterIds[0];
+    const cardId = duel.playerDeck[deckIndex];
+    const card = cardById.get(cardId);
+    if (!cardId || !card || !canDeckSearchTarget(sourceId, card)) return;
+    const nextPlayerDeck = duel.playerDeck.filter((_, index) => index !== deckIndex);
+    const remainingTriggers = duel.pendingDeckSearch.monsterIds
+      .slice(1)
+      .filter((remainingSourceId) => nextPlayerDeck.some((id) => canDeckSearchTarget(remainingSourceId, cardById.get(id))));
+    const sourceName = cardById.get(sourceId)?.name ?? "効果モンスター";
+    const resolved: DuelState = {
+      ...duel,
+      playerDeck: nextPlayerDeck,
+      playerHand: [...duel.playerHand, cardId],
+      pendingDeckSearch: remainingTriggers.length > 0 ? { monsterIds: remainingTriggers } : null,
+      log: appendLog(duel.log, `${sourceName}の効果で${card.name}をデッキから手札に加えた。`),
+    };
+    if (duel.turn === "cpu" && remainingTriggers.length === 0) {
+      const marker = "デッキ検索が終了。";
+      const resumed = { ...resolved, log: appendLog(resolved.log, marker) };
+      const finalState = finishCpuTurn(resumed, true);
+      beginCpuPlayback(resumed, finalState, marker);
+      return;
+    }
+    setDuel(resolved);
+  }
+
   if (!duel) {
     return (
       <section className="duel-lobby">
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 062</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 063</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1256,6 +1306,8 @@ export function DuelArena({
                       ? "三魔神の効果確認へ"
                     : cpuPlayback.finalState.pendingDeckReorder
                       ? "大王目玉の並べ替えへ"
+                    : cpuPlayback.finalState.pendingDeckSearch
+                      ? "デッキ検索へ"
                       : "自分のターンへ"
                   : "次の行動"}
               </button>
@@ -1558,6 +1610,27 @@ export function DuelArena({
             </div>
             <button className="overlay-close" onClick={confirmDeckOrder}>この順番でデッキに戻す</button>
           </div>
+        </div>
+      )}
+      {duel.pendingDeckSearch && (
+        <div className="card-overlay deck-search-overlay">
+          <article>
+            <p className="section-label">MONSTER EFFECT</p>
+            <h2>{cardById.get(duel.pendingDeckSearch.monsterIds[0])?.name}のデッキ検索</h2>
+            <p>手札に加えるモンスターを選んでください。</p>
+            <div className="target-list">
+              {duel.playerDeck.map((id, index) => {
+                const card = cardById.get(id);
+                if (!canDeckSearchTarget(duel.pendingDeckSearch!.monsterIds[0], card)) return null;
+                return (
+                  <button key={`${id}-${index}`} onClick={() => chooseDeckSearchCard(index)}>
+                    <strong>{card?.name}</strong>
+                    <small>ATK {card?.atk} / DEF {card?.def}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </article>
         </div>
       )}
 
@@ -1952,6 +2025,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
           : `CPUが${summonChoice.card.name}を召喚。`,
       ),
     };
+    state = applyDeckSearchTriggers(state, [], tributedZones);
     const trapIndex = state.playerSpellTrap.indexOf("vol1-trap-hole");
     if (!defensive && (summonChoice.card.atk ?? 0) >= 1000 && trapIndex >= 0) {
       return {
@@ -2017,7 +2091,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerSwordsTurns.length > 0) {
     state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
   } else {
-    for (let index = state.cpuField.length - 1; index >= 0 && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingGuardianResponse; index -= 1) {
+    for (let index = state.cpuField.length - 1; index >= 0 && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked) continue;
       if (state.playerField.length === 0) {
@@ -2050,7 +2124,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       }
     }
   }
-  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingGuardianResponse) return state;
+  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse) return state;
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
   if (swords.expired > 0) {
@@ -2122,6 +2196,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
         pendingAntiRaigeki: { trapIndex: activated.playerSpellTrap.indexOf("vol5-anti-raigeki") },
       };
     }
+    const destroyedPlayer = activated.playerField;
     state = {
       ...activated,
       playerSpellTrap: discardEquips(activated.playerSpellTrap, activated.playerField),
@@ -2129,6 +2204,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       playerField: [],
       log: appendLog(activated.log, "サンダー・ボルトでプレイヤーのモンスターをすべて破壊。"),
     };
+    state = applyDeckSearchTriggers(state, destroyedPlayer);
   }
 
   if (
@@ -2136,6 +2212,8 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
     && state.playerField.length > 0
     && fieldPower(state.playerField, state, "player") > fieldPower(state.cpuField, state, "cpu")
   ) {
+    const destroyedPlayer = state.playerField;
+    const destroyedCpu = state.cpuField;
     state = {
       ...removeCpuHandCard(state, "vol1-dark-hole"),
       playerSpellTrap: discardEquips(state.playerSpellTrap, state.playerField),
@@ -2146,6 +2224,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       cpuField: [],
       log: appendLog(state.log, "CPUがブラック・ホールを発動。すべてのモンスターを破壊。"),
     };
+    state = applyDeckSearchTriggers(state, destroyedPlayer, destroyedCpu);
   }
 
   const fissureTarget = lowestFaceUpAttackIndex(state.playerField, state, "player");
@@ -2159,6 +2238,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       cpuGraveyard: [...state.cpuGraveyard, "vol1-fissure"],
       log: appendLog(state.log, "CPUが地割れを発動。モンスター1体を破壊。"),
     };
+    state = applyDeckSearchTriggers(state, [destroyed]);
   }
 
   if (
@@ -2402,6 +2482,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
       }`,
     ),
   } as DuelState;
+  next = applyDeckSearchTriggers(next, ownedDestroyedPlayerZones, [...destroyedCpuZones, ...returnedDestroyedZones]);
   if (defenderDamage > 0 && next[defenderLpKey] > 0) {
     next = resolveBattleDamageEffect(next, attackerSide, attacker.id, defenderDamage);
   }
@@ -2525,13 +2606,13 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
         log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を手札に戻した。`),
       };
     }
-    return {
+    return applyDeckSearchTriggers({
       ...base,
       cpuField: remainingField,
       cpuSpellTrap: remainingSpellTrap,
       cpuGraveyard: [...state.cpuGraveyard, ...graveCards([target])],
       log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を破壊した。`),
-    };
+    }, [], [target]);
   }
 
   if (pending.effect === "destroy-spell" || pending.effect === "destroy-trap") {
@@ -2669,7 +2750,7 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
             log: appendLog(state.log, `${ownerName}のハネハネがリバース。${targetName}を手札に戻した。`),
           };
     }
-    return owner === "player"
+    const destroyedState: DuelState = owner === "player"
       ? {
           ...state,
           cpuField: remainingField,
@@ -2684,6 +2765,11 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
           playerGraveyard: [...state.playerGraveyard, ...graveCards([target])],
           log: appendLog(state.log, `${ownerName}の人喰い虫がリバース。${targetName}を破壊した。`),
         };
+    return applyDeckSearchTriggers(
+      destroyedState,
+      owner === "cpu" ? [target] : [],
+      owner === "player" ? [target] : [],
+    );
   }
 
   const targetType = effect === "destroy-spell" ? "spell" : effect === "destroy-trap" ? "trap" : null;
@@ -2857,6 +2943,39 @@ function graveCards(zones: ZoneCard[]) {
   return zones.flatMap((zone) => [zone.id, ...zone.equipped]);
 }
 
+function applyDeckSearchTriggers(state: DuelState, playerZones: ZoneCard[] = [], cpuZones: ZoneCard[] = []): DuelState {
+  let next = state;
+  const playerTriggers = playerZones
+    .map((zone) => zone.id)
+    .filter((id) => (id === "vol6-sangan" || id === "vol6-witch-black-forest")
+      && next.playerDeck.some((deckId) => canDeckSearchTarget(id, cardById.get(deckId))));
+  if (playerTriggers.length > 0) {
+    next = {
+      ...next,
+      pendingDeckSearch: { monsterIds: [...(next.pendingDeckSearch?.monsterIds ?? []), ...playerTriggers] },
+      log: appendLog(next.log, `${cardById.get(playerTriggers[0])?.name}のデッキ検索効果が発動。`),
+    };
+  }
+  cpuZones
+    .map((zone) => zone.id)
+    .filter((id) => id === "vol6-sangan" || id === "vol6-witch-black-forest")
+    .forEach((sourceId) => {
+      const candidates = next.cpuDeck
+        .map((id, index) => ({ id, index, card: cardById.get(id) }))
+        .filter(({ card }) => canDeckSearchTarget(sourceId, card))
+        .sort((a, b) => (b.card?.atk ?? 0) - (a.card?.atk ?? 0));
+      const choice = candidates[0];
+      if (!choice) return;
+      next = {
+        ...next,
+        cpuDeck: next.cpuDeck.filter((_, index) => index !== choice.index),
+        cpuHand: [...next.cpuHand, choice.id],
+        log: appendLog(next.log, `CPUの${cardById.get(sourceId)?.name}の効果で${choice.card?.name}を手札に加えた。`),
+      };
+    });
+  return next;
+}
+
 function spellDescription(id: string) {
   if (EQUIP_RULES[id]) return `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
   if (id === "vol1-dark-hole") return "フィールドのモンスターをすべて破壊";
@@ -2923,6 +3042,8 @@ function monsterDescription(id: string) {
   if (id === "vol4-mask-darkness") return "リバース：自分の墓地から罠カード1枚を選び、手札に戻す";
   if (id === "vol4-harpie-sisters") return "通常召喚できず、万華鏡－華麗なる分身－の効果で特殊召喚する";
   if (id === "vol4-cocoon-evolution") return "手札から表側のプチモスに装備でき、ATK 0・DEF 2000を適用する";
+  if (id === "vol6-sangan") return "フィールドから墓地へ送られた時、デッキからATK1500以下のモンスター1体を手札に加える";
+  if (id === "vol6-witch-black-forest") return "フィールドから墓地へ送られた時、デッキからDEF1500以下のモンスター1体を手札に加える";
   return "";
 }
 

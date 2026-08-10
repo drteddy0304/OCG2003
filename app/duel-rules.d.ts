@@ -76,6 +76,12 @@ export function continuousMonsterStats(input: {
   auraIds?: string[];
 }): { atk: number; def: number };
 
+export function canDeckSearchTarget(sourceId: string, target?: {
+  cardType: "monster" | "spell" | "trap";
+  atk?: number;
+  def?: number;
+}): boolean;
+
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;

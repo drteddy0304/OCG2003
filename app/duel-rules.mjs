@@ -234,6 +234,13 @@ export function continuousMonsterStats({ id, attribute, atk, def: defense, handS
   return { atk: Math.max(0, nextAtk), def: Math.max(0, nextDef) };
 }
 
+export function canDeckSearchTarget(sourceId, target) {
+  if (!target || target.cardType !== "monster") return false;
+  if (sourceId === "vol6-sangan") return (target.atk ?? 0) <= 1500;
+  if (sourceId === "vol6-witch-black-forest") return (target.def ?? 0) <= 1500;
+  return false;
+}
+
 export const competitiveCpuDeck = Object.freeze([
   ...Array(3).fill("vol3-rogue-doll"),
   ...Array(3).fill("vol3-skull-red-bird"),
