@@ -177,6 +177,10 @@ export function canSpecialSummonLarvaeMoth(currentTurn, cocoonEquippedTurn) {
   return Number.isInteger(cocoonEquippedTurn) && currentTurn - cocoonEquippedTurn >= 4;
 }
 
+export function canActivateChangeOfHeart(playerMonsterCount, opponentMonsterCount, fieldLimit = 5) {
+  return playerMonsterCount < fieldLimit && opponentMonsterCount > 0;
+}
+
 export function equippedMonsterStats(atk, defense, equippedIds) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
   const regularEquipCount = equippedIds.filter((id) => id !== "vol4-cocoon-evolution").length;

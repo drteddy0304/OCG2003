@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -73,6 +73,7 @@ type ZoneCard = {
   guardianEffectUsed?: boolean;
   blastPromptedTurn?: number;
   cocoonEquippedTurn?: number;
+  controlReturn?: Side;
 };
 
 type DuelState = {
@@ -123,6 +124,7 @@ export function DuelArena({
   const [pendingTributeToDoomed, setPendingTributeToDoomed] = useState<PendingTributeToDoomed | null>(null);
   const [pendingSoulRelease, setPendingSoulRelease] = useState<PendingSoulRelease | null>(null);
   const [pendingCheerfulCoffin, setPendingCheerfulCoffin] = useState<PendingCheerfulCoffin | null>(null);
+  const [pendingChangeOfHeart, setPendingChangeOfHeart] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -151,6 +153,7 @@ export function DuelArena({
     && pendingTributeToDoomed === null
     && pendingSoulRelease === null
     && pendingCheerfulCoffin === null
+    && pendingChangeOfHeart === null
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
@@ -223,6 +226,7 @@ export function DuelArena({
     setPendingTributeToDoomed(null);
     setPendingSoulRelease(null);
     setPendingCheerfulCoffin(null);
+    setPendingChangeOfHeart(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -287,6 +291,8 @@ export function DuelArena({
     const card = cardById.get(id);
     if (!card || card.cardType !== "monster" || !canNormalSummonMonster(card.id, card.fusion) || tributeIndexes.length !== tributeCount(card)) return;
     const tributedZones = duel.playerField.filter((_, index) => tributeIndexes.includes(index));
+    const returnedTributes = tributedZones.filter((zone) => zone.controlReturn === "cpu");
+    const playerTributes = tributedZones.filter((zone) => zone.controlReturn !== "cpu");
     const tributeNames = tributeIndexes.map((index) => cardById.get(duel.playerField[index].id)?.name).filter(Boolean);
     const nextField = duel.playerField.filter((_, index) => !tributeIndexes.includes(index));
     nextField.push({
@@ -302,8 +308,10 @@ export function DuelArena({
       ...duel,
       playerHand: duel.playerHand.filter((_, index) => index !== handIndex),
       playerField: nextField,
-      playerSpellTrap: discardEquips(duel.playerSpellTrap, tributedZones),
-      playerGraveyard: [...duel.playerGraveyard, ...graveCards(tributedZones)],
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, playerTributes),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, returnedTributes),
+      playerGraveyard: [...duel.playerGraveyard, ...graveCards(playerTributes)],
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(returnedTributes)],
       normalSummoned: true,
       log: appendLog(duel.log, `${card.name}を${position === "attack" ? "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
     };
@@ -420,6 +428,14 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "vol5-change-heart") {
+      if (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT)) return;
+      setPendingChangeOfHeart(handIndex);
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
     if (card.id === "vol2-swords-revealing-light") {
       if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
       const next = removeHandCard(duel, handIndex);
@@ -442,14 +458,16 @@ export function DuelArena({
       playerGraveyard: [...duel.playerGraveyard, card.id],
     };
     if (card.id === "vol1-dark-hole") {
+      const returnedMonsters = next.playerField.filter((zone) => zone.controlReturn === "cpu");
+      const playerMonsters = next.playerField.filter((zone) => zone.controlReturn !== "cpu");
       next = {
         ...next,
         playerField: [],
         cpuField: [],
-        playerSpellTrap: discardEquips(next.playerSpellTrap, next.playerField),
-        cpuSpellTrap: discardEquips(next.cpuSpellTrap, next.cpuField),
-        playerGraveyard: [...next.playerGraveyard, ...graveCards(next.playerField)],
-        cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField)],
+        playerSpellTrap: discardEquips(next.playerSpellTrap, playerMonsters),
+        cpuSpellTrap: discardEquips(next.cpuSpellTrap, [...next.cpuField, ...returnedMonsters]),
+        playerGraveyard: [...next.playerGraveyard, ...graveCards(playerMonsters)],
+        cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField), ...graveCards(returnedMonsters)],
       };
     } else if (card.id === "stb-raigeki") {
       next = {
@@ -710,6 +728,26 @@ export function DuelArena({
     setPendingCheerfulCoffin(null);
   }
 
+  function resolveChangeOfHeart(targetIndex: number) {
+    if (!duel || pendingChangeOfHeart === null) return;
+    if (duel.playerHand[pendingChangeOfHeart] !== "vol5-change-heart") return;
+    if (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT)) return;
+    const target = duel.cpuField[targetIndex];
+    if (!target) return;
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    setDuel({
+      ...removeHandCard(duel, pendingChangeOfHeart),
+      playerField: [
+        ...duel.playerField,
+        { ...target, attacked: false, positionChanged: false, controlReturn: "cpu" },
+      ],
+      cpuField: duel.cpuField.filter((_, index) => index !== targetIndex),
+      playerGraveyard: [...duel.playerGraveyard, "vol5-change-heart"],
+      log: appendLog(duel.log, `心変わりを発動。${targetName}のコントロールをターン終了時まで得た。`),
+    });
+    setPendingChangeOfHeart(null);
+  }
+
   function equipSpell(fieldIndex: number) {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
@@ -804,7 +842,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -827,7 +865,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -847,6 +885,7 @@ export function DuelArena({
           : playerEnd.log,
       };
     }
+    playerEnd = returnChangedMonsters(playerEnd);
     const cpuStart: DuelState = {
       ...playerEnd,
       turn: "cpu",
@@ -1036,7 +1075,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 055</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 056</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1346,6 +1385,24 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingChangeOfHeart !== null && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">CHANGE OF HEART</p>
+            <h2>コントロールするモンスターを選ぶ</h2>
+            <p>選んだCPUモンスターは、このターン終了時まで自分のフィールドで使用できます。</p>
+            <div className="spell-target-list">
+              {duel.cpuField.map((zone, index) => (
+                <button key={`${zone.id}-${index}`} onClick={() => resolveChangeOfHeart(index)}>
+                  <span>CPUフィールド</span>
+                  <strong>{zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name ?? "モンスター"}</strong>
+                </button>
+              ))}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingChangeOfHeart(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {duel.pendingFlipTarget && (
         <div className="card-overlay flip-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -1527,6 +1584,7 @@ export function DuelArena({
                         || pendingTributeToDoomed !== null
                         || pendingSoulRelease !== null
                         || pendingCheerfulCoffin !== null
+                        || pendingChangeOfHeart !== null
                         || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
                         || (card.id === "vol2-monster-reborn" && (
@@ -1542,6 +1600,7 @@ export function DuelArena({
                         || (card.id === "vol5-tribute-doomed" && !canActivateTributeToDoomed(duel.playerHand.length, duel.playerField.length + duel.cpuField.length))
                         || (card.id === "vol5-soul-release" && duel.playerGraveyard.length + duel.cpuGraveyard.length === 0)
                         || (card.id === "vol5-cheerful-coffin" && !canActivateCheerfulCoffin(duel.playerHand.flatMap((id, handIndex) => handIndex === index ? [] : [cardById.get(id)?.cardType ?? ""])))
+                        || (card.id === "vol5-change-heart" && !canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT))
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
                           const monster = cardById.get(zone.id);
                           return Boolean(monster && canEquip(card.id, monster));
@@ -1563,13 +1622,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -1699,6 +1758,7 @@ function FieldRow({
               <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone)}`}</span>
               {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
               {!hidden && card.effect && <small className="field-effect-badge">効果モンスター</small>}
+              {!hidden && zone.controlReturn === "cpu" && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
               {owner === "player" && zone.position === "attack" && <small>{zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
             </button>
@@ -1801,6 +1861,17 @@ function openBlastJugglerPrompt(state: DuelState): DuelState {
   return monsterIndex < 0
     ? { ...state, pendingBlastJuggler: null }
     : { ...state, pendingBlastJuggler: { monsterIndex, selected: [] } };
+}
+
+function returnChangedMonsters(state: DuelState): DuelState {
+  const returning = state.playerField.filter((zone) => zone.controlReturn === "cpu");
+  if (returning.length === 0) return state;
+  return {
+    ...state,
+    playerField: state.playerField.filter((zone) => zone.controlReturn !== "cpu"),
+    cpuField: [...state.cpuField, ...returning.map(({ controlReturn: _controlReturn, ...zone }) => zone)],
+    log: appendLog(state.log, `心変わりの効果が終了。${returning.length}体をCPUフィールドへ戻した。`),
+  };
 }
 
 function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
@@ -2147,16 +2218,18 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     ...(attackerDestroyed && attackerSide === "cpu" ? [attackerZone] : []),
     ...(defenderDestroyed && attackerSide === "player" ? [defenderZone] : []),
   ];
+  const returnedDestroyedZones = destroyedPlayerZones.filter((zone) => zone.controlReturn === "cpu");
+  const ownedDestroyedPlayerZones = destroyedPlayerZones.filter((zone) => zone.controlReturn !== "cpu");
   let next = {
     ...state,
     [attackerFieldKey]: nextAttackerField,
     [defenderFieldKey]: nextDefenderField,
     [attackerLpKey]: state[attackerLpKey] - attackerDamage,
     [defenderLpKey]: state[defenderLpKey] - defenderDamage,
-    playerSpellTrap: discardEquips(state.playerSpellTrap, destroyedPlayerZones),
-    cpuSpellTrap: discardEquips(state.cpuSpellTrap, destroyedCpuZones),
-    playerGraveyard: [...state.playerGraveyard, ...graveCards(destroyedPlayerZones)],
-    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones)],
+    playerSpellTrap: discardEquips(state.playerSpellTrap, ownedDestroyedPlayerZones),
+    cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpuZones, ...returnedDestroyedZones]),
+    playerGraveyard: [...state.playerGraveyard, ...graveCards(ownedDestroyedPlayerZones)],
+    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones), ...graveCards(returnedDestroyedZones)],
     log: appendLog(
       state.log,
       `${attacker.name}が${defender.name}を攻撃。${
@@ -2606,6 +2679,7 @@ function spellDescription(id: string) {
   if (id === "vol5-tribute-doomed") return "手札を1枚捨て、フィールドのモンスター1体を破壊する";
   if (id === "vol5-soul-release") return "自分・相手の墓地からカードを合計5枚まで除外する";
   if (id === "vol5-cheerful-coffin") return "手札のモンスターを3枚まで墓地へ送る";
+  if (id === "vol5-change-heart") return "相手モンスター1体のコントロールをターン終了時まで得る";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
 }
@@ -2627,6 +2701,7 @@ function isSpellImplemented(id: string) {
       "vol5-tribute-doomed",
       "vol5-soul-release",
       "vol5-cheerful-coffin",
+      "vol5-change-heart",
     ].includes(id);
 }
 
