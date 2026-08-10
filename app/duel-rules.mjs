@@ -170,11 +170,18 @@ export function isElegantEgotistTarget(id) {
 }
 
 export function canNormalSummonMonster(id, fusion = false) {
-  return !fusion && id !== "vol4-harpie-sisters" && id !== "vol5-larvae-moth";
+  return !fusion && id !== "vol4-harpie-sisters" && id !== "vol5-larvae-moth" && id !== "vol6-great-moth";
 }
 
 export function canSpecialSummonLarvaeMoth(currentTurn, cocoonEquippedTurn) {
-  return Number.isInteger(cocoonEquippedTurn) && currentTurn - cocoonEquippedTurn >= 4;
+  return canSpecialSummonMoth("vol5-larvae-moth", currentTurn, cocoonEquippedTurn);
+}
+
+export function canSpecialSummonMoth(id, currentTurn, cocoonEquippedTurn) {
+  if (!Number.isInteger(cocoonEquippedTurn)) return false;
+  if (id === "vol5-larvae-moth") return currentTurn - cocoonEquippedTurn >= 4;
+  if (id === "vol6-great-moth") return currentTurn - cocoonEquippedTurn >= 8;
+  return false;
 }
 
 export function canActivateChangeOfHeart(playerMonsterCount, opponentMonsterCount, fieldLimit = 5) {

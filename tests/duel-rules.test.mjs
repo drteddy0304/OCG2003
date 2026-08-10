@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -206,6 +206,13 @@ test("ラーバモスは通常召喚できず進化の繭から2回目の自分�
   assert.equal(canSpecialSummonLarvaeMoth(4, 1), false);
   assert.equal(canSpecialSummonLarvaeMoth(5, 1), true);
   assert.equal(canSpecialSummonLarvaeMoth(5), false);
+});
+
+test("グレート・モスは通常召喚できず進化の繭から4回目の自分ターン以降に特殊召喚できる", () => {
+  assert.equal(canNormalSummonMonster("vol6-great-moth"), false);
+  assert.equal(canSpecialSummonMoth("vol6-great-moth", 8, 1), false);
+  assert.equal(canSpecialSummonMoth("vol6-great-moth", 9, 1), true);
+  assert.equal(canSpecialSummonMoth("vol6-great-moth", 9), false);
 });
 
 test("心変わりは自分の場に空きがあり相手モンスターがいる時だけ発動できる", () => {
