@@ -202,6 +202,31 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
   };
 }
 
+const attributeAuraEffects = Object.freeze({
+  "vol6-hoshiningen": { boost: "光", weaken: "闇" },
+  "vol6-star-boy": { boost: "水", weaken: "炎" },
+  "vol6-milus-radiant": { boost: "地", weaken: "風" },
+  "vol6-little-chimera": { boost: "炎", weaken: "水" },
+  "vol6-bladefly": { boost: "風", weaken: "地" },
+  "vol6-witch-apprentice": { boost: "闇", weaken: "光" },
+});
+
+export function continuousMonsterStats({ id, attribute, atk, def: defense, handSize = 0, graveyardMonsterCount = 0, auraIds = [] }) {
+  let nextAtk = atk;
+  let nextDef = defense;
+  if (id === "vol6-shadow-ghoul") nextAtk += graveyardMonsterCount * 100;
+  if (id === "vol6-muka-muka") {
+    nextAtk += handSize * 300;
+    nextDef += handSize * 300;
+  }
+  auraIds.forEach((auraId) => {
+    const aura = attributeAuraEffects[auraId];
+    if (aura?.boost === attribute) nextAtk += 500;
+    if (aura?.weaken === attribute) nextAtk -= 400;
+  });
+  return { atk: Math.max(0, nextAtk), def: Math.max(0, nextDef) };
+}
+
 export const competitiveCpuDeck = Object.freeze([
   ...Array(3).fill("vol3-rogue-doll"),
   ...Array(3).fill("vol3-skull-red-bird"),

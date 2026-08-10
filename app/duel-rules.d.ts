@@ -65,6 +65,16 @@ export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): b
 export function isMonsterRebornBlocked(playerSpellTrap: string[], cpuSpellTrap: string[]): boolean;
 export function fakeTrapCanProtect(trapIds: string[], targetIndex: number): boolean;
 
+export function continuousMonsterStats(input: {
+  id: string;
+  attribute?: string;
+  atk: number;
+  def: number;
+  handSize?: number;
+  graveyardMonsterCount?: number;
+  auraIds?: string[];
+}): { atk: number; def: number };
+
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;

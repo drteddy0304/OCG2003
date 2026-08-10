@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -237,6 +237,19 @@ test("偽物のわなは別の罠が破壊される時だけ身代わりにで�
 test("進化の繭を装備したプチモスはATK0・DEF2000になる", () => {
   assert.deepEqual(equippedMonsterStats(300, 200, ["vol4-cocoon-evolution"]), { atk: 0, def: 2000 });
   assert.deepEqual(equippedMonsterStats(300, 200, ["vol4-cocoon-evolution", "equip-card"]), { atk: 300, def: 2300 });
+});
+
+test("シャドウ・グールは自分の墓地のモンスター1体につきATK100アップする", () => {
+  assert.deepEqual(continuousMonsterStats({ id: "vol6-shadow-ghoul", attribute: "闇", atk: 1600, def: 1300, graveyardMonsterCount: 4 }), { atk: 2000, def: 1300 });
+});
+
+test("ムカムカは自分の手札1枚につきATK・DEF300アップする", () => {
+  assert.deepEqual(continuousMonsterStats({ id: "vol6-muka-muka", attribute: "地", atk: 600, def: 300, handSize: 5 }), { atk: 2100, def: 1800 });
+});
+
+test("Vol.6の属性強化効果は強化500・弱体化400として重複適用する", () => {
+  assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "光", atk: 1000, def: 1000, auraIds: ["vol6-hoshiningen", "vol6-witch-apprentice"] }), { atk: 1100, def: 1000 });
+  assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "水", atk: 1000, def: 1000, auraIds: ["vol6-star-boy", "vol6-little-chimera"] }), { atk: 1100, def: 1000 });
 });
 
 test("強化CPUは40枚デッキを使い、同名カードは3枚までにする", () => {

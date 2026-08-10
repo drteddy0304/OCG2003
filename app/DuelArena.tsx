@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -502,7 +502,7 @@ export function DuelArena({
       };
       if (next.cpuLp <= 0) next.result = "win";
     } else if (card.id === "vol1-fissure") {
-      const target = lowestFaceUpAttackIndex(next.cpuField);
+      const target = lowestFaceUpAttackIndex(next.cpuField, next, "cpu");
       if (target === null) return;
       next = {
         ...next,
@@ -1083,10 +1083,10 @@ export function DuelArena({
       .filter((key) => key.startsWith("cpu:"))
       .map((key) => Number(key.split(":")[1])));
     const destroyedPlayer = duel.playerField.filter((zone, index) =>
-      index === monsterIndex || (playerIndexes.has(index) && canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone))),
+      index === monsterIndex || (playerIndexes.has(index) && canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone, duel, "player"))),
     );
     const destroyedCpu = duel.cpuField.filter((zone, index) =>
-      cpuIndexes.has(index) && canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone)),
+      cpuIndexes.has(index) && canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone, duel, "cpu")),
     );
     const resolved: DuelState = {
       ...duel,
@@ -1161,7 +1161,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 060</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 061</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1574,7 +1574,7 @@ export function DuelArena({
             </div>
           ))}
         </div>
-        <FieldRow zones={duel.cpuField} owner="cpu" selectedTarget={selectedAttacker !== null} onTarget={attackTarget} onInspect={setDetailCardId} />
+        <FieldRow zones={duel.cpuField} owner="cpu" state={duel} selectedTarget={selectedAttacker !== null} onTarget={attackTarget} onInspect={setDetailCardId} />
         {selectedAttacker !== null
           && duel.cpuField.length > 0
           && canMonsterAttackDirectly(duel.playerField[selectedAttacker]?.id ?? "") && (
@@ -1586,6 +1586,7 @@ export function DuelArena({
         <FieldRow
           zones={duel.playerField}
           owner="player"
+          state={duel}
           onAttack={chooseAttacker}
           canAttack={duel.phase === "battle" && duel.turnNumber > 1 && duel.cpuSwordsTurns.length === 0}
           equipTarget={selectedEquip !== null}
@@ -1703,7 +1704,7 @@ export function DuelArena({
                         || pendingCheerfulCoffin !== null
                         || pendingChangeOfHeart !== null
                         || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
-                        || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
+                        || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField, duel, "cpu") === null)
                         || (card.id === "vol2-monster-reborn" && (
                           duel.playerField.length >= FIELD_LIMIT
                           || isMonsterRebornBlocked(duel.playerSpellTrap, duel.cpuSpellTrap)
@@ -1825,6 +1826,7 @@ function CardDetail({ cardId, onClose }: { cardId: string; onClose: () => void }
 function FieldRow({
   zones,
   owner,
+  state,
   selectedTarget = false,
   onTarget,
   onAttack,
@@ -1841,6 +1843,7 @@ function FieldRow({
 }: {
   zones: ZoneCard[];
   owner: Side;
+  state: DuelState;
   selectedTarget?: boolean;
   onTarget?: (index: number) => void;
   onAttack?: (index: number) => void;
@@ -1873,7 +1876,7 @@ function FieldRow({
               onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
             >
               <strong>{hidden ? "伏せモンスター" : card.name}</strong>
-              <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone)}`}</span>
+              <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone, state, owner)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone, state, owner)}`}</span>
               {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
               {!hidden && card.effect && <small className="field-effect-badge">効果モンスター</small>}
               {!hidden && zone.controlReturn === "cpu" && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
@@ -1966,7 +1969,7 @@ function blastJugglerTargetChoices(state: DuelState, monsterIndex: number): Blas
   return (["player", "cpu"] as const).flatMap((side) =>
     (side === "player" ? state.playerField : state.cpuField).flatMap((zone, index) => {
       if (side === "player" && index === monsterIndex) return [];
-      if (!canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone))) return [];
+      if (!canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone, state, side))) return [];
       return [{ side, index, id: zone.id, name: cardById.get(zone.id)?.name ?? "モンスター" }];
     }),
   );
@@ -2017,12 +2020,12 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
         continue;
       }
       const targetIndex = bestCpuBattleTargetIndex(
-        effectiveAtk(attacker),
+        effectiveAtk(attacker, state, "cpu"),
         state.playerField.map((zone) => ({
           position: zone.position,
           faceDown: zone.faceDown,
-          atk: effectiveAtk(zone),
-          def: effectiveDef(zone),
+          atk: effectiveAtk(zone, state, "player"),
+          def: effectiveDef(zone, state, "player"),
         })),
       );
       if (targetIndex !== null) {
@@ -2126,7 +2129,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
   if (
     state.cpuHand.includes("vol1-dark-hole")
     && state.playerField.length > 0
-    && fieldPower(state.playerField) > fieldPower(state.cpuField)
+    && fieldPower(state.playerField, state, "player") > fieldPower(state.cpuField, state, "cpu")
   ) {
     state = {
       ...removeCpuHandCard(state, "vol1-dark-hole"),
@@ -2140,7 +2143,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
     };
   }
 
-  const fissureTarget = lowestFaceUpAttackIndex(state.playerField);
+  const fissureTarget = lowestFaceUpAttackIndex(state.playerField, state, "player");
   if (state.cpuHand.includes("vol1-fissure") && fissureTarget !== null) {
     const destroyed = state.playerField[fissureTarget];
     state = {
@@ -2337,7 +2340,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   attackerZone.attacked = true;
 
   if (defenderIndex === null || !defenderField[defenderIndex]) {
-    const damage = effectiveAtk(attackerZone);
+    const damage = effectiveAtk(attackerZone, state, attackerSide);
     let next = { ...state, [attackerFieldKey]: attackerField, [defenderLpKey]: state[defenderLpKey] - damage } as DuelState;
     next.log = appendLog(state.log, `${attacker.name}の直接攻撃。${damage}ダメージ。`);
     if (next[defenderLpKey] > 0) next = resolveBattleDamageEffect(next, attackerSide, attacker.id, damage);
@@ -2351,8 +2354,11 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   const defender = cardById.get(defenderZone.id);
   if (!defender) return state;
   if (guardianEffect) defenderZone.guardianEffectUsed = true;
-  const attackValue = guardianAdjustedAttack(effectiveAtk(attackerZone), guardianEffect);
-  const defenseValue = defenderZone.position === "attack" ? effectiveAtk(defenderZone) : effectiveDef(defenderZone);
+  const defenderSide: Side = attackerSide === "player" ? "cpu" : "player";
+  const attackValue = guardianAdjustedAttack(effectiveAtk(attackerZone, state, attackerSide), guardianEffect);
+  const defenseValue = defenderZone.position === "attack"
+    ? effectiveAtk(defenderZone, state, defenderSide)
+    : effectiveDef(defenderZone, state, defenderSide);
   const { attackerDestroyed, defenderDestroyed, attackerDamage, defenderDamage } =
     battleOutcome(attackValue, defenseValue, defenderZone.position);
 
@@ -2759,22 +2765,43 @@ function lowestAttackIndexes(field: ZoneCard[], count: number) {
     .map((item) => item.index);
 }
 
-function lowestFaceUpAttackIndex(field: ZoneCard[]) {
+function lowestFaceUpAttackIndex(field: ZoneCard[], state?: DuelState, side?: Side) {
   const candidates = field
     .map((zone, index) => ({ zone, index }))
     .filter(({ zone }) => !zone.faceDown)
-    .sort((a, b) => effectiveAtk(a.zone) - effectiveAtk(b.zone));
+    .sort((a, b) => effectiveAtk(a.zone, state, side) - effectiveAtk(b.zone, state, side));
   return candidates[0]?.index ?? null;
 }
 
-function effectiveAtk(zone: ZoneCard) {
+function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   const card = cardById.get(zone.id);
-  return equippedMonsterStats(card?.atk ?? 0, card?.def ?? 0, zone.equipped).atk;
+  const equipped = equippedMonsterStats(card?.atk ?? 0, card?.def ?? 0, zone.equipped);
+  if (!state || !side || zone.faceDown || !card) return equipped.atk;
+  return continuousMonsterStats({
+    id: zone.id,
+    attribute: card.attribute,
+    atk: equipped.atk,
+    def: equipped.def,
+    handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
+    graveyardMonsterCount: (side === "player" ? state.playerGraveyard : state.cpuGraveyard)
+      .filter((id) => cardById.get(id)?.cardType === "monster").length,
+    auraIds: [...state.playerField, ...state.cpuField].filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
+  }).atk;
 }
 
-function effectiveDef(zone: ZoneCard) {
+function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
   const card = cardById.get(zone.id);
-  return equippedMonsterStats(card?.atk ?? 0, card?.def ?? 0, zone.equipped).def;
+  const equipped = equippedMonsterStats(card?.atk ?? 0, card?.def ?? 0, zone.equipped);
+  if (!state || !side || zone.faceDown || !card) return equipped.def;
+  return continuousMonsterStats({
+    id: zone.id,
+    attribute: card.attribute,
+    atk: equipped.atk,
+    def: equipped.def,
+    handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
+    graveyardMonsterCount: 0,
+    auraIds: [],
+  }).def;
 }
 
 function canEquip(spellId: string, monster: Card) {
@@ -2808,8 +2835,8 @@ function removeCpuHandCard(state: DuelState, cardId: string): DuelState {
     : { ...state, cpuHand: state.cpuHand.filter((_, handIndex) => handIndex !== index) };
 }
 
-function fieldPower(field: ZoneCard[]) {
-  return field.reduce((total, zone) => total + Math.max(effectiveAtk(zone), effectiveDef(zone)), 0);
+function fieldPower(field: ZoneCard[], state?: DuelState, side?: Side) {
+  return field.reduce((total, zone) => total + Math.max(effectiveAtk(zone, state, side), effectiveDef(zone, state, side)), 0);
 }
 
 function discardEquips(spellTrap: string[], zones: ZoneCard[]) {
