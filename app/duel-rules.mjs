@@ -197,6 +197,10 @@ export function canRespondWithAntiRaigeki(trapIds, spellId) {
   return spellId === "stb-raigeki" && trapIds.includes("vol5-anti-raigeki");
 }
 
+export function canActivateSevenTools(lifePoints, trapIds) {
+  return lifePoints > 1000 && trapIds.includes("vol6-seven-tools");
+}
+
 export function isMonsterRebornBlocked(playerSpellTrap, cpuSpellTrap) {
   return [...playerSpellTrap, ...cpuSpellTrap].includes("vol5-call-darkness");
 }

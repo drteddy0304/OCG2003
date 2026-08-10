@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -30,6 +30,14 @@ type PendingTrapResponse = {
   trapIndex: number;
   monsterIndex: number;
   monsterId: string;
+};
+type PendingSevenTools = {
+  sevenToolsIndex: number;
+  trapIndex: number;
+  monsterIndex: number;
+  monsterId: string;
+  playerTributes: ZoneCard[];
+  cpuTributes: ZoneCard[];
 };
 type PendingGuardianResponse = {
   attackerIndex: number;
@@ -110,6 +118,7 @@ type DuelState = {
   normalSummoned: boolean;
   result: Result;
   pendingTrapResponse: PendingTrapResponse | null;
+  pendingSevenTools: PendingSevenTools | null;
   pendingGuardianResponse: PendingGuardianResponse | null;
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
@@ -164,6 +173,7 @@ export function DuelArena({
   }, [collection, duel]);
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingGuardianResponse
+    && !duel.pendingSevenTools
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
     && !duel.pendingFakeTrap
@@ -273,6 +283,7 @@ export function DuelArena({
       normalSummoned: false,
       result: null,
       pendingTrapResponse: null,
+      pendingSevenTools: null,
       pendingGuardianResponse: null,
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
@@ -342,10 +353,27 @@ export function DuelArena({
       normalSummoned: true,
       log: appendLog(duel.log, `${card.name}を${position === "attack" ? lockedByJar ? "召喚し、封印の壺で守備表示" : "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
     };
-    nextState = applyDeckSearchTriggers(nextState, playerTributes, returnedTributes);
     const cpuTrapIndex = nextState.cpuSpellTrap.indexOf("vol1-trap-hole");
     if (position === "attack" && (card.atk ?? 0) >= 1000 && cpuTrapIndex >= 0) {
       const trappedMonster = nextState.playerField[nextState.playerField.length - 1];
+      const sevenToolsIndex = nextState.playerSpellTrap.indexOf("vol6-seven-tools");
+      if (trappedMonster && sevenToolsIndex >= 0 && canActivateSevenTools(nextState.playerLp, nextState.playerSpellTrap)) {
+        nextState = {
+          ...nextState,
+          pendingSevenTools: {
+            sevenToolsIndex,
+            trapIndex: cpuTrapIndex,
+            monsterIndex: nextState.playerField.length - 1,
+            monsterId: card.id,
+            playerTributes,
+            cpuTributes: returnedTributes,
+          },
+          log: appendLog(nextState.log, `CPUが落とし穴を発動。盗賊の七つ道具を発動しますか？`),
+        };
+        setDuel(nextState);
+        setPendingTribute(null);
+        return;
+      }
       nextState = {
         ...nextState,
         playerField: nextState.playerField.filter((_, index) => index !== nextState.playerField.length - 1),
@@ -354,7 +382,9 @@ export function DuelArena({
         cpuGraveyard: [...nextState.cpuGraveyard, "vol1-trap-hole"],
         log: appendLog(nextState.log, `CPUが落とし穴を発動。${card.name}を破壊。`),
       };
-      nextState = applyDeckSearchTriggers(nextState, trappedMonster ? [trappedMonster] : []);
+      nextState = applyDeckSearchTriggers(nextState, trappedMonster ? [...playerTributes, trappedMonster] : playerTributes, returnedTributes);
+    } else {
+      nextState = applyDeckSearchTriggers(nextState, playerTributes, returnedTributes);
     }
     setDuel(nextState);
     setPendingTribute(null);
@@ -940,7 +970,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -963,7 +993,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -1006,6 +1036,39 @@ export function DuelArena({
       messages: messages.length ? messages : ["CPUは行動せずターンを終了。"],
       index: 0,
     });
+  }
+
+  function respondToSevenTools(activate: boolean) {
+    if (!duel?.pendingSevenTools) return;
+    const pending = duel.pendingSevenTools;
+    const summonedMonster = duel.playerField[pending.monsterIndex];
+    if (!summonedMonster || summonedMonster.id !== pending.monsterId) return;
+    let resolved: DuelState;
+    if (activate) {
+      resolved = {
+        ...duel,
+        pendingSevenTools: null,
+        playerLp: duel.playerLp - 1000,
+        playerSpellTrap: duel.playerSpellTrap.filter((_, index) => index !== pending.sevenToolsIndex),
+        cpuSpellTrap: duel.cpuSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        playerGraveyard: [...duel.playerGraveyard, "vol6-seven-tools"],
+        cpuGraveyard: [...duel.cpuGraveyard, "vol1-trap-hole"],
+        log: appendLog(duel.log, "盗賊の七つ道具を発動。1000LPを払い、CPUの落とし穴を無効にして破壊した。"),
+      };
+      resolved = applyDeckSearchTriggers(resolved, pending.playerTributes, pending.cpuTributes);
+    } else {
+      resolved = {
+        ...duel,
+        pendingSevenTools: null,
+        playerField: duel.playerField.filter((_, index) => index !== pending.monsterIndex),
+        cpuSpellTrap: duel.cpuSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        playerGraveyard: [...duel.playerGraveyard, ...graveCards([summonedMonster])],
+        cpuGraveyard: [...duel.cpuGraveyard, "vol1-trap-hole"],
+        log: appendLog(duel.log, `盗賊の七つ道具を発動せず、${cardById.get(pending.monsterId)?.name ?? "モンスター"}が落とし穴で破壊された。`),
+      };
+      resolved = applyDeckSearchTriggers(resolved, [...pending.playerTributes, summonedMonster], pending.cpuTributes);
+    }
+    setDuel(resolved);
   }
 
   function respondToTrap(activate: boolean) {
@@ -1260,7 +1323,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 065</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 066</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1378,6 +1441,19 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToTrap(true)}>発動する</button>
               <button onClick={() => respondToTrap(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingSevenTools && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">COUNTER TRAP</p>
+            <h2>盗賊の七つ道具を発動しますか？</h2>
+            <p>CPUが落とし穴を発動しました。1000LPを払うと、発動を無効にして破壊できます。</p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToSevenTools(true)}>1000LPを払い発動</button>
+              <button onClick={() => respondToSevenTools(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -3149,11 +3225,12 @@ function trapDescription(id: string) {
   if (id === "vol5-call-darkness") return "死者蘇生を使用できなくし、死者蘇生で蘇ったモンスターを墓地へ送る";
   if (id === "vol5-fake-trap") return "自分の罠カードが破壊される時、代わりにこのカードを破壊する";
   if (id === "stb-dragon-capture-jar") return "表側のドラゴン族を守備表示にし、表示形式の変更を封じる";
+  if (id === "vol6-seven-tools") return "1000LPを払い、罠カードの発動を無効にして破壊する";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "vol6-seven-tools";
 }
 
 function monsterDescription(id: string) {
