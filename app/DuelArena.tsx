@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -35,6 +35,9 @@ type PendingGuardianResponse = {
   attackerIndex: number;
   defenderIndex: number;
   guardianId: string;
+};
+type PendingAntiRaigeki = {
+  trapIndex: number;
 };
 type PendingBlastJuggler = {
   monsterIndex: number;
@@ -99,6 +102,7 @@ type DuelState = {
   pendingTrapResponse: PendingTrapResponse | null;
   pendingGuardianResponse: PendingGuardianResponse | null;
   pendingBlastJuggler: PendingBlastJuggler | null;
+  pendingAntiRaigeki: PendingAntiRaigeki | null;
   pendingFlipTarget: PendingFlipTarget | null;
   pendingDeckReorder: PendingDeckReorder | null;
   log: string[];
@@ -148,6 +152,7 @@ export function DuelArena({
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingGuardianResponse
     && !duel.pendingBlastJuggler
+    && !duel.pendingAntiRaigeki
     && !duel.pendingFlipTarget
     && !duel.pendingDeckReorder
     && pendingTributeToDoomed === null
@@ -253,6 +258,7 @@ export function DuelArena({
       pendingTrapResponse: null,
       pendingGuardianResponse: null,
       pendingBlastJuggler: null,
+      pendingAntiRaigeki: null,
       pendingFlipTarget: null,
       pendingDeckReorder: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
@@ -956,6 +962,38 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToAntiRaigeki(activate: boolean) {
+    if (!duel?.pendingAntiRaigeki) return;
+    const pending = duel.pendingAntiRaigeki;
+    const marker = "避雷針の発動確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingAntiRaigeki: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (activate) {
+      resumed = {
+        ...resumed,
+        playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        cpuSpellTrap: discardEquips(resumed.cpuSpellTrap, resumed.cpuField),
+        playerGraveyard: [...resumed.playerGraveyard, "vol5-anti-raigeki"],
+        cpuGraveyard: [...resumed.cpuGraveyard, ...graveCards(resumed.cpuField)],
+        cpuField: [],
+        log: appendLog(resumed.log, "避雷針を発動。サンダー・ボルトを無効にし、CPUのモンスターをすべて破壊。"),
+      };
+    } else {
+      resumed = {
+        ...resumed,
+        playerSpellTrap: discardEquips(resumed.playerSpellTrap, resumed.playerField),
+        playerGraveyard: [...resumed.playerGraveyard, ...graveCards(resumed.playerField)],
+        playerField: [],
+        log: appendLog(resumed.log, "避雷針を発動せず、サンダー・ボルトで自分のモンスターがすべて破壊された。"),
+      };
+    }
+    const finalState = continueCpuTurnAfterSpells(resumed);
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
   function toggleBlastJugglerTarget(side: Side, index: number) {
     if (!duel?.pendingBlastJuggler) return;
     const key = `${side}:${index}`;
@@ -1075,7 +1113,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 056</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 057</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1161,6 +1199,8 @@ export function DuelArena({
                 {cpuPlayback.index >= cpuPlayback.messages.length - 1
                   ? cpuPlayback.finalState.pendingTrapResponse
                     ? "落とし穴の発動確認へ"
+                    : cpuPlayback.finalState.pendingAntiRaigeki
+                      ? "避雷針の発動確認へ"
                     : cpuPlayback.finalState.pendingGuardianResponse
                       ? "三魔神の効果確認へ"
                     : cpuPlayback.finalState.pendingDeckReorder
@@ -1189,6 +1229,19 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToTrap(true)}>発動する</button>
               <button onClick={() => respondToTrap(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingAntiRaigeki && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">CHAIN RESPONSE</p>
+            <h2>避雷針を発動しますか？</h2>
+            <p>CPUがサンダー・ボルトを発動しました。無効にしてCPUのモンスターをすべて破壊できます。</p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToAntiRaigeki(true)}>発動する</button>
+              <button onClick={() => respondToAntiRaigeki(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -1784,8 +1837,12 @@ function runCpuTurn(initial: DuelState): DuelState {
     cpuDeck: state.cpuDeck.slice(1),
   };
   state = playCpuNormalSpells(state);
-  if (state.result) return state;
+  if (state.result || state.pendingAntiRaigeki) return state;
+  return continueCpuTurnAfterSpells(state);
+}
 
+function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
+  let state = initial;
   const candidates = state.cpuHand
     .map((id, index) => ({ card: cardById.get(id), index }))
     .filter((item): item is { card: Card; index: number } => item.card?.cardType === "monster")
@@ -1977,6 +2034,27 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
       playerGraveyard: [...state.playerGraveyard, targetId],
       cpuGraveyard: [...state.cpuGraveyard, "vol2-de-spell"],
       log: appendLog(state.log, `CPUが魔法除去を発動。${target?.name ?? "魔法カード"}を破壊。`),
+    };
+  }
+
+  if (state.cpuHand.includes("stb-raigeki") && state.playerField.length > 0) {
+    const activated: DuelState = {
+      ...removeCpuHandCard(state, "stb-raigeki"),
+      cpuGraveyard: [...state.cpuGraveyard, "stb-raigeki"],
+      log: appendLog(state.log, "CPUがサンダー・ボルトを発動。"),
+    };
+    if (canRespondWithAntiRaigeki(activated.playerSpellTrap, "stb-raigeki")) {
+      return {
+        ...activated,
+        pendingAntiRaigeki: { trapIndex: activated.playerSpellTrap.indexOf("vol5-anti-raigeki") },
+      };
+    }
+    state = {
+      ...activated,
+      playerSpellTrap: discardEquips(activated.playerSpellTrap, activated.playerField),
+      playerGraveyard: [...activated.playerGraveyard, ...graveCards(activated.playerField)],
+      playerField: [],
+      log: appendLog(activated.log, "サンダー・ボルトでプレイヤーのモンスターをすべて破壊。"),
     };
   }
 
@@ -2707,11 +2785,12 @@ function isSpellImplemented(id: string) {
 
 function trapDescription(id: string) {
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
+  if (id === "vol5-anti-raigeki") return "相手のサンダー・ボルトを無効にし、相手モンスターをすべて破壊";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki";
 }
 
 function monsterDescription(id: string) {

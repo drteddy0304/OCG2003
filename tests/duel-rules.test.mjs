@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -212,6 +212,13 @@ test("心変わりは自分の場に空きがあり相手モンスターがい�
   assert.equal(canActivateChangeOfHeart(4, 1), true);
   assert.equal(canActivateChangeOfHeart(5, 1), false);
   assert.equal(canActivateChangeOfHeart(2, 0), false);
+});
+
+test("避雷針は相手のサンダー・ボルトにだけ発動できる", () => {
+  assert.equal(canRespondWithAntiRaigeki(["vol5-anti-raigeki"], "stb-raigeki"), true);
+  assert.equal(canRespondWithAntiRaigeki(["vol5-anti-raigeki"], "vol1-dark-hole"), false);
+  assert.equal(canRespondWithAntiRaigeki([], "stb-raigeki"), false);
+  assert.equal(competitiveCpuDeck.includes("stb-raigeki"), true);
 });
 
 test("進化の繭を装備したプチモスはATK0・DEF2000になる", () => {

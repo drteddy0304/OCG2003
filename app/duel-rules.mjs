@@ -181,6 +181,10 @@ export function canActivateChangeOfHeart(playerMonsterCount, opponentMonsterCoun
   return playerMonsterCount < fieldLimit && opponentMonsterCount > 0;
 }
 
+export function canRespondWithAntiRaigeki(trapIds, spellId) {
+  return spellId === "stb-raigeki" && trapIds.includes("vol5-anti-raigeki");
+}
+
 export function equippedMonsterStats(atk, defense, equippedIds) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
   const regularEquipCount = equippedIds.filter((id) => id !== "vol4-cocoon-evolution").length;
@@ -207,7 +211,8 @@ export const competitiveCpuDeck = Object.freeze([
   "vol2-swords-revealing-light",
   "vol2-monster-reborn",
   "vol3-pot-of-greed",
-  ...Array(2).fill("vol3-stop-defense"),
+  "vol3-stop-defense",
+  "stb-raigeki",
 ]);
 
 export function bestCpuBattleTargetIndex(attack, targets) {
