@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -77,6 +77,7 @@ type ZoneCard = {
   blastPromptedTurn?: number;
   cocoonEquippedTurn?: number;
   controlReturn?: Side;
+  revivedByMonsterReborn?: boolean;
 };
 
 type DuelState = {
@@ -382,6 +383,7 @@ export function DuelArena({
     }
 
     if (card.id === "vol2-monster-reborn") {
+      if (isMonsterRebornBlocked(duel.playerSpellTrap, duel.cpuSpellTrap)) return;
       const hasTarget = [...duel.playerGraveyard, ...duel.cpuGraveyard]
         .some((id) => cardById.get(id)?.cardType === "monster");
       if (!hasTarget || duel.playerField.length >= FIELD_LIMIT) return;
@@ -587,6 +589,7 @@ export function DuelArena({
           equipped: [],
           summonedTurn: duel.turnNumber,
           positionChanged: false,
+          revivedByMonsterReborn: true,
         },
       ],
       playerGraveyard: [
@@ -814,6 +817,21 @@ export function DuelArena({
     if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "trap" || !isTrapImplemented(card.id)) return;
+    if (card.id === "vol5-call-darkness") {
+      const revivedPlayer = duel.playerField.filter((zone) => zone.revivedByMonsterReborn);
+      const revivedCpu = duel.cpuField.filter((zone) => zone.revivedByMonsterReborn);
+      setDuel({
+        ...removeHandCard(duel, handIndex),
+        playerField: duel.playerField.filter((zone) => !zone.revivedByMonsterReborn),
+        cpuField: duel.cpuField.filter((zone) => !zone.revivedByMonsterReborn),
+        playerSpellTrap: [...discardEquips(duel.playerSpellTrap, revivedPlayer), card.id],
+        cpuSpellTrap: discardEquips(duel.cpuSpellTrap, revivedCpu),
+        playerGraveyard: [...duel.playerGraveyard, ...graveCards(revivedPlayer)],
+        cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(revivedCpu)],
+        log: appendLog(duel.log, `闇からの呼び声を発動。死者蘇生を封じ、蘇生されていたモンスター${revivedPlayer.length + revivedCpu.length}体を墓地へ送った。`),
+      });
+      return;
+    }
     setDuel({
       ...removeHandCard(duel, handIndex),
       playerSpellTrap: [...duel.playerSpellTrap, card.id],
@@ -1113,7 +1131,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 057</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 058</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1642,6 +1660,7 @@ export function DuelArena({
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
                         || (card.id === "vol2-monster-reborn" && (
                           duel.playerField.length >= FIELD_LIMIT
+                          || isMonsterRebornBlocked(duel.playerSpellTrap, duel.cpuSpellTrap)
                           || ![...duel.playerGraveyard, ...duel.cpuGraveyard]
                             .some((id) => cardById.get(id)?.cardType === "monster")
                         ))
@@ -2108,7 +2127,11 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
     for (const zone of faceDownZones) state = resolveFlipEffect(state, "player", zone.id);
   }
 
-  if (state.cpuHand.includes("vol2-monster-reborn") && state.cpuField.length < FIELD_LIMIT) {
+  if (
+    state.cpuHand.includes("vol2-monster-reborn")
+    && state.cpuField.length < FIELD_LIMIT
+    && !isMonsterRebornBlocked(state.playerSpellTrap, state.cpuSpellTrap)
+  ) {
     const revivalCandidates = [
       ...state.cpuGraveyard.map((id, index) => ({ id, index, side: "cpu" as const })),
       ...state.playerGraveyard.map((id, index) => ({ id, index, side: "player" as const })),
@@ -2137,6 +2160,7 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
             equipped: [],
             summonedTurn: state.turnNumber,
             positionChanged: false,
+            revivedByMonsterReborn: true,
           },
         ],
         cpuGraveyard: [
@@ -2786,11 +2810,12 @@ function isSpellImplemented(id: string) {
 function trapDescription(id: string) {
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
   if (id === "vol5-anti-raigeki") return "相手のサンダー・ボルトを無効にし、相手モンスターをすべて破壊";
+  if (id === "vol5-call-darkness") return "死者蘇生を使用できなくし、死者蘇生で蘇ったモンスターを墓地へ送る";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness";
 }
 
 function monsterDescription(id: string) {

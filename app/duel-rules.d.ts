@@ -62,6 +62,7 @@ export function canBlastJugglerTarget(faceDown: boolean, attack: number): boolea
 export function canSpecialSummonLarvaeMoth(currentTurn: number, cocoonEquippedTurn?: number): boolean;
 export function canActivateChangeOfHeart(playerMonsterCount: number, opponentMonsterCount: number, fieldLimit?: number): boolean;
 export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): boolean;
+export function isMonsterRebornBlocked(playerSpellTrap: string[], cpuSpellTrap: string[]): boolean;
 
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 

@@ -185,6 +185,10 @@ export function canRespondWithAntiRaigeki(trapIds, spellId) {
   return spellId === "stb-raigeki" && trapIds.includes("vol5-anti-raigeki");
 }
 
+export function isMonsterRebornBlocked(playerSpellTrap, cpuSpellTrap) {
+  return [...playerSpellTrap, ...cpuSpellTrap].includes("vol5-call-darkness");
+}
+
 export function equippedMonsterStats(atk, defense, equippedIds) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
   const regularEquipCount = equippedIds.filter((id) => id !== "vol4-cocoon-evolution").length;
