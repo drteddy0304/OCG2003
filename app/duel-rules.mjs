@@ -137,6 +137,10 @@ export function guardianAdjustedAttack(attack, activate) {
   return activate ? 0 : attack;
 }
 
+export function canBlastJugglerTarget(faceDown, attack) {
+  return !faceDown && attack <= 1000;
+}
+
 export function deSpellDestroys(cardType, cardId = "") {
   return cardType === "spell" || cardId === "vol4-cocoon-evolution";
 }

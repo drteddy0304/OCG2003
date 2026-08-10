@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -36,6 +36,10 @@ type PendingGuardianResponse = {
   defenderIndex: number;
   guardianId: string;
 };
+type PendingBlastJuggler = {
+  monsterIndex: number;
+  selected: string[];
+};
 type PendingFlipTarget = {
   monsterId: string;
   effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap";
@@ -67,6 +71,7 @@ type ZoneCard = {
   summonedTurn: number;
   positionChanged: boolean;
   guardianEffectUsed?: boolean;
+  blastPromptedTurn?: number;
 };
 
 type DuelState = {
@@ -91,6 +96,7 @@ type DuelState = {
   result: Result;
   pendingTrapResponse: PendingTrapResponse | null;
   pendingGuardianResponse: PendingGuardianResponse | null;
+  pendingBlastJuggler: PendingBlastJuggler | null;
   pendingFlipTarget: PendingFlipTarget | null;
   pendingDeckReorder: PendingDeckReorder | null;
   log: string[];
@@ -138,6 +144,7 @@ export function DuelArena({
   }, [collection, duel]);
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingGuardianResponse
+    && !duel.pendingBlastJuggler
     && !duel.pendingFlipTarget
     && !duel.pendingDeckReorder
     && pendingTributeToDoomed === null
@@ -240,6 +247,7 @@ export function DuelArena({
       result: null,
       pendingTrapResponse: null,
       pendingGuardianResponse: null,
+      pendingBlastJuggler: null,
       pendingFlipTarget: null,
       pendingDeckReorder: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
@@ -761,7 +769,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -784,7 +792,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -874,6 +882,66 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function toggleBlastJugglerTarget(side: Side, index: number) {
+    if (!duel?.pendingBlastJuggler) return;
+    const key = `${side}:${index}`;
+    const valid = blastJugglerTargetChoices(duel, duel.pendingBlastJuggler.monsterIndex)
+      .some((choice) => choice.side === side && choice.index === index);
+    if (!valid) return;
+    setDuel({
+      ...duel,
+      pendingBlastJuggler: {
+        ...duel.pendingBlastJuggler,
+        selected: toggleLimitedSelection(duel.pendingBlastJuggler.selected, key, 2),
+      },
+    });
+  }
+
+  function declineBlastJuggler() {
+    if (!duel?.pendingBlastJuggler) return;
+    const monsterIndex = duel.pendingBlastJuggler.monsterIndex;
+    const declined: DuelState = {
+      ...duel,
+      playerField: duel.playerField.map((zone, index) =>
+        index === monsterIndex ? { ...zone, blastPromptedTurn: duel.turnNumber } : zone,
+      ),
+      pendingBlastJuggler: null,
+      log: appendLog(duel.log, "ミスター・ボンバーの効果を発動しなかった。"),
+    };
+    setDuel(openBlastJugglerPrompt(declined));
+  }
+
+  function confirmBlastJuggler() {
+    if (!duel?.pendingBlastJuggler || duel.pendingBlastJuggler.selected.length === 0) return;
+    const monsterIndex = duel.pendingBlastJuggler.monsterIndex;
+    const bomber = duel.playerField[monsterIndex];
+    if (bomber?.id !== "vol5-blast-juggler") return;
+    const playerIndexes = new Set(duel.pendingBlastJuggler.selected
+      .filter((key) => key.startsWith("player:"))
+      .map((key) => Number(key.split(":")[1])));
+    const cpuIndexes = new Set(duel.pendingBlastJuggler.selected
+      .filter((key) => key.startsWith("cpu:"))
+      .map((key) => Number(key.split(":")[1])));
+    const destroyedPlayer = duel.playerField.filter((zone, index) =>
+      index === monsterIndex || (playerIndexes.has(index) && canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone))),
+    );
+    const destroyedCpu = duel.cpuField.filter((zone, index) =>
+      cpuIndexes.has(index) && canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone)),
+    );
+    const resolved: DuelState = {
+      ...duel,
+      playerField: duel.playerField.filter((_, index) => index !== monsterIndex && !playerIndexes.has(index)),
+      cpuField: duel.cpuField.filter((_, index) => !cpuIndexes.has(index)),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, destroyedPlayer),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, destroyedCpu),
+      playerGraveyard: [...duel.playerGraveyard, ...graveCards(destroyedPlayer)],
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(destroyedCpu)],
+      pendingBlastJuggler: null,
+      log: appendLog(duel.log, `ミスター・ボンバーの効果を発動。モンスター${destroyedPlayer.length + destroyedCpu.length - 1}体を破壊。`),
+    };
+    setDuel(openBlastJugglerPrompt(resolved));
+  }
+
   function advanceCpuPlayback() {
     if (!cpuPlayback) return;
     if (cpuPlayback.index >= cpuPlayback.messages.length - 1) {
@@ -933,7 +1001,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 053</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 054</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1064,6 +1132,29 @@ export function DuelArena({
               <button className="activate-trap" onClick={() => respondToGuardian(true)}>発動する</button>
               <button onClick={() => respondToGuardian(false)}>発動しない</button>
             </div>
+          </div>
+        </div>
+      )}
+      {duel.pendingBlastJuggler && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">BLAST JUGGLER</p>
+            <h2>ミスター・ボンバーの効果</h2>
+            <p>自身を生け贄にし、表側表示でATK1000以下のモンスターを2体まで破壊できます（選択中 {duel.pendingBlastJuggler.selected.length}/2）。</p>
+            <div className="spell-target-list">
+              {blastJugglerTargetChoices(duel, duel.pendingBlastJuggler.monsterIndex).map((choice) => {
+                const key = `${choice.side}:${choice.index}`;
+                const selected = duel.pendingBlastJuggler!.selected.includes(key);
+                return (
+                  <button className={selected ? "selected" : ""} key={key} onClick={() => toggleBlastJugglerTarget(choice.side, choice.index)}>
+                    <span>{choice.side === "player" ? "自分フィールド" : "CPUフィールド"}{selected ? "・選択中" : ""}</span>
+                    <strong>{choice.name}</strong>
+                  </button>
+                );
+              })}
+            </div>
+            <button className="overlay-close" disabled={duel.pendingBlastJuggler.selected.length === 0} onClick={confirmBlastJuggler}>選んだモンスターを破壊</button>
+            <button onClick={declineBlastJuggler}>発動しない</button>
           </div>
         </div>
       )}
@@ -1427,13 +1518,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -1642,6 +1733,31 @@ function runCpuTurn(initial: DuelState): DuelState {
   return finishCpuTurn(state);
 }
 
+type BlastJugglerChoice = { side: Side; index: number; id: string; name: string };
+
+function blastJugglerTargetChoices(state: DuelState, monsterIndex: number): BlastJugglerChoice[] {
+  return (["player", "cpu"] as const).flatMap((side) =>
+    (side === "player" ? state.playerField : state.cpuField).flatMap((zone, index) => {
+      if (side === "player" && index === monsterIndex) return [];
+      if (!canBlastJugglerTarget(zone.faceDown, effectiveAtk(zone))) return [];
+      return [{ side, index, id: zone.id, name: cardById.get(zone.id)?.name ?? "モンスター" }];
+    }),
+  );
+}
+
+function openBlastJugglerPrompt(state: DuelState): DuelState {
+  const monsterIndex = state.playerField.findIndex((zone, index) =>
+    zone.id === "vol5-blast-juggler"
+    && !zone.faceDown
+    && zone.summonedTurn < state.turnNumber
+    && zone.blastPromptedTurn !== state.turnNumber
+    && blastJugglerTargetChoices(state, index).length > 0,
+  );
+  return monsterIndex < 0
+    ? { ...state, pendingBlastJuggler: null }
+    : { ...state, pendingBlastJuggler: { monsterIndex, selected: [] } };
+}
+
 function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   let state: DuelState = { ...initial, pendingTrapResponse: null };
   if (!resumeBattle) {
@@ -1709,7 +1825,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerDeck.length === 0) {
     return { ...state, result: "lose", log: appendLog(state.log, "デッキからカードを引けず敗北。") };
   }
-  return {
+  const playerStart: DuelState = {
     ...state,
     playerHand: [...state.playerHand, state.playerDeck[0]],
     playerDeck: state.playerDeck.slice(1),
@@ -1720,6 +1836,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     normalSummoned: false,
     log: appendLog(state.log, "あなたのターン。1枚ドロー。"),
   };
+  return openBlastJugglerPrompt(playerStart);
 }
 
 function playCpuNormalSpells(initial: DuelState): DuelState {

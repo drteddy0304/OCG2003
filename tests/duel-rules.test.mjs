@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -181,6 +181,12 @@ test("三魔神だけが攻撃力を0にする防御効果を持つ", () => {
   assert.equal(isGuardianMonster("vol5-big-eye"), false);
   assert.equal(guardianAdjustedAttack(2500, true), 0);
   assert.equal(guardianAdjustedAttack(2500, false), 2500);
+});
+
+test("ミスター・ボンバーは表側でATK1000以下だけを対象にできる", () => {
+  assert.equal(canBlastJugglerTarget(false, 1000), true);
+  assert.equal(canBlastJugglerTarget(false, 1001), false);
+  assert.equal(canBlastJugglerTarget(true, 500), false);
 });
 
 test("万華鏡はハーピィ・レディと三姉妹だけを特殊召喚できる", () => {
