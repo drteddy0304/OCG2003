@@ -141,6 +141,7 @@ export function DuelArena({
   const [pendingSoulRelease, setPendingSoulRelease] = useState<PendingSoulRelease | null>(null);
   const [pendingCheerfulCoffin, setPendingCheerfulCoffin] = useState<PendingCheerfulCoffin | null>(null);
   const [pendingChangeOfHeart, setPendingChangeOfHeart] = useState<number | null>(null);
+  const [pendingCannonSoldier, setPendingCannonSoldier] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -173,6 +174,7 @@ export function DuelArena({
     && pendingSoulRelease === null
     && pendingCheerfulCoffin === null
     && pendingChangeOfHeart === null
+    && pendingCannonSoldier === null
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
@@ -246,6 +248,7 @@ export function DuelArena({
     setPendingSoulRelease(null);
     setPendingCheerfulCoffin(null);
     setPendingChangeOfHeart(null);
+    setPendingCannonSoldier(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -782,6 +785,33 @@ export function DuelArena({
     setPendingChangeOfHeart(null);
   }
 
+  function activateCannonSoldier(targetIndex: number) {
+    if (!duel || pendingCannonSoldier === null || duel.turn !== "player" || (duel.phase !== "main1" && duel.phase !== "main2")) return;
+    const source = duel.playerField[pendingCannonSoldier];
+    const target = duel.playerField[targetIndex];
+    if (!source || source.id !== "vol6-cannon-soldier" || source.faceDown || !target) return;
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    const isCpuOwned = target.controlReturn === "cpu";
+    const cpuLp = Math.max(0, duel.cpuLp - 500);
+    let resolved: DuelState = {
+      ...duel,
+      playerField: duel.playerField.filter((_, index) => index !== targetIndex),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, [target]),
+      playerGraveyard: isCpuOwned
+        ? [...duel.playerGraveyard, ...target.equipped]
+        : [...duel.playerGraveyard, ...graveCards([target])],
+      cpuGraveyard: isCpuOwned ? [...duel.cpuGraveyard, target.id] : duel.cpuGraveyard,
+      cpuLp,
+      result: cpuLp === 0 ? "win" : duel.result,
+      log: appendLog(duel.log, `キャノン・ソルジャーの効果で${targetName}を生け贄にし、CPUに500ダメージ。`),
+    };
+    if (cpuLp > 0) {
+      resolved = applyDeckSearchTriggers(resolved, isCpuOwned ? [] : [target], isCpuOwned ? [target] : []);
+    }
+    setPendingCannonSoldier(null);
+    setDuel(resolved);
+  }
+
   function equipSpell(fieldIndex: number) {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
@@ -894,7 +924,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -917,7 +947,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -1214,7 +1244,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 063</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 064</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1685,6 +1715,14 @@ export function DuelArena({
           onPositionChange={changePosition}
           onInspect={setDetailCardId}
         />
+        {isPlayerMainPhase && duel.playerField.some((zone) => zone.id === "vol6-cannon-soldier" && !zone.faceDown) && (
+          <button
+            className="effect-action-button"
+            onClick={() => setPendingCannonSoldier(duel.playerField.findIndex((zone) => zone.id === "vol6-cannon-soldier" && !zone.faceDown))}
+          >
+            キャノン・ソルジャーの効果を使う
+          </button>
+        )}
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
             <div className={duel.playerSpellTrap[index] ? "set-card" : "empty-zone"} key={index}>
@@ -1713,6 +1751,24 @@ export function DuelArena({
             選択したモンスターを生け贄にする
           </button>
           <button onClick={() => setPendingTribute(null)}>キャンセル</button>
+        </div>
+      )}
+      {pendingCannonSoldier !== null && (
+        <div className="card-overlay">
+          <article>
+            <p className="section-label">MONSTER EFFECT</p>
+            <h2>キャノン・ソルジャー</h2>
+            <p>生け贄にする自分フィールドのモンスターを選んでください。</p>
+            <div className="target-list">
+              {duel.playerField.map((zone, index) => (
+                <button key={`${zone.id}-${index}`} onClick={() => activateCannonSoldier(index)}>
+                  <strong>{cardById.get(zone.id)?.name}</strong>
+                  <small>{index === pendingCannonSoldier ? "キャノン・ソルジャー自身も選択できます" : "CPUに500ダメージ"}</small>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setPendingCannonSoldier(null)}>キャンセル</button>
+          </article>
         </div>
       )}
 
@@ -1988,7 +2044,8 @@ function runCpuTurn(initial: DuelState): DuelState {
 }
 
 function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
-  let state = initial;
+  let state = useCpuCannonSoldierForLethal(initial);
+  if (state.result) return state;
   const candidates = state.cpuHand
     .map((id, index) => ({ card: cardById.get(id), index }))
     .filter((item): item is { card: Card; index: number } => item.card?.cardType === "monster")
@@ -2976,6 +3033,25 @@ function applyDeckSearchTriggers(state: DuelState, playerZones: ZoneCard[] = [],
   return next;
 }
 
+function useCpuCannonSoldierForLethal(state: DuelState): DuelState {
+  const sourceIndex = state.cpuField.findIndex((zone) => zone.id === "vol6-cannon-soldier" && !zone.faceDown);
+  if (sourceIndex < 0 || state.playerLp > 500 || state.cpuField.length === 0) return state;
+  const targetIndex = lowestAttackIndexes(state.cpuField, 1)[0] ?? sourceIndex;
+  const target = state.cpuField[targetIndex];
+  const targetName = cardById.get(target.id)?.name ?? "モンスター";
+  let resolved: DuelState = {
+    ...state,
+    cpuField: state.cpuField.filter((_, index) => index !== targetIndex),
+    cpuSpellTrap: discardEquips(state.cpuSpellTrap, [target]),
+    cpuGraveyard: [...state.cpuGraveyard, ...graveCards([target])],
+    playerLp: Math.max(0, state.playerLp - 500),
+    result: "lose",
+    log: appendLog(state.log, `CPUがキャノン・ソルジャーの効果で${targetName}を生け贄にし、500ダメージ。`),
+  };
+  resolved = applyDeckSearchTriggers(resolved, [], [target]);
+  return resolved;
+}
+
 function spellDescription(id: string) {
   if (EQUIP_RULES[id]) return `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
   if (id === "vol1-dark-hole") return "フィールドのモンスターをすべて破壊";
@@ -3044,6 +3120,7 @@ function monsterDescription(id: string) {
   if (id === "vol4-cocoon-evolution") return "手札から表側のプチモスに装備でき、ATK 0・DEF 2000を適用する";
   if (id === "vol6-sangan") return "フィールドから墓地へ送られた時、デッキからATK1500以下のモンスター1体を手札に加える";
   if (id === "vol6-witch-black-forest") return "フィールドから墓地へ送られた時、デッキからDEF1500以下のモンスター1体を手札に加える";
+  if (id === "vol6-cannon-soldier") return "自分フィールドのモンスター1体を生け贄にするたび、相手に500ダメージを与える";
   return "";
 }
 
