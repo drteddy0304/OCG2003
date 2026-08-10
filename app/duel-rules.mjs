@@ -189,6 +189,10 @@ export function isMonsterRebornBlocked(playerSpellTrap, cpuSpellTrap) {
   return [...playerSpellTrap, ...cpuSpellTrap].includes("vol5-call-darkness");
 }
 
+export function fakeTrapCanProtect(trapIds, targetIndex) {
+  return trapIds[targetIndex] !== "vol5-fake-trap" && trapIds.includes("vol5-fake-trap");
+}
+
 export function equippedMonsterStats(atk, defense, equippedIds) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
   const regularEquipCount = equippedIds.filter((id) => id !== "vol4-cocoon-evolution").length;
@@ -206,7 +210,8 @@ export const competitiveCpuDeck = Object.freeze([
   ...Array(3).fill("vol3-giant-soldier-stone"),
   ...Array(3).fill("vol3-man-eater-bug"),
   ...Array(3).fill("vol3-hane-hane"),
-  ...Array(3).fill("vol3-witty-phantom"),
+  ...Array(2).fill("vol3-witty-phantom"),
+  "vol3-reaper-cards",
   ...Array(2).fill("vol2-curse-of-dragon"),
   ...Array(2).fill("vol1-dark-magician"),
   "vol1-dark-hole",

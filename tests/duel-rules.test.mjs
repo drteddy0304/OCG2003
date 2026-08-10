@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -225,6 +225,13 @@ test("闇からの呼び声がどちらかの場にあれば死者蘇生を使�
   assert.equal(isMonsterRebornBlocked(["vol5-call-darkness"], []), true);
   assert.equal(isMonsterRebornBlocked([], ["vol5-call-darkness"]), true);
   assert.equal(isMonsterRebornBlocked(["vol1-trap-hole"], []), false);
+});
+
+test("偽物のわなは別の罠が破壊される時だけ身代わりにできる", () => {
+  assert.equal(fakeTrapCanProtect(["vol1-trap-hole", "vol5-fake-trap"], 0), true);
+  assert.equal(fakeTrapCanProtect(["vol1-trap-hole"], 0), false);
+  assert.equal(fakeTrapCanProtect(["vol5-fake-trap"], 0), false);
+  assert.equal(competitiveCpuDeck.includes("vol3-reaper-cards"), true);
 });
 
 test("進化の繭を装備したプチモスはATK0・DEF2000になる", () => {

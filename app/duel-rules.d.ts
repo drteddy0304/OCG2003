@@ -63,6 +63,7 @@ export function canSpecialSummonLarvaeMoth(currentTurn: number, cocoonEquippedTu
 export function canActivateChangeOfHeart(playerMonsterCount: number, opponentMonsterCount: number, fieldLimit?: number): boolean;
 export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): boolean;
 export function isMonsterRebornBlocked(playerSpellTrap: string[], cpuSpellTrap: string[]): boolean;
+export function fakeTrapCanProtect(trapIds: string[], targetIndex: number): boolean;
 
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 

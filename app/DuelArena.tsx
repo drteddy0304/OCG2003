@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -38,6 +38,12 @@ type PendingGuardianResponse = {
 };
 type PendingAntiRaigeki = {
   trapIndex: number;
+};
+type PendingFakeTrap = {
+  monsterId: string;
+  targetIndex: number;
+  targetId: string;
+  fakeTrapIndex: number;
 };
 type PendingBlastJuggler = {
   monsterIndex: number;
@@ -104,6 +110,7 @@ type DuelState = {
   pendingGuardianResponse: PendingGuardianResponse | null;
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
+  pendingFakeTrap: PendingFakeTrap | null;
   pendingFlipTarget: PendingFlipTarget | null;
   pendingDeckReorder: PendingDeckReorder | null;
   log: string[];
@@ -154,6 +161,7 @@ export function DuelArena({
     && !duel.pendingGuardianResponse
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
+    && !duel.pendingFakeTrap
     && !duel.pendingFlipTarget
     && !duel.pendingDeckReorder
     && pendingTributeToDoomed === null
@@ -260,6 +268,7 @@ export function DuelArena({
       pendingGuardianResponse: null,
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
+      pendingFakeTrap: null,
       pendingFlipTarget: null,
       pendingDeckReorder: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
@@ -866,7 +875,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -889,7 +898,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -1012,6 +1021,27 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToFakeTrap(activate: boolean) {
+    if (!duel?.pendingFakeTrap) return;
+    const pending = duel.pendingFakeTrap;
+    const destroyIndex = activate ? pending.fakeTrapIndex : pending.targetIndex;
+    const destroyId = activate ? "vol5-fake-trap" : pending.targetId;
+    const targetName = cardById.get(pending.targetId)?.name ?? "罠カード";
+    const monsterName = cardById.get(pending.monsterId)?.name ?? "カードを狩る死神";
+    setDuel({
+      ...duel,
+      pendingFakeTrap: null,
+      playerSpellTrap: duel.playerSpellTrap.filter((_, index) => index !== destroyIndex),
+      playerGraveyard: [...duel.playerGraveyard, destroyId],
+      log: appendLog(
+        duel.log,
+        activate
+          ? `偽物のわなを発動。${targetName}の代わりに自身を破壊した。`
+          : `${monsterName}の効果で${targetName}を破壊した。`,
+      ),
+    });
+  }
+
   function toggleBlastJugglerTarget(side: Side, index: number) {
     if (!duel?.pendingBlastJuggler) return;
     const key = `${side}:${index}`;
@@ -1131,7 +1161,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 058</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 059</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1260,6 +1290,22 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToAntiRaigeki(true)}>発動する</button>
               <button onClick={() => respondToAntiRaigeki(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {duel.pendingFakeTrap && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">TRAP PROTECTION</p>
+            <h2>偽物のわなを身代わりにしますか？</h2>
+            <p>
+              <strong>{cardById.get(duel.pendingFakeTrap.targetId)?.name ?? "罠カード"}</strong>
+              が破壊されようとしています。偽物のわなを代わりに破壊して守れます。
+            </p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToFakeTrap(true)}>身代わりにする</button>
+              <button onClick={() => respondToFakeTrap(false)}>身代わりにしない</button>
             </div>
           </div>
         </div>
@@ -1694,13 +1740,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -2632,10 +2678,26 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
   const targetType = effect === "destroy-spell" ? "spell" : effect === "destroy-trap" ? "trap" : null;
   if (!targetType) return state;
   const opponentSpellTrap = owner === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
-  const targetIndex = opponentSpellTrap.findIndex((id) => fieldCardType(id) === targetType);
+  let targetIndex = opponentSpellTrap.findIndex((id) => fieldCardType(id) === targetType);
+  if (owner === "cpu" && targetType === "trap") {
+    const protectedTrapIndex = opponentSpellTrap.findIndex((id) => id !== "vol5-fake-trap" && fieldCardType(id) === "trap");
+    if (protectedTrapIndex >= 0) targetIndex = protectedTrapIndex;
+  }
   if (targetIndex < 0) return state;
   const targetId = opponentSpellTrap[targetIndex];
   const targetName = cardById.get(targetId)?.name ?? (targetType === "spell" ? "魔法カード" : "罠カード");
+  if (owner === "cpu" && targetType === "trap" && fakeTrapCanProtect(opponentSpellTrap, targetIndex)) {
+    return {
+      ...state,
+      pendingFakeTrap: {
+        monsterId,
+        targetIndex,
+        targetId,
+        fakeTrapIndex: opponentSpellTrap.indexOf("vol5-fake-trap"),
+      },
+      log: appendLog(state.log, `${ownerName}のカードを狩る死神がリバース。${targetName}が破壊されようとしている。`),
+    };
+  }
   const remainingSpellTrap = opponentSpellTrap.filter((_, index) => index !== targetIndex);
   const effectName = effect === "destroy-spell" ? "青い忍者" : "カードを狩る死神";
   return owner === "player"
@@ -2811,11 +2873,12 @@ function trapDescription(id: string) {
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
   if (id === "vol5-anti-raigeki") return "相手のサンダー・ボルトを無効にし、相手モンスターをすべて破壊";
   if (id === "vol5-call-darkness") return "死者蘇生を使用できなくし、死者蘇生で蘇ったモンスターを墓地へ送る";
+  if (id === "vol5-fake-trap") return "自分の罠カードが破壊される時、代わりにこのカードを破壊する";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap";
 }
 
 function monsterDescription(id: string) {
