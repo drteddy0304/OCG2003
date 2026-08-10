@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -320,9 +320,11 @@ export function DuelArena({
     const playerTributes = tributedZones.filter((zone) => zone.controlReturn !== "cpu");
     const tributeNames = tributeIndexes.map((index) => cardById.get(duel.playerField[index].id)?.name).filter(Boolean);
     const nextField = duel.playerField.filter((_, index) => !tributeIndexes.includes(index));
+    const lockedByJar = isDragonCaptureJarLocked(card.kind, false, isDragonCaptureJarActive(duel));
+    const summonPosition: Position = position === "attack" && lockedByJar ? "defense" : position;
     nextField.push({
       id,
-      position,
+      position: summonPosition,
       faceDown: position === "defense",
       attacked: false,
       equipped: [],
@@ -338,7 +340,7 @@ export function DuelArena({
       playerGraveyard: [...duel.playerGraveyard, ...graveCards(playerTributes)],
       cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(returnedTributes)],
       normalSummoned: true,
-      log: appendLog(duel.log, `${card.name}を${position === "attack" ? "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
+      log: appendLog(duel.log, `${card.name}を${position === "attack" ? lockedByJar ? "召喚し、封印の壺で守備表示" : "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
     };
     nextState = applyDeckSearchTriggers(nextState, playerTributes, returnedTributes);
     const cpuTrapIndex = nextState.cpuSpellTrap.indexOf("vol1-trap-hole");
@@ -374,6 +376,7 @@ export function DuelArena({
     if (!duel || !isPlayerMainPhase || duel.result || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
     const zone = duel.playerField[index];
     if (!zone || zone.attacked || zone.positionChanged || zone.summonedTurn === duel.turnNumber) return;
+    if (isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(duel))) return;
     const nextPosition: Position = zone.position === "defense" ? "attack" : "defense";
     let next: DuelState = {
       ...duel,
@@ -536,7 +539,8 @@ export function DuelArena({
         playerDeck: next.playerDeck.slice(2),
       };
     } else if (card.id === "vol3-stop-defense") {
-      const target = next.cpuField.findIndex((zone) => zone.position === "defense");
+      const target = next.cpuField.findIndex((zone) => zone.position === "defense"
+        && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(next)));
       if (target < 0) return;
       const targetZone = next.cpuField[target];
       next = {
@@ -604,13 +608,14 @@ export function DuelArena({
     const taken = takeGraveyardCard(graveyard, graveIndex);
     const monster = taken ? cardById.get(taken.cardId) : null;
     if (!taken || monster?.cardType !== "monster") return;
+    const revivePosition: Position = isDragonCaptureJarLocked(monster.kind, false, isDragonCaptureJarActive(duel)) ? "defense" : position;
     setDuel({
       ...removeHandCard(duel, pendingReborn),
       playerField: [
         ...duel.playerField,
         {
           id: taken.cardId,
-          position,
+          position: revivePosition,
           faceDown: false,
           attacked: false,
           equipped: [],
@@ -624,7 +629,7 @@ export function DuelArena({
         "vol2-monster-reborn",
       ],
       cpuGraveyard: graveSide === "cpu" ? taken.remaining : duel.cpuGraveyard,
-      log: appendLog(duel.log, `死者蘇生を発動。${monster.name}を${position === "attack" ? "攻撃" : "守備"}表示で特殊召喚。`),
+      log: appendLog(duel.log, `死者蘇生を発動。${monster.name}を${revivePosition === "attack" ? "攻撃" : "守備"}表示で特殊召喚。`),
     });
     setPendingReborn(null);
   }
@@ -888,6 +893,17 @@ export function DuelArena({
         cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(revivedCpu)],
         log: appendLog(duel.log, `闇からの呼び声を発動。死者蘇生を封じ、蘇生されていたモンスター${revivedPlayer.length + revivedCpu.length}体を墓地へ送った。`),
       }, revivedPlayer, revivedCpu));
+      return;
+    }
+    if (card.id === "stb-dragon-capture-jar") {
+      const next = removeHandCard(duel, handIndex);
+      setDuel({
+        ...next,
+        playerField: forceFaceUpDragonsToPosition(next.playerField, "defense"),
+        cpuField: forceFaceUpDragonsToPosition(next.cpuField, "defense"),
+        playerSpellTrap: [...next.playerSpellTrap, card.id],
+        log: appendLog(next.log, "ドラゴン族・封印の壺を発動。表側のドラゴン族を守備表示にして表示形式を封じた。"),
+      });
       return;
     }
     setDuel({
@@ -1244,7 +1260,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 064</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 065</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1709,7 +1725,8 @@ export function DuelArena({
               && zone
               && !zone.attacked
               && !zone.positionChanged
-              && zone.summonedTurn !== duel.turnNumber,
+              && zone.summonedTurn !== duel.turnNumber
+              && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(duel))
             );
           }}
           onPositionChange={changePosition}
@@ -2059,7 +2076,8 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     const tributeIndexes = lowestAttackIndexes(state.cpuField, tributes);
     const tributedZones = state.cpuField.filter((_, index) => tributeIndexes.includes(index));
     const nextField = state.cpuField.filter((_, index) => !tributeIndexes.includes(index));
-    const defensive = (summonChoice.card.def ?? 0) > (summonChoice.card.atk ?? 0);
+    const defensive = (summonChoice.card.def ?? 0) > (summonChoice.card.atk ?? 0)
+      || isDragonCaptureJarLocked(summonChoice.card.kind, false, isDragonCaptureJarActive(state));
     nextField.push({
       id: summonChoice.card.id,
       position: defensive ? "defense" : "attack",
@@ -2338,7 +2356,8 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
     const taken = choice ? takeGraveyardCard(graveyard, choice.index) : null;
     const monster = taken ? cardById.get(taken.cardId) : null;
     if (choice && taken && monster?.cardType === "monster") {
-      const position: Position = (monster.def ?? 0) > (monster.atk ?? 0) ? "defense" : "attack";
+      const position: Position = (monster.def ?? 0) > (monster.atk ?? 0)
+        || isDragonCaptureJarLocked(monster.kind, false, isDragonCaptureJarActive(state)) ? "defense" : "attack";
       state = {
         ...removeCpuHandCard(state, "vol2-monster-reborn"),
         cpuField: [
@@ -2375,7 +2394,8 @@ function playCpuNormalSpells(initial: DuelState): DuelState {
   }
 
   if (state.cpuHand.includes("vol3-stop-defense")) {
-    const targetIndex = state.playerField.findIndex((zone) => zone.position === "defense");
+    const targetIndex = state.playerField.findIndex((zone) => zone.position === "defense"
+      && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)));
     if (targetIndex >= 0) {
       const target = state.playerField[targetIndex];
       state = {
@@ -2707,6 +2727,23 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
 function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
   const ownerName = owner === "player" ? "あなた" : "CPU";
   const effect = flipEffect(monsterId);
+  if (effect === "destroy-dragon-jar") {
+    const playerJars = state.playerSpellTrap.filter((id) => id === "stb-dragon-capture-jar");
+    const cpuJars = state.cpuSpellTrap.filter((id) => id === "stb-dragon-capture-jar");
+    if (playerJars.length + cpuJars.length === 0) {
+      return { ...state, log: appendLog(state.log, `${ownerName}の壺魔人がリバース。破壊できるドラゴン族・封印の壺はなかった。`) };
+    }
+    return {
+      ...state,
+      playerField: forceFaceUpDragonsToPosition(state.playerField, "attack"),
+      cpuField: forceFaceUpDragonsToPosition(state.cpuField, "attack"),
+      playerSpellTrap: state.playerSpellTrap.filter((id) => id !== "stb-dragon-capture-jar"),
+      cpuSpellTrap: state.cpuSpellTrap.filter((id) => id !== "stb-dragon-capture-jar"),
+      playerGraveyard: [...state.playerGraveyard, ...playerJars],
+      cpuGraveyard: [...state.cpuGraveyard, ...cpuJars],
+      log: appendLog(state.log, `${ownerName}の壺魔人がリバース。ドラゴン族・封印の壺を破壊し、表側のドラゴン族を攻撃表示にした。`),
+    };
+  }
   if (effect === "reorder-five") {
     const deck = owner === "player" ? state.playerDeck : state.cpuDeck;
     const topCards = deck.slice(0, 5);
@@ -3033,6 +3070,16 @@ function applyDeckSearchTriggers(state: DuelState, playerZones: ZoneCard[] = [],
   return next;
 }
 
+function isDragonCaptureJarActive(state: DuelState) {
+  return state.playerSpellTrap.includes("stb-dragon-capture-jar") || state.cpuSpellTrap.includes("stb-dragon-capture-jar");
+}
+
+function forceFaceUpDragonsToPosition(zones: ZoneCard[], position: Position) {
+  return zones.map((zone) => !zone.faceDown && cardById.get(zone.id)?.kind === "ドラゴン族"
+    ? { ...zone, position, positionChanged: true }
+    : zone);
+}
+
 function useCpuCannonSoldierForLethal(state: DuelState): DuelState {
   const sourceIndex = state.cpuField.findIndex((zone) => zone.id === "vol6-cannon-soldier" && !zone.faceDown);
   if (sourceIndex < 0 || state.playerLp > 500 || state.cpuField.length === 0) return state;
@@ -3101,11 +3148,12 @@ function trapDescription(id: string) {
   if (id === "vol5-anti-raigeki") return "相手のサンダー・ボルトを無効にし、相手モンスターをすべて破壊";
   if (id === "vol5-call-darkness") return "死者蘇生を使用できなくし、死者蘇生で蘇ったモンスターを墓地へ送る";
   if (id === "vol5-fake-trap") return "自分の罠カードが破壊される時、代わりにこのカードを破壊する";
+  if (id === "stb-dragon-capture-jar") return "表側のドラゴン族を守備表示にし、表示形式の変更を封じる";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar";
 }
 
 function monsterDescription(id: string) {
@@ -3121,6 +3169,7 @@ function monsterDescription(id: string) {
   if (id === "vol6-sangan") return "フィールドから墓地へ送られた時、デッキからATK1500以下のモンスター1体を手札に加える";
   if (id === "vol6-witch-black-forest") return "フィールドから墓地へ送られた時、デッキからDEF1500以下のモンスター1体を手札に加える";
   if (id === "vol6-cannon-soldier") return "自分フィールドのモンスター1体を生け贄にするたび、相手に500ダメージを与える";
+  if (id === "vol6-dragon-piper") return "リバース：ドラゴン族・封印の壺を破壊し、表側のドラゴン族を全て攻撃表示にする";
   return "";
 }
 

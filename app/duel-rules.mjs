@@ -151,6 +151,7 @@ export function firstSpellTargetIndex(cardTypes) {
 }
 
 const flipEffects = Object.freeze({
+  "vol6-dragon-piper": "destroy-dragon-jar",
   "vol3-reaper-cards": "destroy-trap",
   "vol3-armed-ninja": "destroy-spell",
   "vol3-man-eater-bug": "destroy-monster",
@@ -163,6 +164,10 @@ const flipEffects = Object.freeze({
 
 export function flipEffect(id) {
   return flipEffects[id] ?? null;
+}
+
+export function isDragonCaptureJarLocked(kind, faceDown, jarActive) {
+  return jarActive && !faceDown && kind === "ドラゴン族";
 }
 
 export function isElegantEgotistTarget(id) {

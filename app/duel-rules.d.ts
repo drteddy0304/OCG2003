@@ -86,6 +86,7 @@ export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar";
 
 export function flipEffect(id: string): FlipEffect | null;
+export function isDragonCaptureJarLocked(kind: string | undefined, faceDown: boolean, jarActive: boolean): boolean;
