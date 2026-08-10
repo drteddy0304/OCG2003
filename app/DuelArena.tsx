@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -38,6 +38,10 @@ type PendingSevenTools = {
   monsterId: string;
   playerTributes: ZoneCard[];
   cpuTributes: ZoneCard[];
+};
+type PendingMagicJammer = {
+  trapIndex: number;
+  spellId: string;
 };
 type PendingGuardianResponse = {
   attackerIndex: number;
@@ -119,6 +123,7 @@ type DuelState = {
   result: Result;
   pendingTrapResponse: PendingTrapResponse | null;
   pendingSevenTools: PendingSevenTools | null;
+  pendingMagicJammer: PendingMagicJammer | null;
   pendingGuardianResponse: PendingGuardianResponse | null;
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
@@ -284,6 +289,7 @@ export function DuelArena({
       result: null,
       pendingTrapResponse: null,
       pendingSevenTools: null,
+      pendingMagicJammer: null,
       pendingGuardianResponse: null,
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
@@ -1071,6 +1077,37 @@ export function DuelArena({
     setDuel(resolved);
   }
 
+  function respondToMagicJammer(discardIndex: number | null) {
+    if (!duel?.pendingMagicJammer) return;
+    const pending = duel.pendingMagicJammer;
+    const marker = "マジック・ジャマーの発動確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingMagicJammer: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (discardIndex !== null) {
+      const discardedId = resumed.playerHand[discardIndex];
+      if (!discardedId || resumed.playerSpellTrap[pending.trapIndex] !== "vol6-magic-jammer") return;
+      resumed = {
+        ...resumed,
+        playerHand: resumed.playerHand.filter((_, index) => index !== discardIndex),
+        cpuHand: removeCardCopies(resumed.cpuHand, pending.spellId, 1),
+        playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        playerGraveyard: [...resumed.playerGraveyard, discardedId, "vol6-magic-jammer"],
+        cpuGraveyard: [...resumed.cpuGraveyard, pending.spellId],
+        log: appendLog(resumed.log, `${cardById.get(discardedId)?.name ?? "カード"}を捨ててマジック・ジャマーを発動。${cardById.get(pending.spellId)?.name ?? "魔法カード"}を無効にして破壊した。`),
+      };
+    } else {
+      resumed = { ...resumed, log: appendLog(resumed.log, "マジック・ジャマーを発動しませんでした。") };
+    }
+    let finalState = playCpuNormalSpells(resumed, discardIndex === null);
+    if (!finalState.result && !finalState.pendingAntiRaigeki && !finalState.pendingMagicJammer) {
+      finalState = continueCpuTurnAfterSpells(finalState);
+    }
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
   function respondToTrap(activate: boolean) {
     if (!duel?.pendingTrapResponse) return;
     const pending = duel.pendingTrapResponse;
@@ -1323,7 +1360,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 066</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 067</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1409,6 +1446,8 @@ export function DuelArena({
                 {cpuPlayback.index >= cpuPlayback.messages.length - 1
                   ? cpuPlayback.finalState.pendingTrapResponse
                     ? "落とし穴の発動確認へ"
+                    : cpuPlayback.finalState.pendingMagicJammer
+                      ? "マジック・ジャマーの発動確認へ"
                     : cpuPlayback.finalState.pendingAntiRaigeki
                       ? "避雷針の発動確認へ"
                     : cpuPlayback.finalState.pendingGuardianResponse
@@ -1455,6 +1494,27 @@ export function DuelArena({
               <button className="activate-trap" onClick={() => respondToSevenTools(true)}>1000LPを払い発動</button>
               <button onClick={() => respondToSevenTools(false)}>発動しない</button>
             </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingMagicJammer && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">COUNTER TRAP</p>
+            <h2>マジック・ジャマーを発動しますか？</h2>
+            <p>
+              CPUが<strong>{cardById.get(duel.pendingMagicJammer.spellId)?.name ?? "魔法カード"}</strong>を発動しました。
+              捨てる手札を1枚選んでください。
+            </p>
+            <div className="target-list">
+              {duel.playerHand.map((id, index) => (
+                <button key={`${id}-${index}`} onClick={() => respondToMagicJammer(index)}>
+                  <strong>{cardById.get(id)?.name ?? "カード"}</strong>
+                  <small>このカードを捨てて無効にする</small>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => respondToMagicJammer(null)}>発動しない</button>
           </div>
         </div>
       )}
@@ -2132,7 +2192,7 @@ function runCpuTurn(initial: DuelState): DuelState {
     cpuDeck: state.cpuDeck.slice(1),
   };
   state = playCpuNormalSpells(state);
-  if (state.result || state.pendingAntiRaigeki) return state;
+  if (state.result || state.pendingAntiRaigeki || state.pendingMagicJammer) return state;
   return continueCpuTurnAfterSpells(state);
 }
 
@@ -2310,8 +2370,37 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   return openBlastJugglerPrompt(playerStart);
 }
 
-function playCpuNormalSpells(initial: DuelState): DuelState {
+function firstCpuPlayableSpell(state: DuelState): string | null {
+  if (state.cpuHand.includes("vol2-de-spell") && firstSpellTargetIndex(state.playerSpellTrap.map(fieldCardType)) !== null) return "vol2-de-spell";
+  if (state.cpuHand.includes("stb-raigeki") && state.playerField.length > 0) return "stb-raigeki";
+  if (state.cpuHand.includes("vol1-dark-hole")
+    && state.playerField.length > 0
+    && fieldPower(state.playerField, state, "player") > fieldPower(state.cpuField, state, "cpu")) return "vol1-dark-hole";
+  if (state.cpuHand.includes("vol1-fissure") && lowestFaceUpAttackIndex(state.playerField, state, "player") !== null) return "vol1-fissure";
+  if (state.cpuHand.includes("vol2-swords-revealing-light")
+    && shouldCpuActivateSwords(state.playerField.length, state.cpuSwordsTurns.length, state.cpuSpellTrap.length, FIELD_LIMIT)) return "vol2-swords-revealing-light";
+  if (state.cpuHand.includes("vol2-monster-reborn")
+    && state.cpuField.length < FIELD_LIMIT
+    && !isMonsterRebornBlocked(state.playerSpellTrap, state.cpuSpellTrap)
+    && [...state.cpuGraveyard, ...state.playerGraveyard].some((id) => cardById.get(id)?.cardType === "monster" && !cardById.get(id)?.fusion)) return "vol2-monster-reborn";
+  if (state.cpuHand.includes("vol3-pot-of-greed") && state.cpuDeck.length >= 2) return "vol3-pot-of-greed";
+  if (state.cpuHand.includes("vol3-stop-defense") && state.playerField.some((zone) => zone.position === "defense"
+    && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)))) return "vol3-stop-defense";
+  if (state.cpuHand.includes("vol3-gravedigger-ghoul") && state.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster")) return "vol3-gravedigger-ghoul";
+  return state.cpuHand.find((id) => simpleSpellEffect(id) && shouldCpuUseSimpleSpell(id, state.cpuLp, STARTING_LP)) ?? null;
+}
+
+function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false): DuelState {
   let state = initial;
+  const magicJammerIndex = state.playerSpellTrap.indexOf("vol6-magic-jammer");
+  const pendingSpellId = firstCpuPlayableSpell(state);
+  if (!skipMagicJammerPrompt && magicJammerIndex >= 0 && canActivateMagicJammer(state.playerHand.length, state.playerSpellTrap) && pendingSpellId) {
+    return {
+      ...state,
+      pendingMagicJammer: { trapIndex: magicJammerIndex, spellId: pendingSpellId },
+      log: appendLog(state.log, `CPUが${cardById.get(pendingSpellId)?.name ?? "魔法カード"}を発動。マジック・ジャマーを発動しますか？`),
+    };
+  }
 
   const deSpellTarget = firstSpellTargetIndex(
     state.playerSpellTrap.map(fieldCardType),
@@ -3226,11 +3315,12 @@ function trapDescription(id: string) {
   if (id === "vol5-fake-trap") return "自分の罠カードが破壊される時、代わりにこのカードを破壊する";
   if (id === "stb-dragon-capture-jar") return "表側のドラゴン族を守備表示にし、表示形式の変更を封じる";
   if (id === "vol6-seven-tools") return "1000LPを払い、罠カードの発動を無効にして破壊する";
+  if (id === "vol6-magic-jammer") return "手札を1枚捨て、魔法カードの発動を無効にして破壊する";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "vol6-seven-tools";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "vol6-seven-tools" || id === "vol6-magic-jammer";
 }
 
 function monsterDescription(id: string) {

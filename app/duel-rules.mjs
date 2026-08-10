@@ -201,6 +201,10 @@ export function canActivateSevenTools(lifePoints, trapIds) {
   return lifePoints > 1000 && trapIds.includes("vol6-seven-tools");
 }
 
+export function canActivateMagicJammer(handSize, trapIds) {
+  return handSize > 0 && trapIds.includes("vol6-magic-jammer");
+}
+
 export function isMonsterRebornBlocked(playerSpellTrap, cpuSpellTrap) {
   return [...playerSpellTrap, ...cpuSpellTrap].includes("vol5-call-darkness");
 }

@@ -64,6 +64,7 @@ export function canSpecialSummonMoth(id: string, currentTurn: number, cocoonEqui
 export function canActivateChangeOfHeart(playerMonsterCount: number, opponentMonsterCount: number, fieldLimit?: number): boolean;
 export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): boolean;
 export function canActivateSevenTools(lifePoints: number, trapIds: string[]): boolean;
+export function canActivateMagicJammer(handSize: number, trapIds: string[]): boolean;
 export function isMonsterRebornBlocked(playerSpellTrap: string[], cpuSpellTrap: string[]): boolean;
 export function fakeTrapCanProtect(trapIds: string[], targetIndex: number): boolean;
 
