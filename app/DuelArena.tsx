@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -44,6 +44,10 @@ type PendingTributeToDoomed = {
   discardIndex: number | null;
 };
 type PendingSoulRelease = {
+  spellIndex: number;
+  selected: string[];
+};
+type PendingCheerfulCoffin = {
   spellIndex: number;
   selected: string[];
 };
@@ -104,6 +108,7 @@ export function DuelArena({
   const [pendingEgotist, setPendingEgotist] = useState<number | null>(null);
   const [pendingTributeToDoomed, setPendingTributeToDoomed] = useState<PendingTributeToDoomed | null>(null);
   const [pendingSoulRelease, setPendingSoulRelease] = useState<PendingSoulRelease | null>(null);
+  const [pendingCheerfulCoffin, setPendingCheerfulCoffin] = useState<PendingCheerfulCoffin | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -129,6 +134,7 @@ export function DuelArena({
     && !duel.pendingDeckReorder
     && pendingTributeToDoomed === null
     && pendingSoulRelease === null
+    && pendingCheerfulCoffin === null
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
@@ -200,6 +206,7 @@ export function DuelArena({
     setPendingEgotist(null);
     setPendingTributeToDoomed(null);
     setPendingSoulRelease(null);
+    setPendingCheerfulCoffin(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -379,6 +386,17 @@ export function DuelArena({
     if (card.id === "vol5-soul-release") {
       if (duel.playerGraveyard.length + duel.cpuGraveyard.length === 0) return;
       setPendingSoulRelease({ spellIndex: handIndex, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "vol5-cheerful-coffin") {
+      const otherCardTypes = duel.playerHand.flatMap((id, index) =>
+        index === handIndex ? [] : [cardById.get(id)?.cardType ?? ""],
+      );
+      if (!canActivateCheerfulCoffin(otherCardTypes)) return;
+      setPendingCheerfulCoffin({ spellIndex: handIndex, selected: [] });
       setSelectedAttacker(null);
       setSelectedEquip(null);
       return;
@@ -647,6 +665,33 @@ export function DuelArena({
     setPendingSoulRelease(null);
   }
 
+  function toggleCheerfulCoffinCard(index: number) {
+    if (!duel || !pendingCheerfulCoffin || index === pendingCheerfulCoffin.spellIndex) return;
+    if (cardById.get(duel.playerHand[index])?.cardType !== "monster") return;
+    const key = String(index);
+    setPendingCheerfulCoffin({
+      ...pendingCheerfulCoffin,
+      selected: toggleLimitedSelection(pendingCheerfulCoffin.selected, key, 3),
+    });
+  }
+
+  function confirmCheerfulCoffin() {
+    if (!duel || !pendingCheerfulCoffin || pendingCheerfulCoffin.selected.length === 0) return;
+    if (duel.playerHand[pendingCheerfulCoffin.spellIndex] !== "vol5-cheerful-coffin") return;
+    const selectedIndexes = new Set(pendingCheerfulCoffin.selected.map(Number));
+    const discarded = duel.playerHand.filter((id, index) =>
+      selectedIndexes.has(index) && cardById.get(id)?.cardType === "monster",
+    );
+    if (discarded.length === 0) return;
+    setDuel({
+      ...duel,
+      playerHand: duel.playerHand.filter((_, index) => index !== pendingCheerfulCoffin.spellIndex && !selectedIndexes.has(index)),
+      playerGraveyard: [...duel.playerGraveyard, "vol5-cheerful-coffin", ...discarded],
+      log: appendLog(duel.log, `陽気な葬儀屋を発動。手札からモンスター${discarded.length}枚を墓地へ送った。`),
+    });
+    setPendingCheerfulCoffin(null);
+  }
+
   function equipSpell(fieldIndex: number) {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
@@ -707,7 +752,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -730,7 +775,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingFlipTarget || duel.pendingDeckReorder || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -859,7 +904,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 051</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 052</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -1104,6 +1149,30 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingCheerfulCoffin && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">CHEERFUL COFFIN</p>
+            <h2>墓地へ送るモンスターを選ぶ</h2>
+            <p>手札のモンスターを3枚まで選べます（選択中 {pendingCheerfulCoffin.selected.length}/3）。</p>
+            <div className="spell-target-list">
+              {duel.playerHand.map((id, index) => {
+                const card = cardById.get(id);
+                if (index === pendingCheerfulCoffin.spellIndex || card?.cardType !== "monster") return null;
+                const selected = pendingCheerfulCoffin.selected.includes(String(index));
+                return (
+                  <button className={selected ? "selected" : ""} key={`${id}-${index}`} onClick={() => toggleCheerfulCoffinCard(index)}>
+                    <span>{selected ? "選択中" : `★${card.level}`}</span>
+                    <strong>{card.name}</strong>
+                  </button>
+                );
+              })}
+            </div>
+            <button className="overlay-close" disabled={pendingCheerfulCoffin.selected.length === 0} onClick={confirmCheerfulCoffin}>選んだモンスターを墓地へ送る</button>
+            <button onClick={() => setPendingCheerfulCoffin(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {duel.pendingFlipTarget && (
         <div className="card-overlay flip-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -1274,6 +1343,7 @@ export function DuelArena({
                         || pendingEgotist !== null
                         || pendingTributeToDoomed !== null
                         || pendingSoulRelease !== null
+                        || pendingCheerfulCoffin !== null
                         || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField) === null)
                         || (card.id === "vol2-monster-reborn" && (
@@ -1288,6 +1358,7 @@ export function DuelArena({
                         || (card.id === "vol4-elegant-egotist" && !canActivateElegantEgotist(duel, index))
                         || (card.id === "vol5-tribute-doomed" && !canActivateTributeToDoomed(duel.playerHand.length, duel.playerField.length + duel.cpuField.length))
                         || (card.id === "vol5-soul-release" && duel.playerGraveyard.length + duel.cpuGraveyard.length === 0)
+                        || (card.id === "vol5-cheerful-coffin" && !canActivateCheerfulCoffin(duel.playerHand.flatMap((id, handIndex) => handIndex === index ? [] : [cardById.get(id)?.cardType ?? ""])))
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
                           const monster = cardById.get(zone.id);
                           return Boolean(monster && canEquip(card.id, monster));
@@ -1309,13 +1380,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -2301,6 +2372,7 @@ function spellDescription(id: string) {
   if (id === "vol4-elegant-egotist") return "ハーピィ・レディがいる時、手札・デッキからハーピィ1体を特殊召喚";
   if (id === "vol5-tribute-doomed") return "手札を1枚捨て、フィールドのモンスター1体を破壊する";
   if (id === "vol5-soul-release") return "自分・相手の墓地からカードを合計5枚まで除外する";
+  if (id === "vol5-cheerful-coffin") return "手札のモンスターを3枚まで墓地へ送る";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
 }
@@ -2321,6 +2393,7 @@ function isSpellImplemented(id: string) {
       "vol4-elegant-egotist",
       "vol5-tribute-doomed",
       "vol5-soul-release",
+      "vol5-cheerful-coffin",
     ].includes(id);
 }
 

@@ -123,6 +123,10 @@ export function toggleLimitedSelection(values, value, limit = 5) {
   return [...values, value];
 }
 
+export function canActivateCheerfulCoffin(cardTypes) {
+  return cardTypes.includes("monster");
+}
+
 export function deSpellDestroys(cardType, cardId = "") {
   return cardType === "spell" || cardId === "vol4-cocoon-evolution";
 }

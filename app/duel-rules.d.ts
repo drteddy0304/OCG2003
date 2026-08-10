@@ -55,6 +55,7 @@ export function takeGraveyardCard(cards: string[], index: number): {
 export function moveDeckCard(cards: string[], fromIndex: number, toIndex: number): string[];
 export function canActivateTributeToDoomed(handSize: number, fieldMonsterCount: number): boolean;
 export function toggleLimitedSelection(values: string[], value: string, limit?: number): string[];
+export function canActivateCheerfulCoffin(cardTypes: string[]): boolean;
 
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 
