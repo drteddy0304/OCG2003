@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -172,6 +172,15 @@ test("陽気な葬儀屋はモンスターだけを3枚まで選べる", () => {
   assert.equal(canActivateCheerfulCoffin(["spell", "monster"]), true);
   assert.equal(canActivateCheerfulCoffin(["spell", "trap"]), false);
   assert.deepEqual(toggleLimitedSelection(["1", "2", "3"], "4", 3), ["1", "2", "3"]);
+});
+
+test("三魔神だけが攻撃力を0にする防御効果を持つ", () => {
+  assert.equal(isGuardianMonster("vol5-sanga"), true);
+  assert.equal(isGuardianMonster("vol5-kazejin"), true);
+  assert.equal(isGuardianMonster("vol5-suijin"), true);
+  assert.equal(isGuardianMonster("vol5-big-eye"), false);
+  assert.equal(guardianAdjustedAttack(2500, true), 0);
+  assert.equal(guardianAdjustedAttack(2500, false), 2500);
 });
 
 test("万華鏡はハーピィ・レディと三姉妹だけを特殊召喚できる", () => {

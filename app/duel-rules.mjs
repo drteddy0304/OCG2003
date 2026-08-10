@@ -127,6 +127,16 @@ export function canActivateCheerfulCoffin(cardTypes) {
   return cardTypes.includes("monster");
 }
 
+const guardianMonsters = new Set(["vol5-sanga", "vol5-kazejin", "vol5-suijin"]);
+
+export function isGuardianMonster(id) {
+  return guardianMonsters.has(id);
+}
+
+export function guardianAdjustedAttack(attack, activate) {
+  return activate ? 0 : attack;
+}
+
 export function deSpellDestroys(cardType, cardId = "") {
   return cardType === "spell" || cardId === "vol4-cocoon-evolution";
 }

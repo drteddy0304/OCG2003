@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, isElegantEgotistTarget, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateCheerfulCoffin, canActivateTributeToDoomed, canMonsterAttackDirectly, canNormalSummonMonster, competitiveCpuDeck, deSpellDestroys, equipRules, equippedMonsterStats, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isElegantEgotistTarget, isGuardianMonster, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
@@ -30,6 +30,11 @@ type PendingTrapResponse = {
   trapIndex: number;
   monsterIndex: number;
   monsterId: string;
+};
+type PendingGuardianResponse = {
+  attackerIndex: number;
+  defenderIndex: number;
+  guardianId: string;
 };
 type PendingFlipTarget = {
   monsterId: string;
@@ -61,6 +66,7 @@ type ZoneCard = {
   equipped: string[];
   summonedTurn: number;
   positionChanged: boolean;
+  guardianEffectUsed?: boolean;
 };
 
 type DuelState = {
@@ -84,6 +90,7 @@ type DuelState = {
   normalSummoned: boolean;
   result: Result;
   pendingTrapResponse: PendingTrapResponse | null;
+  pendingGuardianResponse: PendingGuardianResponse | null;
   pendingFlipTarget: PendingFlipTarget | null;
   pendingDeckReorder: PendingDeckReorder | null;
   log: string[];
@@ -130,6 +137,7 @@ export function DuelArena({
     }
   }, [collection, duel]);
   const isPlayerMainPhase = duel?.turn === "player"
+    && !duel.pendingGuardianResponse
     && !duel.pendingFlipTarget
     && !duel.pendingDeckReorder
     && pendingTributeToDoomed === null
@@ -231,6 +239,7 @@ export function DuelArena({
       normalSummoned: false,
       result: null,
       pendingTrapResponse: null,
+      pendingGuardianResponse: null,
       pendingFlipTarget: null,
       pendingDeckReorder: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
@@ -845,6 +854,26 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToGuardian(activate: boolean) {
+    if (!duel?.pendingGuardianResponse) return;
+    const pending = duel.pendingGuardianResponse;
+    const guardianName = cardById.get(pending.guardianId)?.name ?? "三魔神";
+    const marker = "三魔神の効果確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingGuardianResponse: null,
+      log: appendLog(
+        appendLog(duel.log, marker),
+        activate
+          ? `${guardianName}の効果を発動。攻撃モンスターのATKを0にした。`
+          : `${guardianName}の効果を発動しなかった。`,
+      ),
+    };
+    resumed = resolveBattle(resumed, "cpu", pending.attackerIndex, pending.defenderIndex, activate);
+    const finalState = finishCpuTurn(resumed, true);
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
   function advanceCpuPlayback() {
     if (!cpuPlayback) return;
     if (cpuPlayback.index >= cpuPlayback.messages.length - 1) {
@@ -904,7 +933,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 052</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 053</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -990,6 +1019,8 @@ export function DuelArena({
                 {cpuPlayback.index >= cpuPlayback.messages.length - 1
                   ? cpuPlayback.finalState.pendingTrapResponse
                     ? "落とし穴の発動確認へ"
+                    : cpuPlayback.finalState.pendingGuardianResponse
+                      ? "三魔神の効果確認へ"
                     : cpuPlayback.finalState.pendingDeckReorder
                       ? "大王目玉の並べ替えへ"
                       : "自分のターンへ"
@@ -1016,6 +1047,22 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToTrap(true)}>発動する</button>
               <button onClick={() => respondToTrap(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingGuardianResponse && (
+        <div className="trap-response guardian-response">
+          <div>
+            <p className="section-label">GUARDIAN EFFECT</p>
+            <h2>三魔神の効果を発動しますか？</h2>
+            <p>
+              <strong>{cardById.get(duel.pendingGuardianResponse.guardianId)?.name ?? "三魔神"}</strong>
+              がCPUモンスターに攻撃されています。この戦闘だけ攻撃モンスターのATKを0にできます。
+            </p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToGuardian(true)}>発動する</button>
+              <button onClick={() => respondToGuardian(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -1608,7 +1655,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerSwordsTurns.length > 0) {
     state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
   } else {
-    for (let index = state.cpuField.length - 1; index >= 0 && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder; index -= 1) {
+    for (let index = state.cpuField.length - 1; index >= 0 && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingGuardianResponse; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked) continue;
       if (state.playerField.length === 0) {
@@ -1624,10 +1671,24 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
           def: effectiveDef(zone),
         })),
       );
-      if (targetIndex !== null) state = resolveBattle(state, "cpu", index, targetIndex);
+      if (targetIndex !== null) {
+        const defender = state.playerField[targetIndex];
+        if (!defender.faceDown && isGuardianMonster(defender.id) && !defender.guardianEffectUsed) {
+          state = {
+            ...state,
+            pendingGuardianResponse: {
+              attackerIndex: index,
+              defenderIndex: targetIndex,
+              guardianId: defender.id,
+            },
+          };
+          continue;
+        }
+        state = resolveBattle(state, "cpu", index, targetIndex);
+      }
     }
   }
-  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder) return state;
+  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingGuardianResponse) return state;
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
   if (swords.expired > 0) {
@@ -1882,7 +1943,7 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
   return state;
 }
 
-function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: number, defenderIndex: number | null): DuelState {
+function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: number, defenderIndex: number | null, guardianEffect = false): DuelState {
   const attackerFieldKey = attackerSide === "player" ? "playerField" : "cpuField";
   const defenderFieldKey = attackerSide === "player" ? "cpuField" : "playerField";
   const attackerLpKey = attackerSide === "player" ? "playerLp" : "cpuLp";
@@ -1908,7 +1969,8 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   defenderZone.faceDown = false;
   const defender = cardById.get(defenderZone.id);
   if (!defender) return state;
-  const attackValue = effectiveAtk(attackerZone);
+  if (guardianEffect) defenderZone.guardianEffectUsed = true;
+  const attackValue = guardianAdjustedAttack(effectiveAtk(attackerZone), guardianEffect);
   const defenseValue = defenderZone.position === "attack" ? effectiveAtk(defenderZone) : effectiveDef(defenderZone);
   const { attackerDestroyed, defenderDestroyed, attackerDamage, defenderDamage } =
     battleOutcome(attackValue, defenseValue, defenderZone.position);
