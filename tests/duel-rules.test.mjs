@@ -322,6 +322,12 @@ test("Vol.6の属性強化効果は強化500・弱体化400として重複適用
   assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "水", atk: 1000, def: 1000, auraIds: ["vol6-star-boy", "vol6-little-chimera"] }), { atk: 1100, def: 1000 });
 });
 
+test("バーバリアン1号・2号は自分フィールドの相方1体につきATK500アップする", () => {
+  assert.deepEqual(continuousMonsterStats({ id: "vol7-barbarian-1", atk: 1550, def: 1800, allyIds: ["vol7-barbarian-1", "vol7-barbarian-2"] }), { atk: 2050, def: 1800 });
+  assert.deepEqual(continuousMonsterStats({ id: "vol7-barbarian-2", atk: 1800, def: 1500, allyIds: ["vol7-barbarian-1", "vol7-barbarian-1", "vol7-barbarian-2"] }), { atk: 2800, def: 1500 });
+  assert.deepEqual(continuousMonsterStats({ id: "vol7-barbarian-1", atk: 1550, def: 1800, allyIds: ["vol7-barbarian-1"] }), { atk: 1550, def: 1800 });
+});
+
 test("フィールド魔法6種は対象種族を200強化し海と闇は対象種族を200弱体化する", () => {
   assert.equal(fieldSpellStatModifier("昆虫族", ["stb-forest"]), 200);
   assert.equal(fieldSpellStatModifier("恐竜族", ["stb-wasteland"]), 200);

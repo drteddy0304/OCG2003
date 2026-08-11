@@ -90,6 +90,7 @@ export function continuousMonsterStats(input: {
   handSize?: number;
   graveyardMonsterCount?: number;
   auraIds?: string[];
+  allyIds?: string[];
   fieldSpellIds?: string[];
 }): { atk: number; def: number };
 
