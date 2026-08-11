@@ -1650,7 +1650,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 072</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 073</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3839,6 +3839,8 @@ function isTrapImplemented(id: string) {
 }
 
 function monsterDescription(id: string) {
+  const recipe = fusionRecipe(id);
+  if (recipe) return `融合素材：${recipe.map((materialId) => cardById.get(materialId)?.name ?? materialId).join(" ＋ ")}`;
   if (id === "vol3-reaper-cards") return "リバース：フィールドの罠カード1枚を確認し、罠カードなら破壊する";
   if (id === "vol3-armed-ninja") return "リバース：フィールドの魔法カード1枚を確認し、魔法カードなら破壊する";
   if (id === "vol3-man-eater-bug") return "リバース：フィールドのモンスター1体を破壊する";

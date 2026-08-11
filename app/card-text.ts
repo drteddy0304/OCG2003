@@ -1,4 +1,5 @@
-import type { Card, Rarity } from "./card-data";
+import { cardById, type Card, type Rarity } from "./card-data";
+import { fusionRecipe } from "./fusion-rules.mjs";
 
 export const rarityNames: Record<Rarity, string> = {
   SE: "シークレットレア",
@@ -112,7 +113,11 @@ const descriptions: Record<string, string> = {
 
 export function cardDescription(card: Card) {
   if (descriptions[card.id]) return descriptions[card.id];
-  if (card.fusion) return "融合素材を使って融合召喚するモンスター。";
+  if (card.fusion) {
+    const recipe = fusionRecipe(card.id);
+    if (recipe) return `融合素材：${recipe.map((id) => cardById.get(id)?.name ?? id).join(" ＋ ")}`;
+    return "融合素材を使って融合召喚するモンスター。";
+  }
   if (card.effect) return "効果モンスター。詳細な効果処理は順次対応予定。";
   if (card.cardType === "spell") return "魔法カード。詳細な効果処理は順次対応予定。";
   if (card.cardType === "trap") return "罠カード。詳細な効果処理は順次対応予定。";

@@ -374,7 +374,7 @@ function DeckRow({
       <div>
         <strong>{card.name}</strong>
         <span>{typeLabel}</span>
-        {(card.effect || card.cardType !== "monster") && <span className="deck-effect-text">{cardDescription(card)}</span>}
+        {(card.effect || card.fusion || card.cardType !== "monster") && <span className="deck-effect-text">{cardDescription(card)}</span>}
         {card.cardType === "monster" && <span className="monster-stats">ATK {card.atk} / DEF {card.def}</span>}
       </div>
       <b>{count}</b>

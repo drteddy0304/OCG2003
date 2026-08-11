@@ -23,3 +23,8 @@ test("レアリティの日本語名をすべて表示する", () => {
     assert.match(textSource, new RegExp(name));
   }
 });
+
+test("融合モンスターの素材名をカード説明に表示する", () => {
+  assert.match(textSource, /fusionRecipe\(card\.id\)/);
+  assert.match(textSource, /融合素材：/);
+});
