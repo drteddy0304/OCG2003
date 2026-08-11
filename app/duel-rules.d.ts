@@ -73,12 +73,16 @@ export function fakeTrapCanProtect(trapIds: string[], targetIndex: number): bool
 export function continuousMonsterStats(input: {
   id: string;
   attribute?: string;
+  kind?: string;
   atk: number;
   def: number;
   handSize?: number;
   graveyardMonsterCount?: number;
   auraIds?: string[];
+  fieldSpellIds?: string[];
 }): { atk: number; def: number };
+
+export function fieldSpellStatModifier(kind: string, fieldSpellIds?: string[]): number;
 
 export function canDeckSearchTarget(sourceId: string, target?: {
   cardType: "monster" | "spell" | "trap";

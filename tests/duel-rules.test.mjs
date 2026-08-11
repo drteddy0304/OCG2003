@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -289,6 +289,18 @@ test("ムカムカは自分の手札1枚につきATK・DEF300アップする", (
 test("Vol.6の属性強化効果は強化500・弱体化400として重複適用する", () => {
   assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "光", atk: 1000, def: 1000, auraIds: ["vol6-hoshiningen", "vol6-witch-apprentice"] }), { atk: 1100, def: 1000 });
   assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "水", atk: 1000, def: 1000, auraIds: ["vol6-star-boy", "vol6-little-chimera"] }), { atk: 1100, def: 1000 });
+});
+
+test("フィールド魔法6種は対象種族を200強化し海と闇は対象種族を200弱体化する", () => {
+  assert.equal(fieldSpellStatModifier("昆虫族", ["stb-forest"]), 200);
+  assert.equal(fieldSpellStatModifier("恐竜族", ["stb-wasteland"]), 200);
+  assert.equal(fieldSpellStatModifier("ドラゴン族", ["stb-mountain"]), 200);
+  assert.equal(fieldSpellStatModifier("戦士族", ["stb-sogen"]), 200);
+  assert.equal(fieldSpellStatModifier("魚族", ["stb-umi"]), 200);
+  assert.equal(fieldSpellStatModifier("機械族", ["stb-umi"]), -200);
+  assert.equal(fieldSpellStatModifier("悪魔族", ["stb-yami"]), 200);
+  assert.equal(fieldSpellStatModifier("天使族", ["stb-yami"]), -200);
+  assert.equal(fieldSpellStatModifier("ドラゴン族", ["stb-mountain", "stb-mountain"]), 400);
 });
 
 test("クリッターと黒き森のウィッチはそれぞれATK・DEF1500以下を検索する", () => {

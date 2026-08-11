@@ -132,8 +132,10 @@ type DuelState = {
   playerField: ZoneCard[];
   cpuField: ZoneCard[];
   playerSpellTrap: string[];
+  playerFieldSpell: string | null;
   playerSwordsTurns: number[];
   cpuSpellTrap: string[];
+  cpuFieldSpell: string | null;
   cpuSwordsTurns: number[];
   playerGraveyard: string[];
   cpuGraveyard: string[];
@@ -162,6 +164,7 @@ type DuelState = {
 const CPU_DECK = [...competitiveCpuDeck];
 const CPU_FUSION_DECK = ["vol3-gaia-dragon-champion", "vol3-gaia-dragon-champion", "vol3-gaia-dragon-champion"];
 const EQUIP_RULES = equipRules;
+const FIELD_SPELL_IDS = ["stb-forest", "stb-wasteland", "stb-mountain", "stb-sogen", "stb-umi", "stb-yami"];
 
 export function DuelArena({
   collection,
@@ -317,8 +320,10 @@ export function DuelArena({
       playerField: [],
       cpuField: [],
       playerSpellTrap: [],
+      playerFieldSpell: null,
       playerSwordsTurns: [],
       cpuSpellTrap: [],
+      cpuFieldSpell: null,
       cpuSwordsTurns: [],
       playerGraveyard: [],
       cpuGraveyard: [],
@@ -497,6 +502,16 @@ export function DuelArena({
     if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
+    if (FIELD_SPELL_IDS.includes(card.id)) {
+      const oldFieldSpell = duel.playerFieldSpell;
+      setDuel({
+        ...removeHandCard(duel, handIndex),
+        playerFieldSpell: card.id,
+        playerGraveyard: oldFieldSpell ? [...duel.playerGraveyard, oldFieldSpell] : duel.playerGraveyard,
+        log: appendLog(duel.log, `${card.name}を発動。フィールドのモンスターに種族補正を適用。`),
+      });
+      return;
+    }
     if (EQUIP_RULES[card.id]) {
       if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
       setSelectedEquip(handIndex);
@@ -1650,7 +1665,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 073</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 074</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2164,6 +2179,9 @@ export function DuelArena({
             </div>
           ))}
         </div>
+        <div className={`field-spell-zone ${duel.cpuFieldSpell ? "active" : ""}`}>
+          <span>CPU FIELD</span><strong>{duel.cpuFieldSpell ? cardById.get(duel.cpuFieldSpell)?.name : "—"}</strong>
+        </div>
         <FieldRow zones={duel.cpuField} owner="cpu" state={duel} selectedTarget={selectedAttacker !== null} onTarget={attackTarget} onInspect={setDetailCardId} />
         {selectedAttacker !== null
           && duel.cpuField.length > 0
@@ -2218,6 +2236,9 @@ export function DuelArena({
                 : "MAGIC / TRAP"}
             </div>
           ))}
+        </div>
+        <div className={`field-spell-zone player-field-spell ${duel.playerFieldSpell ? "active" : ""}`}>
+          <span>PLAYER FIELD</span><strong>{duel.playerFieldSpell ? cardById.get(duel.playerFieldSpell)?.name : "—"}</strong>
         </div>
         <div className="hand-summary">
           <span>YOUR HAND</span><b>{duel.playerHand.length}</b><span>DECK</span><b>{duel.playerDeck.length}</b>
@@ -3640,12 +3661,14 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   return continuousMonsterStats({
     id: zone.id,
     attribute: card.attribute,
+    kind: card.kind,
     atk: equipped.atk,
     def: equipped.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
     graveyardMonsterCount: (side === "player" ? state.playerGraveyard : state.cpuGraveyard)
       .filter((id) => cardById.get(id)?.cardType === "monster").length,
     auraIds: [...state.playerField, ...state.cpuField].filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
+    fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   }).atk;
 }
 
@@ -3656,11 +3679,13 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
   return continuousMonsterStats({
     id: zone.id,
     attribute: card.attribute,
+    kind: card.kind,
     atk: equipped.atk,
     def: equipped.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
     graveyardMonsterCount: 0,
     auraIds: [],
+    fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   }).def;
 }
 
@@ -3775,6 +3800,12 @@ function useCpuCannonSoldierForLethal(state: DuelState): DuelState {
 }
 
 function spellDescription(id: string) {
+  if (id === "stb-forest") return "表側の昆虫・獣・植物・獣戦士族のATK・DEFを200アップ";
+  if (id === "stb-wasteland") return "表側の恐竜・アンデット・岩石族のATK・DEFを200アップ";
+  if (id === "stb-mountain") return "表側のドラゴン・鳥獣・雷族のATK・DEFを200アップ";
+  if (id === "stb-sogen") return "表側の戦士・獣戦士族のATK・DEFを200アップ";
+  if (id === "stb-umi") return "魚・海竜・雷・水族を200強化し、機械・炎族を200弱体化";
+  if (id === "stb-yami") return "魔法使い・悪魔族を200強化し、天使族を200弱体化";
   if (EQUIP_RULES[id]) return `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
   if (id === "vol1-dark-hole") return "フィールドのモンスターをすべて破壊";
   if (id === "stb-raigeki") return "相手フィールドのモンスターをすべて破壊";
@@ -3818,6 +3849,7 @@ function isSpellImplemented(id: string) {
       "vol5-change-heart",
       "stb-polymerization",
       "vol6-polymerization",
+      ...FIELD_SPELL_IDS,
     ].includes(id);
 }
 

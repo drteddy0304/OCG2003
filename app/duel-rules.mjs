@@ -239,7 +239,25 @@ const attributeAuraEffects = Object.freeze({
   "vol6-witch-apprentice": { boost: "闇", weaken: "光" },
 });
 
-export function continuousMonsterStats({ id, attribute, atk, def: defense, handSize = 0, graveyardMonsterCount = 0, auraIds = [] }) {
+const fieldSpellRaceEffects = Object.freeze({
+  "stb-forest": { boost: ["昆虫族", "獣族", "植物族", "獣戦士族"], weaken: [] },
+  "stb-wasteland": { boost: ["恐竜族", "アンデット族", "岩石族"], weaken: [] },
+  "stb-mountain": { boost: ["ドラゴン族", "鳥獣族", "雷族"], weaken: [] },
+  "stb-sogen": { boost: ["戦士族", "獣戦士族"], weaken: [] },
+  "stb-umi": { boost: ["魚族", "海竜族", "雷族", "水族"], weaken: ["機械族", "炎族"] },
+  "stb-yami": { boost: ["魔法使い族", "悪魔族"], weaken: ["天使族"] },
+});
+
+export function fieldSpellStatModifier(kind, fieldSpellIds = []) {
+  return fieldSpellIds.reduce((modifier, id) => {
+    const effect = fieldSpellRaceEffects[id];
+    if (effect?.boost.includes(kind)) return modifier + 200;
+    if (effect?.weaken.includes(kind)) return modifier - 200;
+    return modifier;
+  }, 0);
+}
+
+export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, auraIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;
   if (id === "vol6-shadow-ghoul") nextAtk += graveyardMonsterCount * 100;
@@ -252,6 +270,9 @@ export function continuousMonsterStats({ id, attribute, atk, def: defense, handS
     if (aura?.boost === attribute) nextAtk += 500;
     if (aura?.weaken === attribute) nextAtk -= 400;
   });
+  const fieldModifier = fieldSpellStatModifier(kind, fieldSpellIds);
+  nextAtk += fieldModifier;
+  nextDef += fieldModifier;
   return { atk: Math.max(0, nextAtk), def: Math.max(0, nextDef) };
 }
 
