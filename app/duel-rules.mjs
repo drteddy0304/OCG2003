@@ -44,6 +44,7 @@ const simpleSpellEffects = Object.freeze({
   "bo1-thunder": { gain: 0, damage: 300 },
   "stb-moyan-curry": { gain: 200, damage: 0 },
   "stb-fireball": { gain: 0, damage: 500 },
+  "vol7-tremendous-fire": { gain: 0, damage: 1000, selfDamage: 500 },
 });
 
 export function simpleSpellEffect(id) {
@@ -53,7 +54,23 @@ export function simpleSpellEffect(id) {
 export function shouldCpuUseSimpleSpell(id, currentLp, startingLp = 8000) {
   const effect = simpleSpellEffect(id);
   if (!effect) return false;
+  if ((effect.selfDamage ?? 0) >= currentLp) return false;
   return effect.damage > 0 || currentLp <= startingLp - effect.gain;
+}
+
+export function resolveSimpleSpellLife(id, ownLp, opponentLp) {
+  const effect = simpleSpellEffect(id);
+  if (!effect) return null;
+  const nextOwnLp = ownLp + effect.gain - (effect.selfDamage ?? 0);
+  const nextOpponentLp = opponentLp - effect.damage;
+  const outcome = nextOwnLp <= 0 && nextOpponentLp <= 0
+    ? "draw"
+    : nextOpponentLp <= 0
+      ? "own-win"
+      : nextOwnLp <= 0
+        ? "own-lose"
+        : null;
+  return { ownLp: nextOwnLp, opponentLp: nextOpponentLp, outcome };
 }
 
 export function shouldCpuActivateSwords(opponentMonsterCount, activeSwordsCount, spellTrapCount, fieldLimit = 5) {

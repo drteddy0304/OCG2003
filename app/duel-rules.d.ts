@@ -16,11 +16,17 @@ export const equipRules: Readonly<Record<string, string>>;
 export type SimpleSpellEffect = {
   gain: number;
   damage: number;
+  selfDamage?: number;
 };
 
 export function simpleSpellEffect(id: string): SimpleSpellEffect | null;
 
 export function shouldCpuUseSimpleSpell(id: string, currentLp: number, startingLp?: number): boolean;
+export function resolveSimpleSpellLife(id: string, ownLp: number, opponentLp: number): {
+  ownLp: number;
+  opponentLp: number;
+  outcome: "own-win" | "own-lose" | "draw" | null;
+} | null;
 
 export function shouldCpuActivateSwords(
   opponentMonsterCount: number,

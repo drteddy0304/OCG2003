@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -15,7 +15,7 @@ const FIELD_LIMIT = 5;
 
 type Position = "attack" | "defense";
 type Side = "player" | "cpu";
-type Result = "win" | "lose" | null;
+type Result = "win" | "lose" | "draw" | null;
 type Phase = "main1" | "battle" | "main2";
 type PendingTribute = {
   handIndex: number;
@@ -666,13 +666,14 @@ export function DuelArena({
       };
       next = applyDeckSearchTriggers(next, destroyedPlayer, [...destroyedCpu, ...returnedCpu]);
     } else if (simpleSpellEffect(card.id)) {
-      const effect = simpleSpellEffect(card.id)!;
+      const resolution = resolveSimpleSpellLife(card.id, next.playerLp, next.cpuLp);
+      if (!resolution) return;
       next = {
         ...next,
-        playerLp: next.playerLp + effect.gain,
-        cpuLp: next.cpuLp - effect.damage,
+        playerLp: resolution.ownLp,
+        cpuLp: resolution.opponentLp,
+        result: resolution.outcome === "own-win" ? "win" : resolution.outcome === "own-lose" ? "lose" : resolution.outcome,
       };
-      if (next.cpuLp <= 0) next.result = "win";
     } else if (card.id === "vol1-fissure") {
       const target = lowestFaceUpAttackIndex(next.cpuField, next, "cpu");
       if (target === null) return;
@@ -712,7 +713,12 @@ export function DuelArena({
       if (targets.length === 0) return;
       next = { ...next, cpuGraveyard: next.cpuGraveyard.filter((_, index) => !targets.includes(index)) };
     } else return;
-    next.log = appendLog(next.log, `${card.name}を発動。`);
+    next.log = appendLog(
+      next.log,
+      card.id === "vol7-tremendous-fire"
+        ? "火炎地獄を発動。CPUに1000ダメージ、自分に500ダメージ。"
+        : `${card.name}を発動。`,
+    );
     setDuel(next);
   }
 
@@ -1777,7 +1783,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 085</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 086</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2658,7 +2664,7 @@ export function DuelArena({
       {duel.result && (
         <div className="duel-result">
           <p className="section-label">DUEL RESULT</p>
-          <h2>{duel.result === "win" ? "VICTORY" : "DEFEAT"}</h2>
+          <h2>{duel.result === "win" ? "VICTORY" : duel.result === "draw" ? "DRAW" : "DEFEAT"}</h2>
           {duel.result === "win" && (
             <p>
               勝利報酬：<strong>{rewardName ?? "カード抽選中…"}</strong>
@@ -3414,22 +3420,22 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
     const effect = simpleSpellEffect(spellId);
     if (!effect || !shouldCpuUseSimpleSpell(spellId, state.cpuLp, STARTING_LP)) continue;
     const spell = cardById.get(spellId);
+    const resolution = resolveSimpleSpellLife(spellId, state.cpuLp, state.playerLp);
+    if (!resolution) continue;
     state = {
       ...removeCpuHandCard(state, spellId),
-      cpuLp: state.cpuLp + effect.gain,
-      playerLp: state.playerLp - effect.damage,
+      cpuLp: resolution.ownLp,
+      playerLp: resolution.opponentLp,
+      result: resolution.outcome === "own-win" ? "lose" : resolution.outcome === "own-lose" ? "win" : resolution.outcome,
       cpuGraveyard: [...state.cpuGraveyard, spellId],
       log: appendLog(
         state.log,
         effect.gain
           ? `CPUが${spell?.name ?? "回復魔法"}を発動。LPを${effect.gain}回復。`
-          : `CPUが${spell?.name ?? "ダメージ魔法"}を発動。${effect.damage}ダメージ。`,
+          : `CPUが${spell?.name ?? "ダメージ魔法"}を発動。相手に${effect.damage}ダメージ${effect.selfDamage ? `、自分に${effect.selfDamage}ダメージ。` : "。"}`,
       ),
     };
-    if (state.playerLp <= 0) {
-      state.result = "lose";
-      break;
-    }
+    if (state.result) break;
   }
   return state;
 }
@@ -4133,7 +4139,7 @@ function spellDescription(id: string) {
   if (id === "stb-raigeki") return "相手フィールドのモンスターをすべて破壊";
   const effect = simpleSpellEffect(id);
   if (effect?.gain) return `自分のLPを${effect.gain}回復`;
-  if (effect?.damage) return `相手に${effect.damage}ダメージ`;
+  if (effect?.damage) return `相手に${effect.damage}ダメージ${effect.selfDamage ? `、自分に${effect.selfDamage}ダメージ` : ""}`;
   if (id === "vol2-swords-revealing-light") return "相手モンスターを表にし、相手の攻撃を3ターン封じる";
   if (id === "vol2-monster-reborn") return "自分または相手の墓地からモンスター1体を特殊召喚";
   if (id === "vol2-de-spell") return "フィールドのカード1枚を確認し、魔法カードなら破壊";

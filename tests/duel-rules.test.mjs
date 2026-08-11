@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -87,6 +87,14 @@ test("Booster 1・STARTER BOXの回復・ダメージ魔法の数値を適用す
   assert.deepEqual(simpleSpellEffect("bo1-thunder"), { gain: 0, damage: 300 });
   assert.deepEqual(simpleSpellEffect("stb-moyan-curry"), { gain: 200, damage: 0 });
   assert.deepEqual(simpleSpellEffect("stb-fireball"), { gain: 0, damage: 500 });
+});
+
+test("火炎地獄は相手に1000・自分に500ダメージを与え、同時0なら引き分けにする", () => {
+  assert.deepEqual(simpleSpellEffect("vol7-tremendous-fire"), { gain: 0, damage: 1000, selfDamage: 500 });
+  assert.deepEqual(resolveSimpleSpellLife("vol7-tremendous-fire", 4000, 3000), { ownLp: 3500, opponentLp: 2000, outcome: null });
+  assert.deepEqual(resolveSimpleSpellLife("vol7-tremendous-fire", 500, 1000), { ownLp: 0, opponentLp: 0, outcome: "draw" });
+  assert.deepEqual(resolveSimpleSpellLife("vol7-tremendous-fire", 400, 2000), { ownLp: -100, opponentLp: 1000, outcome: "own-lose" });
+  assert.equal(shouldCpuUseSimpleSpell("vol7-tremendous-fire", 500), false);
 });
 
 test("光の護封剣はCPUターン3回で終了する", () => {
