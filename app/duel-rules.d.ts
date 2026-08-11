@@ -66,6 +66,7 @@ export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): b
 export function canActivateSevenTools(lifePoints: number, trapIds: string[]): boolean;
 export function canActivateMagicJammer(handSize: number, trapIds: string[]): boolean;
 export function canActivateHornOfHeaven(monsterCount: number, trapIds: string[]): boolean;
+export function solemnJudgmentRemainingLp(lifePoints: number, trapIds: string[]): number | null;
 export function isMonsterRebornBlocked(playerSpellTrap: string[], cpuSpellTrap: string[]): boolean;
 export function fakeTrapCanProtect(trapIds: string[], targetIndex: number): boolean;
 

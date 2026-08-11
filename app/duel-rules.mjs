@@ -209,6 +209,10 @@ export function canActivateHornOfHeaven(monsterCount, trapIds) {
   return monsterCount > 0 && trapIds.includes("vol6-horn-heaven");
 }
 
+export function solemnJudgmentRemainingLp(lifePoints, trapIds) {
+  return lifePoints > 0 && trapIds.includes("vol6-solemn-judgment") ? Math.ceil(lifePoints / 2) : null;
+}
+
 export function isMonsterRebornBlocked(playerSpellTrap, cpuSpellTrap) {
   return [...playerSpellTrap, ...cpuSpellTrap].includes("vol5-call-darkness");
 }

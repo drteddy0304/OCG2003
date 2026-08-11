@@ -32,7 +32,7 @@ test("Vol.1・Vol.2を各1日10パック開封できる初期画面を表示す�
   assert.match(html, /<button class="">デュエル<\/button>/);
   assert.match(html, /同名5枚まで所持/);
   assert.match(html, /収録カード・このパックの排出率を見る/);
-  assert.match(html, /PHASE 2 · BUILD 068/);
+  assert.match(html, /PHASE 2 · BUILD 069/);
   assert.match(html, /SE 2%/);
   assert.match(html, /UR 5%/);
   assert.doesNotMatch(html, /codex-preview/);
