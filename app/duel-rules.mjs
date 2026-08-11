@@ -106,6 +106,16 @@ export function canMonsterAttackDirectly(id) {
   return directAttackMonsters.has(id);
 }
 
+export function electricLizardAttackLockTurn(defenderId, attackerKind, currentTurn) {
+  return defenderId === "vol4-electric-lizard" && attackerKind !== "アンデット族"
+    ? currentTurn + 2
+    : null;
+}
+
+export function canDeclareAttackOnTurn(attackLockedTurn, currentTurn) {
+  return attackLockedTurn !== currentTurn;
+}
+
 const battleDamageEffects = Object.freeze({
   "vol5-white-magical-hat": "discard-random",
   "vol5-masked-sorcerer": "draw",
