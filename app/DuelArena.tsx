@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -62,6 +62,11 @@ type PendingGuardianResponse = {
   attackerIndex: number;
   defenderIndex: number;
   guardianId: string;
+};
+type PendingMirrorForce = {
+  trapIndex: number;
+  attackerIndex: number;
+  defenderIndex: number | null;
 };
 type PendingAntiRaigeki = {
   trapIndex: number;
@@ -159,6 +164,7 @@ type DuelState = {
   pendingHornOfHeaven: PendingHornOfHeaven | null;
   pendingSolemnJudgment: PendingSolemnJudgment | null;
   pendingGuardianResponse: PendingGuardianResponse | null;
+  pendingMirrorForce: PendingMirrorForce | null;
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
   pendingFakeTrap: PendingFakeTrap | null;
@@ -225,6 +231,7 @@ export function DuelArena({
   }, [collection, duel]);
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingGuardianResponse
+    && !duel.pendingMirrorForce
     && !duel.pendingSevenTools
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
@@ -349,6 +356,7 @@ export function DuelArena({
       pendingHornOfHeaven: null,
       pendingSolemnJudgment: null,
       pendingGuardianResponse: null,
+      pendingMirrorForce: null,
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
       pendingFakeTrap: null,
@@ -1153,16 +1161,49 @@ export function DuelArena({
     const zone = duel.playerField[index];
     if (!zone || zone.position !== "attack" || zone.attacked || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || attackDeclarationCost(zone.id, duel.playerLp) === null) return;
     if (duel.cpuField.length === 0) {
-      setDuel(resolveBattle(duel, "player", index, null));
+      resolvePlayerAttack(index, null);
       setSelectedAttacker(null);
       return;
     }
     setSelectedAttacker(index);
   }
 
+  function resolvePlayerAttack(attackerIndex: number, defenderIndex: number | null) {
+    if (!duel) return;
+    const mirrorForceIndex = duel.cpuSpellTrap.indexOf("vol7-mirror-force");
+    if (mirrorForceIndex < 0) {
+      setDuel(resolveBattle(duel, "player", attackerIndex, defenderIndex));
+      return;
+    }
+    const destroyedOnPlayerField = duel.playerField.filter((zone) => isMirrorForceDestructionTarget(zone.position));
+    const returnedCpu = destroyedOnPlayerField.filter((zone) => zone.controlReturn === "cpu");
+    const destroyedPlayer = destroyedOnPlayerField.filter((zone) => zone.controlReturn !== "cpu");
+    const attacker = duel.playerField[attackerIndex];
+    const attackCost = attacker ? attackDeclarationCost(attacker.id, duel.playerLp) : 0;
+    if (attackCost === null) return;
+    const costLog = attackCost > 0
+      ? appendLog(duel.log, `${cardById.get(attacker?.id ?? "")?.name ?? "モンスター"}の攻撃コストとして1000LPを支払った。`)
+      : duel.log;
+    let resolved: DuelState = {
+      ...duel,
+      playerLp: duel.playerLp - attackCost,
+      playerField: duel.playerField.filter((zone) => !isMirrorForceDestructionTarget(zone.position)),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, destroyedPlayer),
+      cpuSpellTrap: discardEquips(
+        duel.cpuSpellTrap.filter((_, index) => index !== mirrorForceIndex),
+        returnedCpu,
+      ),
+      playerGraveyard: [...duel.playerGraveyard, ...graveCards(destroyedPlayer)],
+      cpuGraveyard: [...duel.cpuGraveyard, "vol7-mirror-force", ...graveCards(returnedCpu)],
+      log: appendLog(costLog, `CPUが聖なるバリア －ミラーフォース－を発動。攻撃表示モンスター${destroyedOnPlayerField.length}体を破壊。`),
+    };
+    resolved = applyDeckSearchTriggers(resolved, destroyedPlayer, returnedCpu);
+    setDuel(resolved);
+  }
+
   function attackTarget(targetIndex: number) {
     if (!duel || selectedAttacker === null) return;
-    setDuel(resolveBattle(duel, "player", selectedAttacker, targetIndex));
+    resolvePlayerAttack(selectedAttacker, targetIndex);
     setSelectedAttacker(null);
   }
 
@@ -1170,7 +1211,7 @@ export function DuelArena({
     if (!duel || selectedAttacker === null) return;
     const attacker = duel.playerField[selectedAttacker];
     if (!attacker || !canMonsterAttackDirectly(attacker.id)) return;
-    setDuel(resolveBattle(duel, "player", selectedAttacker, null));
+    resolvePlayerAttack(selectedAttacker, null);
     setSelectedAttacker(null);
   }
 
@@ -1579,6 +1620,50 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToMirrorForce(activate: boolean) {
+    if (!duel?.pendingMirrorForce) return;
+    const pending = duel.pendingMirrorForce;
+    const marker = "ミラーフォースの発動確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingMirrorForce: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (activate) {
+      const destroyedCpu = resumed.cpuField.filter((zone) => isMirrorForceDestructionTarget(zone.position));
+      resumed = {
+        ...resumed,
+        cpuField: resumed.cpuField.filter((zone) => !isMirrorForceDestructionTarget(zone.position)),
+        cpuSpellTrap: discardEquips(resumed.cpuSpellTrap, destroyedCpu),
+        playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        cpuGraveyard: [...resumed.cpuGraveyard, ...graveCards(destroyedCpu)],
+        playerGraveyard: [...resumed.playerGraveyard, "vol7-mirror-force"],
+        log: appendLog(resumed.log, `聖なるバリア －ミラーフォース－を発動。CPUの攻撃表示モンスター${destroyedCpu.length}体を破壊。`),
+      };
+      resumed = applyDeckSearchTriggers(resumed, [], destroyedCpu);
+      const finalState = finishCpuTurn(resumed, true);
+      beginCpuPlayback(resumed, finalState, marker);
+      return;
+    }
+    resumed = { ...resumed, log: appendLog(resumed.log, "ミラーフォースを発動しませんでした。") };
+    const defender = pending.defenderIndex === null ? null : resumed.playerField[pending.defenderIndex];
+    if (defender && !defender.faceDown && isGuardianMonster(defender.id) && !defender.guardianEffectUsed) {
+      const finalState: DuelState = {
+        ...resumed,
+        pendingGuardianResponse: {
+          attackerIndex: pending.attackerIndex,
+          defenderIndex: pending.defenderIndex!,
+          guardianId: defender.id,
+        },
+      };
+      beginCpuPlayback(resumed, finalState, marker);
+      return;
+    }
+    resumed = resolveBattle(resumed, "cpu", pending.attackerIndex, pending.defenderIndex);
+    const finalState = finishCpuTurn(resumed, true);
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
   function respondToAntiRaigeki(activate: boolean) {
     if (!duel?.pendingAntiRaigeki) return;
     const pending = duel.pendingAntiRaigeki;
@@ -1783,7 +1868,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 086</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 087</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -1879,6 +1964,8 @@ export function DuelArena({
                       ? "神の宣告の発動確認へ"
                     : cpuPlayback.finalState.pendingAntiRaigeki
                       ? "避雷針の発動確認へ"
+                    : cpuPlayback.finalState.pendingMirrorForce
+                      ? "ミラーフォースの発動確認へ"
                     : cpuPlayback.finalState.pendingGuardianResponse
                       ? "三魔神の効果確認へ"
                     : cpuPlayback.finalState.pendingDeckReorder
@@ -1909,6 +1996,21 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToTrap(true)}>発動する</button>
               <button onClick={() => respondToTrap(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingMirrorForce && (
+        <div className="trap-response mirror-force-response">
+          <div>
+            <p className="section-label">ATTACK RESPONSE</p>
+            <h2>ミラーフォースを発動しますか？</h2>
+            <p>
+              CPUが攻撃を宣言しました。発動するとCPUの攻撃表示モンスターをすべて破壊します。
+            </p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToMirrorForce(true)}>発動する</button>
+              <button onClick={() => respondToMirrorForce(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -2347,7 +2449,7 @@ export function DuelArena({
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
             <div className={duel.cpuSpellTrap[index] ? "set-card" : "empty-zone"} key={index}>
               {duel.cpuSpellTrap[index]
-                ? duel.cpuSpellTrap[index] === "vol1-trap-hole"
+                ? cardById.get(duel.cpuSpellTrap[index])?.cardType === "trap"
                   ? "SET"
                   : cardById.get(duel.cpuSpellTrap[index])?.name
                 : "MAGIC / TRAP"}
@@ -2960,11 +3062,20 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerSwordsTurns.length > 0) {
     state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
   } else {
-    for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse; index -= 1) {
+    for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
       if (attackDeclarationCost(attacker.id, state.cpuLp) === null) continue;
       if (state.playerField.length === 0) {
+        const mirrorForceIndex = state.playerSpellTrap.indexOf("vol7-mirror-force");
+        if (mirrorForceIndex >= 0) {
+          state = {
+            ...state,
+            pendingMirrorForce: { trapIndex: mirrorForceIndex, attackerIndex: index, defenderIndex: null },
+            log: appendLog(state.log, `CPUが${cardById.get(attacker.id)?.name ?? "モンスター"}で直接攻撃を宣言。ミラーフォースを発動しますか？`),
+          };
+          continue;
+        }
         state = resolveBattle(state, "cpu", index, null);
         continue;
       }
@@ -2979,6 +3090,15 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       );
       if (targetIndex !== null) {
         const defender = state.playerField[targetIndex];
+        const mirrorForceIndex = state.playerSpellTrap.indexOf("vol7-mirror-force");
+        if (mirrorForceIndex >= 0) {
+          state = {
+            ...state,
+            pendingMirrorForce: { trapIndex: mirrorForceIndex, attackerIndex: index, defenderIndex: targetIndex },
+            log: appendLog(state.log, `CPUが${cardById.get(attacker.id)?.name ?? "モンスター"}で攻撃を宣言。ミラーフォースを発動しますか？`),
+          };
+          continue;
+        }
         if (!defender.faceDown && isGuardianMonster(defender.id) && !defender.guardianEffectUsed) {
           state = {
             ...state,
@@ -2994,7 +3114,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       }
     }
   }
-  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse) return state;
+  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce) return state;
 
   state = resolveIronScorpionEndPhase(state);
 
@@ -3444,7 +3564,15 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
   let state = initial;
   if (state.cpuSpellTrap.length >= FIELD_LIMIT) return state;
 
-  if (state.cpuHand.includes("vol1-trap-hole")) {
+  if (state.cpuHand.includes("vol7-mirror-force")) {
+    state = {
+      ...removeCpuHandCard(state, "vol7-mirror-force"),
+      cpuSpellTrap: [...state.cpuSpellTrap, "vol7-mirror-force"],
+      log: appendLog(state.log, "CPUが罠カードを1枚セット。"),
+    };
+  }
+
+  if (state.cpuSpellTrap.length < FIELD_LIMIT && state.cpuHand.includes("vol1-trap-hole")) {
     state = {
       ...removeCpuHandCard(state, "vol1-trap-hole"),
       cpuSpellTrap: [...state.cpuSpellTrap, "vol1-trap-hole"],
@@ -4185,6 +4313,7 @@ function isSpellImplemented(id: string) {
 
 function trapDescription(id: string) {
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
+  if (id === "vol7-mirror-force") return "相手の攻撃宣言時、相手の攻撃表示モンスターをすべて破壊";
   if (id === "vol5-anti-raigeki") return "相手のサンダー・ボルトを無効にし、相手モンスターをすべて破壊";
   if (id === "vol5-call-darkness") return "死者蘇生を使用できなくし、死者蘇生で蘇ったモンスターを墓地へ送る";
   if (id === "vol5-fake-trap") return "自分の罠カードが破壊される時、代わりにこのカードを破壊する";
@@ -4198,7 +4327,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force";
 }
 
 function monsterDescription(id: string) {

@@ -142,6 +142,10 @@ export function endsBattlePhaseOnBattleDestruction(id, destroyed) {
   return id === "vol7-unhappy-maiden" && destroyed;
 }
 
+export function isMirrorForceDestructionTarget(position) {
+  return position === "attack";
+}
+
 export function ironScorpionDestroyTurn(defenderId, attackerKind, currentTurn) {
   return defenderId === "vol4-iron-scorpion" && attackerKind !== "機械族"
     ? currentTurn + 4
@@ -398,7 +402,8 @@ export const competitiveCpuDeck = Object.freeze([
   "vol1-dark-hole",
   ...Array(2).fill("vol1-fissure"),
   "vol4-acid-storm",
-  ...Array(2).fill("vol1-trap-hole"),
+  "vol1-trap-hole",
+  "vol7-mirror-force",
   "stb-remove-trap",
   "vol2-swords-revealing-light",
   "vol2-monster-reborn",

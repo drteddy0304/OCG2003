@@ -52,6 +52,7 @@ export function electricLizardAttackLockTurn(defenderId: string, attackerKind: s
 export function canDeclareAttackOnTurn(attackLockedTurn: number | undefined, currentTurn: number): boolean;
 export function attackDeclarationCost(id: string, lifePoints: number): number | null;
 export function endsBattlePhaseOnBattleDestruction(id: string, destroyed: boolean): boolean;
+export function isMirrorForceDestructionTarget(position: "attack" | "defense"): boolean;
 export function ironScorpionDestroyTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
 export function isIronScorpionDestructionDue(destroyTurn: number | undefined, currentTurn: number): boolean;
 

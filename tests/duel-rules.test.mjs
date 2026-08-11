@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -49,6 +50,12 @@ test("薄幸の美少女は戦闘で破壊された時だけバトルフェイ�
   assert.equal(endsBattlePhaseOnBattleDestruction("vol7-unhappy-maiden", true), true);
   assert.equal(endsBattlePhaseOnBattleDestruction("vol7-unhappy-maiden", false), false);
   assert.equal(endsBattlePhaseOnBattleDestruction("vol7-dark-elf", true), false);
+});
+
+test("ミラーフォースは攻撃表示モンスターだけを破壊し、強化CPUも1枚使用する", () => {
+  assert.equal(isMirrorForceDestructionTarget("attack"), true);
+  assert.equal(isMirrorForceDestructionTarget("defense"), false);
+  assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-mirror-force").length, 1);
 });
 
 test("Vol.2の装備魔法5枚が正しい種族に対応する", () => {
