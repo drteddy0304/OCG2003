@@ -251,7 +251,7 @@ export function DuelArena({
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
     ? cpuPlayback
-      ? cpuPlayback.messages[Math.min(cpuPlayback.index, cpuPlayback.messages.length - 1)] ?? ""
+      ? ""
       : duel.log.at(-1) ?? ""
     : "";
   const feedbackKey = duel
@@ -1791,12 +1791,8 @@ export function DuelArena({
 
   function advanceCpuPlayback() {
     if (!cpuPlayback) return;
-    if (cpuPlayback.index >= cpuPlayback.messages.length - 1) {
-      setDuel(cpuPlayback.finalState);
-      setCpuPlayback(null);
-      return;
-    }
-    setCpuPlayback({ ...cpuPlayback, index: cpuPlayback.index + 1 });
+    setDuel(cpuPlayback.finalState);
+    setCpuPlayback(null);
   }
 
   function chooseFlipTarget(targetIndex: number) {
@@ -1876,7 +1872,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 091</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 092</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -1952,15 +1948,16 @@ export function DuelArena({
       )}
 
       {cpuPlayback && (
-        <div className="cpu-playback" aria-live="assertive">
+        <div className="cpu-playback" aria-live="polite">
           <div>
-            <p className="section-label">CPU ACTION</p>
-            <strong>{cpuPlayback.messages[Math.min(cpuPlayback.index, cpuPlayback.messages.length - 1)]}</strong>
-            <span>{Math.min(cpuPlayback.index + 1, cpuPlayback.messages.length)} / {cpuPlayback.messages.length}</span>
-            <div className="cpu-playback-actions">
-              <button className="cpu-next" onClick={advanceCpuPlayback}>
-                {cpuPlayback.index >= cpuPlayback.messages.length - 1
-                  ? cpuPlayback.finalState.pendingTrapResponse
+            <p className="section-label">CPU ACTION RESULT</p>
+            <h2>CPUの行動結果</h2>
+            <p className="cpu-result-note">以下はすべて盤面へ反映済みです。</p>
+            <ol className="cpu-result-list">
+              {cpuPlayback.messages.map((message, index) => <li key={`${index}-${message}`}><b>{index + 1}</b><span>{message}</span></li>)}
+            </ol>
+            <button className="cpu-next" onClick={advanceCpuPlayback}>
+              {cpuPlayback.finalState.pendingTrapResponse
                     ? "落とし穴の発動確認へ"
                     : cpuPlayback.finalState.pendingTwoPronged
                       ? "はさみ撃ちの発動確認へ"
@@ -1980,14 +1977,8 @@ export function DuelArena({
                       ? "大王目玉の並べ替えへ"
                     : cpuPlayback.finalState.pendingDeckSearch
                       ? "デッキ検索へ"
-                      : "自分のターンへ"
-                  : "次の行動"}
-              </button>
-              <button onClick={() => {
-                setDuel(cpuPlayback.finalState);
-                setCpuPlayback(null);
-              }}>すべてスキップ</button>
-            </div>
+                      : "確認して自分のターンへ"}
+            </button>
           </div>
         </div>
       )}
@@ -2872,6 +2863,7 @@ function FieldRow({
             >
               <strong>{hidden ? "伏せモンスター" : card.name}</strong>
               <span>{zone.position === "attack" ? `ATK ${effectiveAtk(zone, state, owner)}` : hidden ? "DEF ???" : `DEF ${effectiveDef(zone, state, owner)}`}</span>
+              <small className={`position-badge position-${zone.position}`}>{zone.position === "attack" ? "攻撃表示・縦" : "守備表示・横"}</small>
               {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
               {!hidden && card.effect && <small className="field-effect-badge">効果モンスター</small>}
               {!hidden && attackLocked && <small className="field-effect-badge">でんきトカゲ・攻撃不可</small>}
@@ -3666,6 +3658,8 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
 
   const nextAttackerField = attackerDestroyed ? attackerField.filter((_, index) => index !== attackerIndex) : attackerField;
   const nextDefenderField = defenderDestroyed ? defenderField.filter((_, index) => index !== defenderIndex) : defenderField;
+  const attackerLpName = attackerSide === "player" ? "プレイヤー" : "CPU";
+  const defenderLpName = attackerSide === "player" ? "CPU" : "プレイヤー";
   const destroyedPlayerZones = [
     ...(attackerDestroyed && attackerSide === "player" ? [attackerZone] : []),
     ...(defenderDestroyed && attackerSide === "cpu" ? [defenderZone] : []),
@@ -3692,10 +3686,10 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
         attackerDestroyed && defenderDestroyed
           ? "両方を破壊。"
           : defenderDestroyed
-            ? `${defender.name}を破壊。${defenderDamage ? `${defenderDamage}ダメージ。` : ""}`
+            ? `${defender.name}を破壊。${defenderDamage ? `${defenderLpName}に${defenderDamage}ダメージ。` : ""}`
             : attackerDestroyed
-              ? `${attacker.name}を破壊。${attackerDamage ? `${attackerDamage}ダメージ。` : ""}`
-              : `モンスターは破壊されない。${attackerDamage ? `${attackerDamage}ダメージ。` : ""}`
+              ? `${attacker.name}を破壊。${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : ""}`
+              : `モンスターは破壊されない。${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : ""}`
       }`,
     ),
   } as DuelState;

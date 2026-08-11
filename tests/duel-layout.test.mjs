@@ -18,4 +18,18 @@ test("キャノン・ソルジャーの対象選択には専用の読みやす�
   assert.match(arena, /className="target-list cannon-target-list"/);
   assert.match(css, /\.cannon-soldier-panel \{[^}]*max-height: 84vh;[^}]*overflow: auto;/);
   assert.match(css, /\.cannon-target-list \{[^}]*max-height: 48vh;[^}]*overflow: auto;/);
+  assert.match(css, /\.feedback-effect \.action-cut-in strong \{[^}]*overflow-wrap: anywhere;/);
+});
+
+test("CPUの行動は処理済みの結果一覧としてまとめて表示する", () => {
+  assert.match(arena, /CPU ACTION RESULT/);
+  assert.match(arena, /以下はすべて盤面へ反映済みです/);
+  assert.match(arena, /className="cpu-result-list"/);
+  assert.doesNotMatch(arena, />次の行動</);
+  assert.match(css, /\.cpu-result-list \{[^}]*max-height: 48vh;[^}]*overflow: auto;/);
+});
+
+test("フィールドのカードに攻撃表示・守備表示を明記する", () => {
+  assert.match(arena, /攻撃表示・縦/);
+  assert.match(arena, /守備表示・横/);
 });
