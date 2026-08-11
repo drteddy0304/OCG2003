@@ -6,6 +6,8 @@ const dataSources = await Promise.all([
   readFile(new URL("../app/card-data.ts", import.meta.url), "utf8"),
   readFile(new URL("../app/early-product-data.ts", import.meta.url), "utf8"),
   readFile(new URL("../app/vol5-data.ts", import.meta.url), "utf8"),
+  readFile(new URL("../app/vol6-data.ts", import.meta.url), "utf8"),
+  readFile(new URL("../app/vol7-data.ts", import.meta.url), "utf8"),
 ]);
 const textSource = await readFile(new URL("../app/card-text.ts", import.meta.url), "utf8");
 

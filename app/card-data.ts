@@ -1,6 +1,7 @@
 import { earlyProductCards, earlyProductPacks } from "./early-product-data";
 import { vol5Cards } from "./vol5-data";
 import { vol6Cards } from "./vol6-data";
+import { vol7Cards } from "./vol7-data";
 
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
@@ -209,6 +210,7 @@ export const cards: Card[] = [
   { id: "vol4-elegant-egotist", name: "万華鏡－華麗なる分身－", cardType: "spell", kind: "通常魔法", rarity: "UR" },
   ...vol5Cards,
   ...vol6Cards,
+  ...vol7Cards,
   ...earlyProductCards,
 ];
 
@@ -254,6 +256,13 @@ export const packs: Pack[] = [
     releaseDate: "1999-11-18",
     category: "official",
     cardIds: cards.filter((card) => card.id.startsWith("vol6-")).map((card) => card.id),
+  },
+  {
+    id: "vol-7",
+    name: "Vol.7",
+    releaseDate: "2000-01-27",
+    category: "official",
+    cardIds: cards.filter((card) => card.id.startsWith("vol7-")).map((card) => card.id),
   },
   ...earlyProductPacks,
 ];

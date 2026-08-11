@@ -22,6 +22,8 @@ export const FUSION_RECIPES = {
   "vol5-rose-spectre": ["vol5-feral-imp", "vol5-snakeyashi"],
   "vol6-punished-eagle": ["vol6-blue-winged-crown", "vol6-niwatori"],
   "vol6-musician-king": ["vol6-witch-black-forest", "vol6-lady-faith"],
+  "vol7-twin-headed-thunder-dragon": ["vol7-thunder-dragon", "vol7-thunder-dragon"],
+  "vol7-labyrinth-tank": ["vol6-gigatech-wolf", "vol6-cannon-soldier"],
 };
 
 export function fusionRecipe(fusionId) {
