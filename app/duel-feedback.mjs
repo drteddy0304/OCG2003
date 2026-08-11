@@ -1,7 +1,30 @@
+const trapNames = [
+  "落とし穴",
+  "聖なるバリア－ミラーフォース－",
+  "ミラーフォース",
+  "盗賊の七つ道具",
+  "マジック・ジャマー",
+  "昇天の角笛",
+  "神の宣告",
+  "避雷針",
+  "偽物のわな",
+  "はさみ撃ち",
+  "闇からの呼び声",
+];
+
+export function isPendingActionMessage(message) {
+  return /[？?]\s*$/.test(message)
+    || message.includes("発動しますか")
+    || message.includes("選んでください")
+    || message.includes("選択してください");
+}
+
 export function feedbackForMessage(message) {
   if (!message) return [];
-  if (message.includes("落とし穴を発動")) {
-    return [{ kind: "trap", title: "TRAP OPEN", detail: "落とし穴", message, duration: 2600 }];
+  if (isPendingActionMessage(message)) return [];
+  if (message.includes("を発動") && !message.includes("発動せず") && trapNames.some((name) => message.includes(name))) {
+    const trap = trapNames.find((name) => message.includes(name)) ?? "罠カード";
+    return [{ kind: "trap", title: "TRAP OPEN", detail: trap, message, duration: 2600 }];
   }
   if (message.includes("リバース") || message.includes("の効果で")) {
     const monster = message.match(/(?:の)?([^。]+?)(?:がリバース|の効果で)/)?.[1]?.replace(/^CPUの|^自分の/, "") ?? "モンスター効果";
@@ -19,7 +42,7 @@ export function feedbackForMessage(message) {
     else if (message.includes("破壊")) feedback.push({ kind: "destroy", title: "DESTROY", detail: "モンスター撃破", message, duration: 2200 });
     return feedback;
   }
-  if (message.includes("を発動")) {
+  if (message.includes("を発動") && !message.includes("発動せず")) {
     const card = message.match(/^(?:CPUが)?(.+?)を発動/)?.[1] ?? "魔法カード";
     return [{ kind: "spell", title: "SPELL ACTIVATE", detail: card, message, duration: 2600 }];
   }

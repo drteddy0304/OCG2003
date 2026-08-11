@@ -317,7 +317,10 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .position-change { border: 1px solid var(--ink); background: #f1e7d2; color: var(--ink); padding: 4px 2px; font-size: 7px; font-weight: 900; }
 .field-detail-button { border: 0; background: transparent; color: #514b41; padding: 2px; font-size: 7px; text-decoration: underline; }
 .field-card { min-width: 0; border: 5px solid #93683e; background: #c7925b; color: #1c1710; padding: 7px; box-shadow: 0 5px 10px #0003; transition: transform .15s; }
-.field-card.defense { transform: rotate(90deg) scale(.78); }
+.zones-player .field-card.attack { transform: rotate(0deg); }
+.zones-player .field-card.defense { transform: rotate(90deg) scale(.78); }
+.zones-cpu .field-card.attack { transform: rotate(180deg); }
+.zones-cpu .field-card.defense { transform: rotate(-90deg) scale(.78); }
 .field-card strong, .field-card span, .field-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .field-card strong { font: 800 10px "Yu Mincho", serif; }
 .field-card span { margin-top: 10px; font: 800 9px monospace; }
@@ -361,6 +364,14 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .duel-result p:not(.section-label) { font-size: 14px; }
 .duel-result button { margin-top: 20px; border: 1px solid white; background: transparent; color: white; padding: 14px 30px; font-weight: 800; }
 .card-overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #11100ed9; padding: 18px; }
+.cannon-soldier-overlay { z-index: 38; }
+.cannon-soldier-panel { width: min(520px, 100%); max-height: 84vh; overflow: auto; background: #eee5d4; color: var(--ink); border: 3px solid var(--ink); padding: 18px; box-shadow: 0 16px 40px #0009; }
+.cannon-soldier-panel h2 { margin: 4px 0 8px; font-family: "Yu Mincho", serif; }
+.cannon-soldier-panel > p:not(.section-label) { margin: 0 0 12px; font-size: 11px; line-height: 1.55; }
+.cannon-target-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; max-height: 48vh; overflow: auto; }
+.cannon-target-list button { min-width: 0; border: 1px solid #8d342f; background: #f7e2d8; padding: 11px; text-align: left; }
+.cannon-target-list strong, .cannon-target-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cannon-target-list small { margin-top: 4px; color: #7c514a; }
 .card-detail-overlay { z-index: 35; }
 .graveyard-panel, .card-detail { width: min(520px, 100%); max-height: 82vh; overflow: auto; background: #eee5d4; color: var(--ink); border: 3px solid var(--ink); padding: 18px; box-shadow: 0 16px 40px #0008; }
 .graveyard-panel h2, .card-detail h2 { margin: 4px 0 14px; font-family: "Yu Mincho", serif; }

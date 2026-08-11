@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { cardById, type Card } from "./card-data";
 import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
-import { feedbackForMessage } from "./duel-feedback.mjs";
+import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
 
@@ -1061,6 +1061,12 @@ export function DuelArena({
     setDuel(resolved);
   }
 
+  function openCannonSoldierPicker(monsterIndex: number) {
+    setFeedbackQueue([]);
+    setActiveFeedback(null);
+    setPendingCannonSoldier(monsterIndex);
+  }
+
   function equipSpell(fieldIndex: number) {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
@@ -1273,12 +1279,13 @@ export function DuelArena({
     beginCpuPlayback(cpuStart, finalState, "ターン終了。CPUのターン。");
   }
 
-  function beginCpuPlayback(startState: DuelState, finalState: DuelState, marker: string) {
+  function beginCpuPlayback(_startState: DuelState, finalState: DuelState, marker: string) {
     const markerIndex = finalState.log.lastIndexOf(marker);
     const messages = finalState.log
       .slice(markerIndex >= 0 ? markerIndex + 1 : Math.max(0, finalState.log.length - 6))
-      .filter((message) => message !== "あなたのターン。1枚ドロー。");
-    setDuel(startState);
+      .filter((message) => message !== "あなたのターン。1枚ドロー。" && !isPendingActionMessage(message));
+    // CPUの処理結果と行動文が食い違わないよう、盤面を先に確定してから履歴を見せる。
+    setDuel(finalState);
     setCpuPlayback({
       finalState,
       messages: messages.length ? messages : ["CPUは行動せずターンを終了。"],
@@ -1869,7 +1876,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 090</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 091</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2499,7 +2506,7 @@ export function DuelArena({
         {isPlayerMainPhase && duel.playerField.some((zone) => zone.id === "vol6-cannon-soldier" && !zone.faceDown) && (
           <button
             className="effect-action-button"
-            onClick={() => setPendingCannonSoldier(duel.playerField.findIndex((zone) => zone.id === "vol6-cannon-soldier" && !zone.faceDown))}
+            onClick={() => openCannonSoldierPicker(duel.playerField.findIndex((zone) => zone.id === "vol6-cannon-soldier" && !zone.faceDown))}
           >
             キャノン・ソルジャーの効果を使う
           </button>
@@ -2538,12 +2545,12 @@ export function DuelArena({
         </div>
       )}
       {pendingCannonSoldier !== null && (
-        <div className="card-overlay">
-          <article>
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
             <p className="section-label">MONSTER EFFECT</p>
             <h2>キャノン・ソルジャー</h2>
             <p>生け贄にする自分フィールドのモンスターを選んでください。</p>
-            <div className="target-list">
+            <div className="target-list cannon-target-list">
               {duel.playerField.map((zone, index) => (
                 <button key={`${zone.id}-${index}`} onClick={() => activateCannonSoldier(index)}>
                   <strong>{cardById.get(zone.id)?.name}</strong>
@@ -2551,7 +2558,7 @@ export function DuelArena({
                 </button>
               ))}
             </div>
-            <button onClick={() => setPendingCannonSoldier(null)}>キャンセル</button>
+            <button className="overlay-close" onClick={() => setPendingCannonSoldier(null)}>キャンセル</button>
           </article>
         </div>
       )}
@@ -2859,7 +2866,7 @@ function FieldRow({
         return (
           <div className="field-slot" key={`${zone.id}-${index}`}>
             <button
-              className={`field-card ${zone.position} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
+              className={`field-card ${zone.position} field-card-${owner} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
               disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || !canAttack || zone.position !== "attack" || zone.attacked || attackLocked || cannotPayAttackCost}
               onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
             >

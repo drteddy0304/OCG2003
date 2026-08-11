@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { feedbackForMessage } from "../app/duel-feedback.mjs";
+import { feedbackForMessage, isPendingActionMessage } from "../app/duel-feedback.mjs";
 
 test("攻撃して撃破した時は攻撃演出の後に撃破演出を出す", () => {
   assert.deepEqual(
@@ -18,8 +18,23 @@ test("守備表示を倒せなかった時は攻撃と守備成功の演出を�
 
 test("効果・魔法・罠を別々の演出として判定する", () => {
   assert.equal(feedbackForMessage("人喰い虫がリバース。モンスターを破壊した。")[0].kind, "effect");
+  assert.equal(feedbackForMessage("キャノン・ソルジャーの効果でワイトを生け贄にし、CPUに500ダメージ。")[0].kind, "effect");
   assert.equal(feedbackForMessage("ブラック・ホールを発動。")[0].kind, "spell");
   assert.equal(feedbackForMessage("落とし穴を発動。モンスターを破壊。")[0].kind, "trap");
+  assert.equal(feedbackForMessage("CPUがミラーフォースを発動。攻撃表示モンスターを破壊。")[0].kind, "trap");
+});
+
+test("確認中・未確定の行動には発動済みの演出を出さない", () => {
+  const messages = [
+    "CPUが攻撃を宣言。ミラーフォースを発動しますか？",
+    "CPUのバトル前。はさみ撃ちを発動しますか？",
+    "効果の対象を選んでください。",
+  ];
+  for (const message of messages) {
+    assert.equal(isPendingActionMessage(message), true);
+    assert.deepEqual(feedbackForMessage(message), []);
+  }
+  assert.deepEqual(feedbackForMessage("盗賊の七つ道具を発動せず、モンスターが破壊された。"), []);
 });
 
 test("直接攻撃には専用演出を出す", () => {
