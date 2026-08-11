@@ -194,6 +194,17 @@ export function firstSpellTargetIndex(cardTypes) {
   return index >= 0 ? index : null;
 }
 
+const faceUpTrapIds = new Set(["vol5-call-darkness", "stb-dragon-capture-jar"]);
+
+export function isFaceUpTrapTarget(id) {
+  return faceUpTrapIds.has(id);
+}
+
+export function firstFaceUpTrapIndex(ids) {
+  const index = ids.findIndex(isFaceUpTrapTarget);
+  return index >= 0 ? index : null;
+}
+
 const flipEffects = Object.freeze({
   "vol6-dragon-piper": "destroy-dragon-jar",
   "vol3-reaper-cards": "destroy-trap",
@@ -355,7 +366,8 @@ export const competitiveCpuDeck = Object.freeze([
   "vol1-dark-hole",
   ...Array(2).fill("vol1-fissure"),
   "vol4-acid-storm",
-  ...Array(3).fill("vol1-trap-hole"),
+  ...Array(2).fill("vol1-trap-hole"),
+  "stb-remove-trap",
   "vol2-swords-revealing-light",
   "vol2-monster-reborn",
   "vol3-pot-of-greed",

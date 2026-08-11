@@ -77,6 +77,8 @@ export function canActivateHornOfHeaven(monsterCount: number, trapIds: string[])
 export function solemnJudgmentRemainingLp(lifePoints: number, trapIds: string[]): number | null;
 export function isMonsterRebornBlocked(playerSpellTrap: string[], cpuSpellTrap: string[]): boolean;
 export function fakeTrapCanProtect(trapIds: string[], targetIndex: number): boolean;
+export function isFaceUpTrapTarget(id: string): boolean;
+export function firstFaceUpTrapIndex(ids: string[]): number | null;
 
 export function continuousMonsterStats(input: {
   id: string;

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -532,8 +532,10 @@ export function DuelArena({
       return;
     }
 
-    if (card.id === "vol2-de-spell") {
-      if (duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell) return;
+    if (card.id === "vol2-de-spell" || card.id === "stb-remove-trap") {
+      const hasRemoveTrapTarget = [...duel.playerSpellTrap, ...duel.cpuSpellTrap].some(isFaceUpTrapTarget);
+      if (card.id === "stb-remove-trap" && !hasRemoveTrapTarget) return;
+      if (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell) return;
       setPendingDeSpell(handIndex);
       setSelectedAttacker(null);
       setSelectedEquip(null);
@@ -828,17 +830,37 @@ export function DuelArena({
   }
 
   function resolveDeSpell(targetSide: Side, targetIndex: number, fieldSpell = false) {
-    if (!duel || pendingDeSpell === null || duel.playerHand[pendingDeSpell] !== "vol2-de-spell") return;
+    if (!duel || pendingDeSpell === null) return;
+    const spellId = duel.playerHand[pendingDeSpell];
+    if (spellId !== "vol2-de-spell" && spellId !== "stb-remove-trap") return;
     const targetZones = targetSide === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap;
     const targetId = fieldSpell
       ? targetSide === "player" ? duel.playerFieldSpell : duel.cpuFieldSpell
       : targetZones[targetIndex];
     const target = cardById.get(targetId);
     if (!target) return;
+    if (spellId === "stb-remove-trap" && (fieldSpell || !isFaceUpTrapTarget(targetId))) return;
     let next: DuelState = {
       ...removeHandCard(duel, pendingDeSpell),
-      playerGraveyard: [...duel.playerGraveyard, "vol2-de-spell"],
+      playerGraveyard: [...duel.playerGraveyard, spellId],
     };
+    if (spellId === "stb-remove-trap") {
+      next = targetSide === "player"
+        ? {
+          ...next,
+          playerSpellTrap: next.playerSpellTrap.filter((_, index) => index !== targetIndex),
+          playerGraveyard: [...next.playerGraveyard, targetId],
+        }
+        : {
+          ...next,
+          cpuSpellTrap: next.cpuSpellTrap.filter((_, index) => index !== targetIndex),
+          cpuGraveyard: [...next.cpuGraveyard, targetId],
+        };
+      next.log = appendLog(next.log, `罠はずしを発動。${target.name}を破壊。`);
+      setDuel(next);
+      setPendingDeSpell(null);
+      return;
+    }
     if (deSpellDestroys(target.cardType, target.id)) {
       if (fieldSpell) {
         next = targetSide === "player"
@@ -1690,7 +1712,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.6 強化CPU · BUILD 079</strong>
+          <strong>VOL.1〜Vol.6 強化CPU · BUILD 080</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -1981,7 +2003,36 @@ export function DuelArena({
                   );
                 }),
               )}
-              {(["player", "cpu"] as const).map((side) => {
+            </div>
+            <button className="overlay-close" onClick={() => setPendingReborn(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
+      {pendingDeSpell !== null && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">{duel.playerHand[pendingDeSpell] === "stb-remove-trap" ? "REMOVE TRAP" : "DE-SPELL"}</p>
+            <h2>{duel.playerHand[pendingDeSpell] === "stb-remove-trap" ? "破壊する表側罠を選択" : "確認するカードを選択"}</h2>
+            <p>{duel.playerHand[pendingDeSpell] === "stb-remove-trap"
+              ? "発動後もフィールドに残っている表側表示の罠だけを破壊できます。"
+              : "魔法カードなら破壊し、罠カードなら確認後に元へ戻します。"}</p>
+            <div className="spell-target-list">
+              {(["player", "cpu"] as const).flatMap((side) =>
+                (side === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap).map((id, index) => {
+                  const card = cardById.get(id);
+                  if (!card) return null;
+                  const removeTrapMode = duel.playerHand[pendingDeSpell] === "stb-remove-trap";
+                  if (removeTrapMode && !isFaceUpTrapTarget(id)) return null;
+                  const hidden = card.cardType === "trap" && !isFaceUpTrapTarget(id);
+                  return (
+                    <button key={`${side}-${id}-${index}`} onClick={() => resolveDeSpell(side, index)}>
+                      <span>{side === "player" ? "自分" : "CPU"}のフィールド</span>
+                      <strong>{hidden ? "伏せカード" : card.name}</strong>
+                    </button>
+                  );
+                }),
+              )}
+              {duel.playerHand[pendingDeSpell] === "vol2-de-spell" && (["player", "cpu"] as const).map((side) => {
                 const id = side === "player" ? duel.playerFieldSpell : duel.cpuFieldSpell;
                 if (!id) return null;
                 return (
@@ -1991,31 +2042,6 @@ export function DuelArena({
                   </button>
                 );
               })}
-            </div>
-            <button className="overlay-close" onClick={() => setPendingReborn(null)}>キャンセル</button>
-          </div>
-        </div>
-      )}
-      {pendingDeSpell !== null && (
-        <div className="card-overlay spell-target-overlay">
-          <div className="graveyard-panel spell-target-panel">
-            <p className="section-label">DE-SPELL</p>
-            <h2>確認するカードを選択</h2>
-            <p>魔法カードなら破壊し、罠カードなら確認後に元へ戻します。</p>
-            <div className="spell-target-list">
-              {(["player", "cpu"] as const).flatMap((side) =>
-                (side === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap).map((id, index) => {
-                  const card = cardById.get(id);
-                  if (!card) return null;
-                  const hidden = card.cardType === "trap";
-                  return (
-                    <button key={`${side}-${id}-${index}`} onClick={() => resolveDeSpell(side, index)}>
-                      <span>{side === "player" ? "自分" : "CPU"}のフィールド</span>
-                      <strong>{hidden ? "伏せカード" : card.name}</strong>
-                    </button>
-                  );
-                }),
-              )}
             </div>
             <button className="overlay-close" onClick={() => setPendingDeSpell(null)}>キャンセル</button>
           </div>
@@ -2975,6 +3001,7 @@ function playCpuFusion(initial: DuelState): DuelState {
 }
 
 function firstCpuPlayableSpell(state: DuelState): string | null {
+  if (state.cpuHand.includes("stb-remove-trap") && firstFaceUpTrapIndex(state.playerSpellTrap) !== null) return "stb-remove-trap";
   if (state.cpuHand.includes("vol2-de-spell") && (firstSpellTargetIndex(state.playerSpellTrap.map(fieldCardType)) !== null || state.playerFieldSpell)) return "vol2-de-spell";
   if (state.cpuHand.includes("stb-raigeki") && state.playerField.length > 0) return "stb-raigeki";
   if (state.cpuHand.includes("vol1-dark-hole")
@@ -3027,6 +3054,17 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
   const deSpellTarget = firstSpellTargetIndex(
     state.playerSpellTrap.map(fieldCardType),
   );
+  const removeTrapTarget = firstFaceUpTrapIndex(state.playerSpellTrap);
+  if (state.cpuHand.includes("stb-remove-trap") && removeTrapTarget !== null) {
+    const targetId = state.playerSpellTrap[removeTrapTarget];
+    state = {
+      ...removeCpuHandCard(state, "stb-remove-trap"),
+      playerSpellTrap: state.playerSpellTrap.filter((_, index) => index !== removeTrapTarget),
+      playerGraveyard: [...state.playerGraveyard, targetId],
+      cpuGraveyard: [...state.cpuGraveyard, "stb-remove-trap"],
+      log: appendLog(state.log, `CPUが罠はずしを発動。${cardById.get(targetId)?.name ?? "表側罠"}を破壊。`),
+    };
+  }
   if (state.cpuHand.includes("vol2-de-spell") && (deSpellTarget !== null || state.playerFieldSpell)) {
     if (deSpellTarget === null && state.playerFieldSpell) {
       const targetId = state.playerFieldSpell;
@@ -3961,6 +3999,7 @@ function spellDescription(id: string) {
   if (id === "vol2-swords-revealing-light") return "相手モンスターを表にし、相手の攻撃を3ターン封じる";
   if (id === "vol2-monster-reborn") return "自分または相手の墓地からモンスター1体を特殊召喚";
   if (id === "vol2-de-spell") return "フィールドのカード1枚を確認し、魔法カードなら破壊";
+  if (id === "stb-remove-trap") return "表側表示でフィールドに残っている罠カード1枚を破壊";
   if (id === "vol1-fissure") return "相手の表側モンスターのうちATKが一番低い1体を破壊";
   if (id === "vol3-pot-of-greed") return "デッキからカードを2枚ドロー";
   if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
@@ -3993,6 +4032,7 @@ function isSpellImplemented(id: string) {
       "vol5-soul-release",
       "vol5-cheerful-coffin",
       "vol5-change-heart",
+      "stb-remove-trap",
       "stb-polymerization",
       "vol6-polymerization",
       ...FIELD_SPELL_IDS,

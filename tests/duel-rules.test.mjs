@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -117,6 +117,14 @@ test("CPUの死者蘇生は攻撃力が最も高いモンスターを選ぶ", ()
 test("CPUの魔法除去は表側魔法を選び、罠だけなら温存する", () => {
   assert.equal(firstSpellTargetIndex(["trap", "spell", "spell"]), 1);
   assert.equal(firstSpellTargetIndex(["trap", "trap"]), null);
+});
+
+test("罠はずしは発動後も表側で残る罠だけを対象にする", () => {
+  assert.equal(isFaceUpTrapTarget("stb-dragon-capture-jar"), true);
+  assert.equal(isFaceUpTrapTarget("vol5-call-darkness"), true);
+  assert.equal(isFaceUpTrapTarget("vol1-trap-hole"), false);
+  assert.equal(firstFaceUpTrapIndex(["vol1-trap-hole", "vol5-call-darkness"]), 1);
+  assert.equal(firstFaceUpTrapIndex(["vol1-trap-hole"]), null);
 });
 
 test("Vol.3のリバースモンスター5体を正しい効果として扱う", () => {
@@ -357,6 +365,7 @@ test("強化CPUは40枚デッキを使い、同名カードは3枚までにす�
   assert.equal(counts["vol1-gaia"], 2);
   assert.equal(counts["stb-mountain"], 1);
   assert.equal(counts["vol4-acid-storm"], 1);
+  assert.equal(counts["stb-remove-trap"], 1);
 });
 
 test("CPUは勝てる相手を攻撃し、表側の強敵へ自滅攻撃しない", () => {
