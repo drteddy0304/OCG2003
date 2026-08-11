@@ -41,3 +41,8 @@ export function fusionChoices(fusionDeck, materialIds) {
     });
   });
 }
+
+export function bestFusionChoice(fusionDeck, materialIds, attackById) {
+  return fusionChoices(fusionDeck, materialIds)
+    .sort((a, b) => (attackById[b] ?? 0) - (attackById[a] ?? 0))[0] ?? null;
+}

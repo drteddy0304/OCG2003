@@ -265,7 +265,8 @@ export function canDeckSearchTarget(sourceId, target) {
 export const competitiveCpuDeck = Object.freeze([
   ...Array(3).fill("vol3-rogue-doll"),
   ...Array(3).fill("vol3-skull-red-bird"),
-  ...Array(3).fill("vol2-wild-raptor"),
+  "vol2-wild-raptor",
+  ...Array(2).fill("vol1-gaia"),
   ...Array(3).fill("vol2-holy-elf"),
   ...Array(3).fill("vol3-giant-soldier-stone"),
   ...Array(3).fill("vol3-man-eater-bug"),
@@ -280,7 +281,7 @@ export const competitiveCpuDeck = Object.freeze([
   "vol2-swords-revealing-light",
   "vol2-monster-reborn",
   "vol3-pot-of-greed",
-  "vol3-stop-defense",
+  "stb-polymerization",
   "stb-raigeki",
 ]);
 

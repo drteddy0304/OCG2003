@@ -5,7 +5,7 @@ import { cardById, type Card } from "./card-data";
 import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
-import { fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
+import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -126,6 +126,7 @@ type DuelState = {
   playerDeck: string[];
   playerFusionDeck: string[];
   cpuDeck: string[];
+  cpuFusionDeck: string[];
   playerHand: string[];
   cpuHand: string[];
   playerField: ZoneCard[];
@@ -159,6 +160,7 @@ type DuelState = {
 };
 
 const CPU_DECK = [...competitiveCpuDeck];
+const CPU_FUSION_DECK = ["vol3-gaia-dragon-champion", "vol3-gaia-dragon-champion", "vol3-gaia-dragon-champion"];
 const EQUIP_RULES = equipRules;
 
 export function DuelArena({
@@ -309,6 +311,7 @@ export function DuelArena({
       playerDeck: shuffledPlayer.slice(6),
       playerFusionDeck: playerFusionCards,
       cpuDeck: shuffledCpu.slice(5),
+      cpuFusionDeck: [...CPU_FUSION_DECK],
       playerHand: playerDraw,
       cpuHand: cpuDraw,
       playerField: [],
@@ -1647,8 +1650,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 071</strong>
-          <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 072</strong>
+          <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -2789,6 +2792,76 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   return openBlastJugglerPrompt(playerStart);
 }
 
+function cpuFusionPlan(state: DuelState) {
+  const spellId = state.cpuHand.includes("stb-polymerization")
+    ? "stb-polymerization"
+    : state.cpuHand.includes("vol6-polymerization") ? "vol6-polymerization" : null;
+  if (!spellId) return null;
+  const handWithoutSpell = removeCardCopies(state.cpuHand, spellId, 1);
+  const materialIds = [...handWithoutSpell, ...state.cpuField.map((zone) => zone.id)];
+  const viableFusionIds = fusionChoices(state.cpuFusionDeck, materialIds).filter((fusionId) => {
+    const recipe = fusionRecipe(fusionId);
+    if (!recipe) return false;
+    const remainingHand = [...handWithoutSpell];
+    let fieldMaterials = 0;
+    for (const materialId of recipe) {
+      const handIndex = remainingHand.indexOf(materialId);
+      if (handIndex >= 0) remainingHand.splice(handIndex, 1);
+      else fieldMaterials += 1;
+    }
+    const fusionAttack = cardById.get(fusionId)?.atk ?? 0;
+    const strongestMaterial = Math.max(...recipe.map((id) => cardById.get(id)?.atk ?? 0));
+    return state.cpuField.length - fieldMaterials < FIELD_LIMIT && fusionAttack > strongestMaterial;
+  });
+  const attackById = Object.fromEntries(viableFusionIds.map((id) => [id, cardById.get(id)?.atk ?? 0]));
+  const fusionId = bestFusionChoice(viableFusionIds, materialIds, attackById);
+  return fusionId ? { spellId, fusionId } : null;
+}
+
+function playCpuFusion(initial: DuelState): DuelState {
+  const plan = cpuFusionPlan(initial);
+  if (!plan) return initial;
+  const recipe = fusionRecipe(plan.fusionId);
+  if (!recipe) return initial;
+  let cpuHand = removeCardCopies(initial.cpuHand, plan.spellId, 1);
+  let cpuField = [...initial.cpuField];
+  const fieldMaterials: ZoneCard[] = [];
+  const handMaterials: string[] = [];
+  for (const materialId of recipe) {
+    const handIndex = cpuHand.indexOf(materialId);
+    if (handIndex >= 0) {
+      cpuHand.splice(handIndex, 1);
+      handMaterials.push(materialId);
+      continue;
+    }
+    const fieldIndex = cpuField.findIndex((zone) => zone.id === materialId);
+    if (fieldIndex < 0) return initial;
+    fieldMaterials.push(cpuField[fieldIndex]);
+    cpuField.splice(fieldIndex, 1);
+  }
+  const fusion = cardById.get(plan.fusionId);
+  cpuField.push({
+    id: plan.fusionId,
+    position: "attack",
+    faceDown: false,
+    attacked: false,
+    equipped: [],
+    summonedTurn: initial.turnNumber,
+    positionChanged: false,
+  });
+  let next: DuelState = {
+    ...initial,
+    cpuHand,
+    cpuField,
+    cpuFusionDeck: removeCardCopies(initial.cpuFusionDeck, plan.fusionId, 1),
+    cpuSpellTrap: discardEquips(initial.cpuSpellTrap, fieldMaterials),
+    cpuGraveyard: [...initial.cpuGraveyard, plan.spellId, ...handMaterials, ...graveCards(fieldMaterials)],
+    log: appendLog(initial.log, `CPUが「融合」を発動。${fusion?.name ?? "融合モンスター"}を融合召喚。`),
+  };
+  next = applyDeckSearchTriggers(next, [], fieldMaterials);
+  return next;
+}
+
 function firstCpuPlayableSpell(state: DuelState): string | null {
   if (state.cpuHand.includes("vol2-de-spell") && firstSpellTargetIndex(state.playerSpellTrap.map(fieldCardType)) !== null) return "vol2-de-spell";
   if (state.cpuHand.includes("stb-raigeki") && state.playerField.length > 0) return "stb-raigeki";
@@ -2806,6 +2879,8 @@ function firstCpuPlayableSpell(state: DuelState): string | null {
   if (state.cpuHand.includes("vol3-stop-defense") && state.playerField.some((zone) => zone.position === "defense"
     && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)))) return "vol3-stop-defense";
   if (state.cpuHand.includes("vol3-gravedigger-ghoul") && state.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster")) return "vol3-gravedigger-ghoul";
+  const fusionPlan = cpuFusionPlan(state);
+  if (fusionPlan) return fusionPlan.spellId;
   return state.cpuHand.find((id) => simpleSpellEffect(id) && shouldCpuUseSimpleSpell(id, state.cpuLp, STARTING_LP)) ?? null;
 }
 
@@ -3017,6 +3092,8 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       };
     }
   }
+
+  state = playCpuFusion(state);
 
   for (const spellId of [...state.cpuHand]) {
     const effect = simpleSpellEffect(spellId);
