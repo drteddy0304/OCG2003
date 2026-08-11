@@ -29,6 +29,10 @@ export function shouldCpuActivateSwords(
   fieldLimit?: number,
 ): boolean;
 
+export function raceDestructionKind(id: string): string | null;
+export function isRaceDestructionTarget(id: string, kind: string, faceDown: boolean): boolean;
+export function shouldCpuUseRaceDestructionSpell(id: string, cpuKinds: string[], opponentKinds: string[]): boolean;
+
 export function strongestAttackIndex(attacks: number[]): number | null;
 
 export function shouldPlayerChooseFlipTarget(

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -308,6 +308,19 @@ test("CPUは相手より自分への恩恵が大きいフィールド魔法だ�
   assert.equal(bestCpuFieldSpell(["stb-mountain"], ["戦士族"], ["ドラゴン族"]), null);
 });
 
+test("Vol.4の種族破壊魔法5枚を判定し、CPUは相手の損失が大きい時だけ使う", () => {
+  assert.equal(raceDestructionKind("vol4-eternal-drought"), "水族");
+  assert.equal(raceDestructionKind("vol4-breath-god"), "岩石族");
+  assert.equal(raceDestructionKind("vol4-acid-storm"), "機械族");
+  assert.equal(raceDestructionKind("vol4-warrior-elimination"), "戦士族");
+  assert.equal(raceDestructionKind("vol4-insecticide"), "昆虫族");
+  assert.equal(isRaceDestructionTarget("vol4-acid-storm", "機械族", false), true);
+  assert.equal(isRaceDestructionTarget("vol4-acid-storm", "機械族", true), false);
+  assert.equal(isRaceDestructionTarget("vol4-acid-storm", "雷族", false), false);
+  assert.equal(shouldCpuUseRaceDestructionSpell("vol4-acid-storm", [], ["機械族"]), true);
+  assert.equal(shouldCpuUseRaceDestructionSpell("vol4-acid-storm", ["機械族"], ["機械族"]), false);
+});
+
 test("クリッターと黒き森のウィッチはそれぞれATK・DEF1500以下を検索する", () => {
   assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "monster", atk: 1500, def: 2000 }), true);
   assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "monster", atk: 1501, def: 0 }), false);
@@ -327,6 +340,7 @@ test("強化CPUは40枚デッキを使い、同名カードは3枚までにす�
   assert.equal(counts["stb-polymerization"], 1);
   assert.equal(counts["vol1-gaia"], 2);
   assert.equal(counts["stb-mountain"], 1);
+  assert.equal(counts["vol4-acid-storm"], 1);
 });
 
 test("CPUは勝てる相手を攻撃し、表側の強敵へ自滅攻撃しない", () => {

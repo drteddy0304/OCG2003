@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -637,6 +637,22 @@ export function DuelArena({
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField)],
       };
       next = applyDeckSearchTriggers(next, [], destroyedCpu);
+    } else if (raceDestructionKind(card.id)) {
+      const matches = (zone: ZoneCard) => isRaceDestructionTarget(card.id, cardById.get(zone.id)?.kind ?? "", zone.faceDown);
+      const destroyedPlayer = next.playerField.filter((zone) => matches(zone) && zone.controlReturn !== "cpu");
+      const returnedCpu = next.playerField.filter((zone) => matches(zone) && zone.controlReturn === "cpu");
+      const destroyedCpu = next.cpuField.filter(matches);
+      if (destroyedPlayer.length + returnedCpu.length + destroyedCpu.length === 0) return;
+      next = {
+        ...next,
+        playerField: next.playerField.filter((zone) => !matches(zone)),
+        cpuField: next.cpuField.filter((zone) => !matches(zone)),
+        playerSpellTrap: discardEquips(next.playerSpellTrap, destroyedPlayer),
+        cpuSpellTrap: discardEquips(next.cpuSpellTrap, [...destroyedCpu, ...returnedCpu]),
+        playerGraveyard: [...next.playerGraveyard, ...graveCards(destroyedPlayer)],
+        cpuGraveyard: [...next.cpuGraveyard, ...graveCards(destroyedCpu), ...graveCards(returnedCpu)],
+      };
+      next = applyDeckSearchTriggers(next, destroyedPlayer, [...destroyedCpu, ...returnedCpu]);
     } else if (simpleSpellEffect(card.id)) {
       const effect = simpleSpellEffect(card.id)!;
       next = {
@@ -1671,7 +1687,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 076</strong>
+          <strong>VOL.1〜Vol.6 強化CPU · BUILD 077</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2943,6 +2959,12 @@ function firstCpuPlayableSpell(state: DuelState): string | null {
   if (state.cpuHand.includes("vol3-stop-defense") && state.playerField.some((zone) => zone.position === "defense"
     && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)))) return "vol3-stop-defense";
   if (state.cpuHand.includes("vol3-gravedigger-ghoul") && state.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster")) return "vol3-gravedigger-ghoul";
+  const raceDestructionSpell = state.cpuHand.find((id) => shouldCpuUseRaceDestructionSpell(
+    id,
+    state.cpuField.filter((zone) => !zone.faceDown).map((zone) => cardById.get(zone.id)?.kind ?? ""),
+    state.playerField.filter((zone) => !zone.faceDown).map((zone) => cardById.get(zone.id)?.kind ?? ""),
+  ));
+  if (raceDestructionSpell) return raceDestructionSpell;
   const fieldSpellId = cpuFieldSpellChoice(state);
   if (fieldSpellId) return fieldSpellId;
   const fusionPlan = cpuFusionPlan(state);
@@ -3042,6 +3064,29 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       playerField: [],
       cpuField: [],
       log: appendLog(state.log, "CPUがブラック・ホールを発動。すべてのモンスターを破壊。"),
+    };
+    state = applyDeckSearchTriggers(state, destroyedPlayer, destroyedCpu);
+  }
+
+  const raceDestructionSpell = state.cpuHand.find((id) => shouldCpuUseRaceDestructionSpell(
+    id,
+    state.cpuField.filter((zone) => !zone.faceDown).map((zone) => cardById.get(zone.id)?.kind ?? ""),
+    state.playerField.filter((zone) => !zone.faceDown).map((zone) => cardById.get(zone.id)?.kind ?? ""),
+  ));
+  const destructionKind = raceDestructionSpell ? raceDestructionKind(raceDestructionSpell) : null;
+  if (raceDestructionSpell && destructionKind) {
+    const matches = (zone: ZoneCard) => isRaceDestructionTarget(raceDestructionSpell, cardById.get(zone.id)?.kind ?? "", zone.faceDown);
+    const destroyedPlayer = state.playerField.filter(matches);
+    const destroyedCpu = state.cpuField.filter(matches);
+    state = {
+      ...removeCpuHandCard(state, raceDestructionSpell),
+      playerField: state.playerField.filter((zone) => !matches(zone)),
+      cpuField: state.cpuField.filter((zone) => !matches(zone)),
+      playerSpellTrap: discardEquips(state.playerSpellTrap, destroyedPlayer),
+      cpuSpellTrap: discardEquips(state.cpuSpellTrap, destroyedCpu),
+      playerGraveyard: [...state.playerGraveyard, ...graveCards(destroyedPlayer)],
+      cpuGraveyard: [...state.cpuGraveyard, raceDestructionSpell, ...graveCards(destroyedCpu)],
+      log: appendLog(state.log, `CPUが${cardById.get(raceDestructionSpell)?.name ?? "種族破壊魔法"}を発動。表側表示の${destructionKind}をすべて破壊。`),
     };
     state = applyDeckSearchTriggers(state, destroyedPlayer, destroyedCpu);
   }

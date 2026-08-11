@@ -60,6 +60,30 @@ export function shouldCpuActivateSwords(opponentMonsterCount, activeSwordsCount,
   return opponentMonsterCount > 0 && activeSwordsCount === 0 && spellTrapCount < fieldLimit;
 }
 
+const raceDestructionSpells = Object.freeze({
+  "vol4-eternal-drought": "水族",
+  "vol4-breath-god": "岩石族",
+  "vol4-acid-storm": "機械族",
+  "vol4-warrior-elimination": "戦士族",
+  "vol4-insecticide": "昆虫族",
+});
+
+export function raceDestructionKind(id) {
+  return raceDestructionSpells[id] ?? null;
+}
+
+export function isRaceDestructionTarget(id, kind, faceDown) {
+  return !faceDown && raceDestructionKind(id) === kind;
+}
+
+export function shouldCpuUseRaceDestructionSpell(id, cpuKinds, opponentKinds) {
+  const kind = raceDestructionKind(id);
+  if (!kind) return false;
+  const cpuTargets = cpuKinds.filter((value) => value === kind).length;
+  const opponentTargets = opponentKinds.filter((value) => value === kind).length;
+  return opponentTargets > cpuTargets;
+}
+
 export function strongestAttackIndex(attacks) {
   if (attacks.length === 0) return null;
   return attacks.reduce((bestIndex, attack, index) => attack > attacks[bestIndex] ? index : bestIndex, 0);
@@ -309,7 +333,8 @@ export const competitiveCpuDeck = Object.freeze([
   ...Array(2).fill("vol2-curse-of-dragon"),
   ...Array(2).fill("vol1-dark-magician"),
   "vol1-dark-hole",
-  ...Array(3).fill("vol1-fissure"),
+  ...Array(2).fill("vol1-fissure"),
+  "vol4-acid-storm",
   ...Array(3).fill("vol1-trap-hole"),
   "vol2-swords-revealing-light",
   "vol2-monster-reborn",
