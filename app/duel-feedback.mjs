@@ -26,8 +26,8 @@ export function feedbackForMessage(message) {
     const trap = trapNames.find((name) => message.includes(name)) ?? "罠カード";
     return [{ kind: "trap", title: "TRAP OPEN", detail: trap, message, duration: 2600 }];
   }
-  if (message.includes("リバース") || message.includes("の効果で")) {
-    const monster = message.match(/(?:の)?([^。]+?)(?:がリバース|の効果で)/)?.[1]?.replace(/^CPUの|^自分の/, "") ?? "モンスター効果";
+  if (message.includes("リバース") || message.includes("の効果で") || message.includes("の効果が発動")) {
+    const monster = message.match(/(?:の)?([^。]+?)(?:がリバース|の効果で|の効果が発動)/)?.[1]?.replace(/^CPUの|^自分の/, "") ?? "モンスター効果";
     return [{ kind: "effect", title: "MONSTER EFFECT", detail: monster, message, duration: 2600 }];
   }
   if (message.includes("直接攻撃")) {

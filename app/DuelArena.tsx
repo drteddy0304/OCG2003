@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -1872,7 +1872,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 092</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 093</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3653,37 +3653,49 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     : effectiveDef(defenderZone, state, defenderSide);
   const { attackerDestroyed, defenderDestroyed, attackerDamage, defenderDamage } =
     battleOutcome(attackValue, defenseValue, defenderZone.position);
+  const removal = battleRemovalOutcome(attacker.id, defender.id, attackerDestroyed, defenderDestroyed);
+  const dimensionalBanish = removal.banishBoth;
   const unhappyMaidenDestroyed = endsBattlePhaseOnBattleDestruction(attacker.id, attackerDestroyed)
     || endsBattlePhaseOnBattleDestruction(defender.id, defenderDestroyed);
 
-  const nextAttackerField = attackerDestroyed ? attackerField.filter((_, index) => index !== attackerIndex) : attackerField;
-  const nextDefenderField = defenderDestroyed ? defenderField.filter((_, index) => index !== defenderIndex) : defenderField;
+  const nextAttackerField = removal.removeAttacker ? attackerField.filter((_, index) => index !== attackerIndex) : attackerField;
+  const nextDefenderField = removal.removeDefender ? defenderField.filter((_, index) => index !== defenderIndex) : defenderField;
   const attackerLpName = attackerSide === "player" ? "プレイヤー" : "CPU";
   const defenderLpName = attackerSide === "player" ? "CPU" : "プレイヤー";
   const destroyedPlayerZones = [
-    ...(attackerDestroyed && attackerSide === "player" ? [attackerZone] : []),
-    ...(defenderDestroyed && attackerSide === "cpu" ? [defenderZone] : []),
+    ...(removal.graveAttacker && attackerSide === "player" ? [attackerZone] : []),
+    ...(removal.graveDefender && attackerSide === "cpu" ? [defenderZone] : []),
   ];
   const destroyedCpuZones = [
-    ...(attackerDestroyed && attackerSide === "cpu" ? [attackerZone] : []),
-    ...(defenderDestroyed && attackerSide === "player" ? [defenderZone] : []),
+    ...(removal.graveAttacker && attackerSide === "cpu" ? [attackerZone] : []),
+    ...(removal.graveDefender && attackerSide === "player" ? [defenderZone] : []),
   ];
+  const banishedPlayerZones = dimensionalBanish
+    ? attackerSide === "player" ? [attackerZone] : [defenderZone]
+    : [];
+  const banishedCpuZones = dimensionalBanish
+    ? attackerSide === "cpu" ? [attackerZone] : [defenderZone]
+    : [];
   const returnedDestroyedZones = destroyedPlayerZones.filter((zone) => zone.controlReturn === "cpu");
   const ownedDestroyedPlayerZones = destroyedPlayerZones.filter((zone) => zone.controlReturn !== "cpu");
+  const returnedBanishedZones = banishedPlayerZones.filter((zone) => zone.controlReturn === "cpu");
+  const ownedBanishedPlayerZones = banishedPlayerZones.filter((zone) => zone.controlReturn !== "cpu");
   let next = {
     ...state,
     [attackerFieldKey]: nextAttackerField,
     [defenderFieldKey]: nextDefenderField,
     [attackerLpKey]: attackerLpAfterCost - attackerDamage,
     [defenderLpKey]: state[defenderLpKey] - defenderDamage,
-    playerSpellTrap: discardEquips(state.playerSpellTrap, ownedDestroyedPlayerZones),
-    cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpuZones, ...returnedDestroyedZones]),
-    playerGraveyard: [...state.playerGraveyard, ...graveCards(ownedDestroyedPlayerZones)],
-    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones), ...graveCards(returnedDestroyedZones)],
+    playerSpellTrap: discardEquips(state.playerSpellTrap, [...ownedDestroyedPlayerZones, ...ownedBanishedPlayerZones]),
+    cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpuZones, ...returnedDestroyedZones, ...banishedCpuZones, ...returnedBanishedZones]),
+    playerGraveyard: [...state.playerGraveyard, ...graveCards(ownedDestroyedPlayerZones), ...equipGraveCards(ownedBanishedPlayerZones)],
+    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones), ...graveCards(returnedDestroyedZones), ...equipGraveCards(banishedCpuZones), ...equipGraveCards(returnedBanishedZones)],
     log: appendLog(
       attackLog,
       `${attacker.name}が${defender.name}を攻撃。${
-        attackerDestroyed && defenderDestroyed
+        dimensionalBanish
+          ? `${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : defenderDamage ? `${defenderLpName}に${defenderDamage}ダメージ。` : ""}`
+          : attackerDestroyed && defenderDestroyed
           ? "両方を破壊。"
           : defenderDestroyed
             ? `${defender.name}を破壊。${defenderDamage ? `${defenderLpName}に${defenderDamage}ダメージ。` : ""}`
@@ -3693,6 +3705,9 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
       }`,
     ),
   } as DuelState;
+  if (dimensionalBanish) {
+    next.log = appendLog(next.log, `異次元の戦士の効果が発動。${attacker.name}と${defender.name}をゲームから除外。`);
+  }
   if (attackLockedTurn !== null) {
     next.log = appendLog(next.log, `でんきトカゲの効果が発動。${attacker.name}は次の自分ターンに攻撃できない。`);
   }
@@ -4197,6 +4212,10 @@ function discardEquips(spellTrap: string[], zones: ZoneCard[]) {
 
 function graveCards(zones: ZoneCard[]) {
   return zones.flatMap((zone) => [zone.id, ...zone.equipped]);
+}
+
+function equipGraveCards(zones: ZoneCard[]) {
+  return zones.flatMap((zone) => zone.equipped);
 }
 
 function applyDeckSearchTriggers(state: DuelState, playerZones: ZoneCard[] = [], cpuZones: ZoneCard[] = []): DuelState {

@@ -19,6 +19,7 @@ test("守備表示を倒せなかった時は攻撃と守備成功の演出を�
 test("効果・魔法・罠を別々の演出として判定する", () => {
   assert.equal(feedbackForMessage("人喰い虫がリバース。モンスターを破壊した。")[0].kind, "effect");
   assert.equal(feedbackForMessage("キャノン・ソルジャーの効果でワイトを生け贄にし、CPUに500ダメージ。")[0].kind, "effect");
+  assert.equal(feedbackForMessage("異次元の戦士の効果が発動。2体をゲームから除外。")[0].kind, "effect");
   assert.equal(feedbackForMessage("ブラック・ホールを発動。")[0].kind, "spell");
   assert.equal(feedbackForMessage("落とし穴を発動。モンスターを破壊。")[0].kind, "trap");
   assert.equal(feedbackForMessage("CPUがミラーフォースを発動。攻撃表示モンスターを破壊。")[0].kind, "trap");

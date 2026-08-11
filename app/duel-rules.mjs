@@ -17,6 +17,21 @@ export function battleOutcome(attack, defense, defenderPosition) {
   return { attackerDestroyed: false, defenderDestroyed: false, attackerDamage: 0, defenderDamage: 0 };
 }
 
+export function dimensionalWarriorBanishes(attackerId, defenderId) {
+  return Boolean(defenderId) && (attackerId === "vol7-dimensional-warrior" || defenderId === "vol7-dimensional-warrior");
+}
+
+export function battleRemovalOutcome(attackerId, defenderId, attackerDestroyed, defenderDestroyed) {
+  const banishBoth = dimensionalWarriorBanishes(attackerId, defenderId);
+  return {
+    banishBoth,
+    removeAttacker: banishBoth || attackerDestroyed,
+    removeDefender: banishBoth || defenderDestroyed,
+    graveAttacker: !banishBoth && attackerDestroyed,
+    graveDefender: !banishBoth && defenderDestroyed,
+  };
+}
+
 export const equipRules = Object.freeze({
   "vol1-legendary-sword": "戦士族",
   "vol1-beast-fangs": "獣族",
