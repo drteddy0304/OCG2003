@@ -5,6 +5,7 @@ import { cardById, type Card } from "./card-data";
 import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
+import { fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -98,6 +99,12 @@ type PendingCheerfulCoffin = {
   spellIndex: number;
   selected: string[];
 };
+type FusionMaterialSelection = { source: "hand" | "field"; index: number; id: string };
+type PendingFusion = {
+  spellIndex: number;
+  fusionId: string | null;
+  selected: FusionMaterialSelection[];
+};
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
 type ZoneCard = {
@@ -171,6 +178,7 @@ export function DuelArena({
   const [pendingTributeToDoomed, setPendingTributeToDoomed] = useState<PendingTributeToDoomed | null>(null);
   const [pendingSoulRelease, setPendingSoulRelease] = useState<PendingSoulRelease | null>(null);
   const [pendingCheerfulCoffin, setPendingCheerfulCoffin] = useState<PendingCheerfulCoffin | null>(null);
+  const [pendingFusion, setPendingFusion] = useState<PendingFusion | null>(null);
   const [pendingChangeOfHeart, setPendingChangeOfHeart] = useState<number | null>(null);
   const [pendingCannonSoldier, setPendingCannonSoldier] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
@@ -214,6 +222,7 @@ export function DuelArena({
     && pendingTributeToDoomed === null
     && pendingSoulRelease === null
     && pendingCheerfulCoffin === null
+    && pendingFusion === null
     && pendingChangeOfHeart === null
     && pendingCannonSoldier === null
     && pendingEgotist === null
@@ -290,6 +299,7 @@ export function DuelArena({
     setPendingTributeToDoomed(null);
     setPendingSoulRelease(null);
     setPendingCheerfulCoffin(null);
+    setPendingFusion(null);
     setPendingChangeOfHeart(null);
     setPendingCannonSoldier(null);
     setCpuPlayback(null);
@@ -553,6 +563,18 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "stb-polymerization" || card.id === "vol6-polymerization") {
+      const choices = fusionChoices(
+        duel.playerFusionDeck,
+        [...duel.playerHand.filter((_, index) => index !== handIndex), ...duel.playerField.map((zone) => zone.id)],
+      );
+      if (duel.playerField.length >= FIELD_LIMIT || choices.length === 0) return;
+      setPendingFusion({ spellIndex: handIndex, fusionId: null, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
     if (card.id === "vol2-swords-revealing-light") {
       if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
       const next = removeHandCard(duel, handIndex);
@@ -646,6 +668,56 @@ export function DuelArena({
     } else return;
     next.log = appendLog(next.log, `${card.name}を発動。`);
     setDuel(next);
+  }
+
+  function chooseFusionMonster(fusionId: string) {
+    if (!duel || !pendingFusion) return;
+    const available = fusionChoices(
+      duel.playerFusionDeck,
+      [...duel.playerHand.filter((_, index) => index !== pendingFusion.spellIndex), ...duel.playerField.map((zone) => zone.id)],
+    );
+    if (!available.includes(fusionId)) return;
+    setPendingFusion({ ...pendingFusion, fusionId, selected: [] });
+  }
+
+  function chooseFusionMaterial(source: "hand" | "field", index: number) {
+    if (!duel || !pendingFusion?.fusionId) return;
+    const recipe = fusionRecipe(pendingFusion.fusionId);
+    const requiredId = recipe?.[pendingFusion.selected.length];
+    const id = source === "hand" ? duel.playerHand[index] : duel.playerField[index]?.id;
+    if (!requiredId || id !== requiredId || (source === "hand" && index === pendingFusion.spellIndex)) return;
+    if (pendingFusion.selected.some((choice) => choice.source === source && choice.index === index)) return;
+    setPendingFusion({ ...pendingFusion, selected: [...pendingFusion.selected, { source, index, id }] });
+  }
+
+  function resolveFusion(position: Position) {
+    if (!duel || !pendingFusion?.fusionId || pendingFusion.selected.length !== 2 || duel.playerField.length >= FIELD_LIMIT) return;
+    const recipe = fusionRecipe(pendingFusion.fusionId);
+    if (!recipe || !recipe.every((id, index) => pendingFusion.selected[index]?.id === id)) return;
+    const handIndexes = new Set([pendingFusion.spellIndex, ...pendingFusion.selected.filter((choice) => choice.source === "hand").map((choice) => choice.index)]);
+    const fieldIndexes = new Set(pendingFusion.selected.filter((choice) => choice.source === "field").map((choice) => choice.index));
+    const fieldMaterials = duel.playerField.filter((_, index) => fieldIndexes.has(index));
+    const fusionName = cardById.get(pendingFusion.fusionId)?.name ?? "融合モンスター";
+    let next: DuelState = {
+      ...duel,
+      playerHand: duel.playerHand.filter((_, index) => !handIndexes.has(index)),
+      playerField: [
+        ...duel.playerField.filter((_, index) => !fieldIndexes.has(index)),
+        { id: pendingFusion.fusionId, position, faceDown: false, attacked: false, equipped: [], summonedTurn: duel.turnNumber, positionChanged: false },
+      ],
+      playerFusionDeck: removeCardCopies(duel.playerFusionDeck, pendingFusion.fusionId, 1),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, fieldMaterials),
+      playerGraveyard: [
+        ...duel.playerGraveyard,
+        duel.playerHand[pendingFusion.spellIndex],
+        ...pendingFusion.selected.filter((choice) => choice.source === "hand").map((choice) => choice.id),
+        ...graveCards(fieldMaterials),
+      ],
+      log: appendLog(duel.log, `「融合」を発動。${fusionName}を融合召喚。`),
+    };
+    next = applyDeckSearchTriggers(next, fieldMaterials, []);
+    setDuel(next);
+    setPendingFusion(null);
   }
 
   function summonHarpie(source: "hand" | "deck", cardId: string, position: Position) {
@@ -1575,7 +1647,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 070</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 071</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
@@ -2181,6 +2253,63 @@ export function DuelArena({
           </article>
         </div>
       )}
+      {pendingFusion && (
+        <div className="card-overlay">
+          <article>
+            <p className="section-label">FUSION SUMMON</p>
+            <h2>{pendingFusion.fusionId ? cardById.get(pendingFusion.fusionId)?.name : "融合先を選択"}</h2>
+            {!pendingFusion.fusionId ? (
+              <>
+                <p>融合デッキから、現在の手札・フィールドで召喚できるモンスターを選んでください。</p>
+                <div className="target-list">
+                  {fusionChoices(
+                    duel.playerFusionDeck,
+                    [...duel.playerHand.filter((_, index) => index !== pendingFusion.spellIndex), ...duel.playerField.map((zone) => zone.id)],
+                  ).map((fusionId) => (
+                    <button key={fusionId} onClick={() => chooseFusionMonster(fusionId)}>
+                      <strong>{cardById.get(fusionId)?.name}</strong>
+                      <small>{fusionRecipe(fusionId)?.map((id) => cardById.get(id)?.name).join(" ＋ ")}</small>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <p>素材を表示順に選択します。手札と自分フィールドのどちらから使うか選べます。</p>
+                <div className="selected-summary">
+                  {fusionRecipe(pendingFusion.fusionId)?.map((id, index) => (
+                    <span key={`${id}-${index}`} className={pendingFusion.selected[index] ? "selected" : ""}>
+                      {index + 1}. {cardById.get(id)?.name} {pendingFusion.selected[index] ? `（${pendingFusion.selected[index].source === "hand" ? "手札" : "フィールド"}）` : ""}
+                    </span>
+                  ))}
+                </div>
+                {pendingFusion.selected.length < 2 && (
+                  <div className="target-list">
+                    {duel.playerHand.map((id, index) => id === fusionRecipe(pendingFusion.fusionId!)?.[pendingFusion.selected.length] && index !== pendingFusion.spellIndex ? (
+                      <button key={`fusion-hand-${index}`} onClick={() => chooseFusionMaterial("hand", index)}>
+                        <strong>{cardById.get(id)?.name}</strong><small>手札から素材にする</small>
+                      </button>
+                    ) : null)}
+                    {duel.playerField.map((zone, index) => zone.id === fusionRecipe(pendingFusion.fusionId!)?.[pendingFusion.selected.length] ? (
+                      <button key={`fusion-field-${index}`} onClick={() => chooseFusionMaterial("field", index)}>
+                        <strong>{cardById.get(zone.id)?.name}</strong><small>フィールドから素材にする</small>
+                      </button>
+                    ) : null)}
+                  </div>
+                )}
+                {pendingFusion.selected.length === 2 && (
+                  <div className="overlay-actions">
+                    <button onClick={() => resolveFusion("attack")}>攻撃表示で融合召喚</button>
+                    <button onClick={() => resolveFusion("defense")}>守備表示で融合召喚</button>
+                  </div>
+                )}
+                <button onClick={() => setPendingFusion({ ...pendingFusion, fusionId: null, selected: [] })}>融合先を選び直す</button>
+              </>
+            )}
+            <button onClick={() => setPendingFusion(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
 
       <div className="duel-controls">
         <div className="duel-hand">
@@ -2246,6 +2375,7 @@ export function DuelArena({
                         || pendingTributeToDoomed !== null
                         || pendingSoulRelease !== null
                         || pendingCheerfulCoffin !== null
+                        || pendingFusion !== null
                         || pendingChangeOfHeart !== null
                         || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField, duel, "cpu") === null)
@@ -2264,6 +2394,13 @@ export function DuelArena({
                         || (card.id === "vol5-soul-release" && duel.playerGraveyard.length + duel.cpuGraveyard.length === 0)
                         || (card.id === "vol5-cheerful-coffin" && !canActivateCheerfulCoffin(duel.playerHand.flatMap((id, handIndex) => handIndex === index ? [] : [cardById.get(id)?.cardType ?? ""])))
                         || (card.id === "vol5-change-heart" && !canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT))
+                        || ((card.id === "stb-polymerization" || card.id === "vol6-polymerization") && (
+                          duel.playerField.length >= FIELD_LIMIT
+                          || fusionChoices(
+                            duel.playerFusionDeck,
+                            [...duel.playerHand.filter((_, handIndex) => handIndex !== index), ...duel.playerField.map((zone) => zone.id)],
+                          ).length === 0
+                        ))
                         || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
                           const monster = cardById.get(zone.id);
                           return Boolean(monster && canEquip(card.id, monster));
@@ -3579,6 +3716,7 @@ function spellDescription(id: string) {
   if (id === "vol5-soul-release") return "自分・相手の墓地からカードを合計5枚まで除外する";
   if (id === "vol5-cheerful-coffin") return "手札のモンスターを3枚まで墓地へ送る";
   if (id === "vol5-change-heart") return "相手モンスター1体のコントロールをターン終了時まで得る";
+  if (id === "stb-polymerization" || id === "vol6-polymerization") return "手札・フィールドの決められた素材を墓地へ送り、融合デッキから融合召喚する";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
 }
@@ -3601,6 +3739,8 @@ function isSpellImplemented(id: string) {
       "vol5-soul-release",
       "vol5-cheerful-coffin",
       "vol5-change-heart",
+      "stb-polymerization",
+      "vol6-polymerization",
     ].includes(id);
 }
 

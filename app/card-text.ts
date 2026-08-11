@@ -105,6 +105,7 @@ const descriptions: Record<string, string> = {
   "stb-moyan-curry": "自分のLPを200回復する。",
   "stb-fireball": "相手に500ダメージを与える。",
   "stb-polymerization": "融合素材モンスターを使い、融合モンスター1体を融合召喚する。",
+  "vol6-polymerization": "自分の手札・フィールドのモンスターを融合素材とし、融合モンスター1体を融合召喚する。",
   "stb-remove-trap": "フィールドの表側表示の罠カード1枚を破壊する。",
   "stb-two-pronged-attack": "自分のモンスター2体を破壊し、相手のモンスター1体を破壊する。",
 };
