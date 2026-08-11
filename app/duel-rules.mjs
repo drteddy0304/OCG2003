@@ -121,6 +121,10 @@ export function attackDeclarationCost(id, lifePoints) {
   return lifePoints > 1000 ? 1000 : null;
 }
 
+export function endsBattlePhaseOnBattleDestruction(id, destroyed) {
+  return id === "vol7-unhappy-maiden" && destroyed;
+}
+
 export function ironScorpionDestroyTurn(defenderId, attackerKind, currentTurn) {
   return defenderId === "vol4-iron-scorpion" && attackerKind !== "機械族"
     ? currentTurn + 4
