@@ -116,6 +116,11 @@ export function canDeclareAttackOnTurn(attackLockedTurn, currentTurn) {
   return attackLockedTurn !== currentTurn;
 }
 
+export function attackDeclarationCost(id, lifePoints) {
+  if (id !== "vol7-dark-elf") return 0;
+  return lifePoints > 1000 ? 1000 : null;
+}
+
 export function ironScorpionDestroyTurn(defenderId, attackerKind, currentTurn) {
   return defenderId === "vol4-iron-scorpion" && attackerKind !== "機械族"
     ? currentTurn + 4

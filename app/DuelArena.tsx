@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -1145,7 +1145,7 @@ export function DuelArena({
   function chooseAttacker(index: number) {
     if (!duel || duel.turn !== "player" || duel.phase !== "battle" || duel.turnNumber === 1 || duel.result || duel.cpuSwordsTurns.length > 0) return;
     const zone = duel.playerField[index];
-    if (!zone || zone.position !== "attack" || zone.attacked || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber)) return;
+    if (!zone || zone.position !== "attack" || zone.attacked || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || attackDeclarationCost(zone.id, duel.playerLp) === null) return;
     if (duel.cpuField.length === 0) {
       setDuel(resolveBattle(duel, "player", index, null));
       setSelectedAttacker(null);
@@ -1777,7 +1777,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 083</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 084</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2741,6 +2741,7 @@ function FieldRow({
         if (!card) return null;
         const hidden = owner === "cpu" && zone.faceDown;
         const attackLocked = !canDeclareAttackOnTurn(zone.attackLockedTurn, state.turnNumber);
+        const cannotPayAttackCost = owner === "player" && attackDeclarationCost(zone.id, state.playerLp) === null;
         const scorpionTurns = zone.ironScorpionDestroyTurn === undefined
           ? null
           : Math.max(0, Math.ceil((zone.ironScorpionDestroyTurn - state.turnNumber) / 2));
@@ -2750,7 +2751,7 @@ function FieldRow({
           <div className="field-slot" key={`${zone.id}-${index}`}>
             <button
               className={`field-card ${zone.position} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
-              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || !canAttack || zone.position !== "attack" || zone.attacked || attackLocked}
+              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || !canAttack || zone.position !== "attack" || zone.attacked || attackLocked || cannotPayAttackCost}
               onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
             >
               <strong>{hidden ? "伏せモンスター" : card.name}</strong>
@@ -2758,10 +2759,11 @@ function FieldRow({
               {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
               {!hidden && card.effect && <small className="field-effect-badge">効果モンスター</small>}
               {!hidden && attackLocked && <small className="field-effect-badge">でんきトカゲ・攻撃不可</small>}
+              {!hidden && zone.id === "vol7-dark-elf" && <small className="field-effect-badge">攻撃時1000LP</small>}
               {!hidden && scorpionTurns !== null && <small className="field-effect-badge">鉄のサソリ・あと{scorpionTurns}自ターン</small>}
               {!hidden && zone.controlReturn === "cpu" && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
-              {owner === "player" && zone.position === "attack" && <small>{attackLocked ? "次のターンまで攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
+              {owner === "player" && zone.position === "attack" && <small>{attackLocked ? "次のターンまで攻撃不可" : cannotPayAttackCost ? "LP不足で攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
             </button>
             {showPositionChange && (
               <button className="position-change" onClick={() => onPositionChange?.(index)}>
@@ -2955,6 +2957,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     for (let index = state.cpuField.length - 1; index >= 0 && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
+      if (attackDeclarationCost(attacker.id, state.cpuLp) === null) continue;
       if (state.playerField.length === 0) {
         state = resolveBattle(state, "cpu", index, null);
         continue;
@@ -3480,12 +3483,18 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   const attackerZone = attackerField[attackerIndex];
   const attacker = cardById.get(attackerZone.id);
   if (!attacker) return state;
+  const attackCost = attackDeclarationCost(attacker.id, state[attackerLpKey]);
+  if (attackCost === null) return state;
+  const attackerLpAfterCost = state[attackerLpKey] - attackCost;
+  const attackLog = attackCost > 0
+    ? appendLog(state.log, `${attacker.name}の攻撃コストとして1000LPを支払った。`)
+    : state.log;
   attackerZone.attacked = true;
 
   if (defenderIndex === null || !defenderField[defenderIndex]) {
     const damage = effectiveAtk(attackerZone, state, attackerSide);
-    let next = { ...state, [attackerFieldKey]: attackerField, [defenderLpKey]: state[defenderLpKey] - damage } as DuelState;
-    next.log = appendLog(state.log, `${attacker.name}の直接攻撃。${damage}ダメージ。`);
+    let next = { ...state, [attackerFieldKey]: attackerField, [attackerLpKey]: attackerLpAfterCost, [defenderLpKey]: state[defenderLpKey] - damage } as DuelState;
+    next.log = appendLog(attackLog, `${attacker.name}の直接攻撃。${damage}ダメージ。`);
     if (next[defenderLpKey] > 0) next = resolveBattleDamageEffect(next, attackerSide, attacker.id, damage);
     if (next[defenderLpKey] <= 0) next.result = attackerSide === "player" ? "win" : "lose";
     return next;
@@ -3527,14 +3536,14 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     ...state,
     [attackerFieldKey]: nextAttackerField,
     [defenderFieldKey]: nextDefenderField,
-    [attackerLpKey]: state[attackerLpKey] - attackerDamage,
+    [attackerLpKey]: attackerLpAfterCost - attackerDamage,
     [defenderLpKey]: state[defenderLpKey] - defenderDamage,
     playerSpellTrap: discardEquips(state.playerSpellTrap, ownedDestroyedPlayerZones),
     cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpuZones, ...returnedDestroyedZones]),
     playerGraveyard: [...state.playerGraveyard, ...graveCards(ownedDestroyedPlayerZones)],
     cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones), ...graveCards(returnedDestroyedZones)],
     log: appendLog(
-      state.log,
+      attackLog,
       `${attacker.name}が${defender.name}を攻撃。${
         attackerDestroyed && defenderDestroyed
           ? "両方を破壊。"
