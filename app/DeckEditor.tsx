@@ -3,14 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { cardById, cards, packs, type Card, type Rarity } from "./card-data";
 import { cardDescription, rarityNames } from "./card-text";
-import { matchesDeckFilters, sanitizeDeckCounts, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter, type RarityFilter } from "./deck-rules.mjs";
+import { deckComposition, matchesDeckFilters, normalizeDeckLibrary, type AttributeFilter, type DeckCardTypeFilter, type MonsterClassFilter, type RaceFilter, type RarityFilter } from "./deck-rules.mjs";
 import { cardCopyLimit, cardLimitStatus, LIMIT_REGULATION_DATE } from "./limit-regulation.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
 const FAVORITES_STORAGE_KEY = "ocg2003.deck.favorites.v1";
+const DECK_LIBRARY_STORAGE_KEY = "ocg2003.deck.library.v1";
+const ACTIVE_DECK_SLOT_STORAGE_KEY = "ocg2003.deck.active-slot.v1";
 const MIN_DECK_SIZE = 40;
+const DECK_SLOTS = [1, 2, 3, 4, 5] as const;
 type SortOrder = "name" | "level" | "atk" | "def";
+type DeckSlot = typeof DECK_SLOTS[number];
+type SavedDeckSlot = { main: Record<string, number>; fusion: Record<string, number> };
+type DeckLibrary = Record<string, SavedDeckSlot>;
 
 const MONSTER_ATTRIBUTES = [...new Set(cards.flatMap((card) => card.cardType === "monster" && card.attribute ? [card.attribute] : []))];
 const MONSTER_RACES = [...new Set(cards.flatMap((card) => card.cardType === "monster" ? [card.kind] : []))].sort((a, b) => a.localeCompare(b, "ja"));
@@ -21,7 +27,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<DeckCardTypeFilter>("all");
   const [monsterClass, setMonsterClass] = useState<MonsterClassFilter>("all");
-  const [level, setLevel] = useState<LevelFilter>("all");
+  const [levels, setLevels] = useState<number[]>([]);
   const [attribute, setAttribute] = useState<AttributeFilter>("all");
   const [race, setRace] = useState<RaceFilter>("all");
   const [rarity, setRarity] = useState<RarityFilter>("all");
@@ -29,16 +35,24 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>("name");
+  const [activeDeckSlot, setActiveDeckSlot] = useState<DeckSlot>(1);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
       const savedFusion = JSON.parse(localStorage.getItem(FUSION_DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
-      const valid = sanitizeDeckCounts(saved, collection, cardById, false);
-      const validFusion = sanitizeDeckCounts(savedFusion, collection, cardById, true);
+      const storedLibrary = JSON.parse(localStorage.getItem(DECK_LIBRARY_STORAGE_KEY) ?? "null") as DeckLibrary | null;
+      const library = normalizeDeckLibrary(storedLibrary, saved, savedFusion, collection, cardById, DECK_SLOTS.length) as DeckLibrary;
+      const storedActiveSlot = Number(localStorage.getItem(ACTIVE_DECK_SLOT_STORAGE_KEY));
+      const activeSlot = DECK_SLOTS.includes(storedActiveSlot as DeckSlot) ? storedActiveSlot as DeckSlot : 1;
+      const valid = library[activeSlot].main;
+      const validFusion = library[activeSlot].fusion;
+      setActiveDeckSlot(activeSlot);
       setDeck(valid);
       setFusionDeck(validFusion);
+      localStorage.setItem(DECK_LIBRARY_STORAGE_KEY, JSON.stringify(library));
+      localStorage.setItem(ACTIVE_DECK_SLOT_STORAGE_KEY, String(activeSlot));
       localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(valid));
       localStorage.setItem(FUSION_DECK_STORAGE_KEY, JSON.stringify(validFusion));
       const savedFavorites = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? "{}") as Record<string, boolean>;
@@ -54,6 +68,8 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
       localStorage.removeItem(DECK_STORAGE_KEY);
       localStorage.removeItem(FUSION_DECK_STORAGE_KEY);
       localStorage.removeItem(FAVORITES_STORAGE_KEY);
+      localStorage.removeItem(DECK_LIBRARY_STORAGE_KEY);
+      localStorage.removeItem(ACTIVE_DECK_SLOT_STORAGE_KEY);
     } finally {
       setReady(true);
     }
@@ -67,15 +83,16 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     () => Object.values(fusionDeck).reduce((sum, count) => sum + count, 0),
     [fusionDeck],
   );
+  const composition = useMemo(() => deckComposition(deck, cardById), [deck]);
 
   const filteredCards = useMemo(() => {
     return cards.filter((card) => {
       if (!collection[card.id]) return false;
       if (favoritesOnly && !favorites[card.id]) return false;
       if (packFilter !== "all" && !packs.find((pack) => pack.id === packFilter)?.cardIds.includes(card.id)) return false;
-      return matchesDeckFilters(card, query, filter, monsterClass, level, attribute, race, rarity, cardDescription(card));
+      return matchesDeckFilters(card, query, filter, monsterClass, levels, attribute, race, rarity, cardDescription(card));
     });
-  }, [attribute, collection, favorites, favoritesOnly, filter, level, monsterClass, packFilter, query, race, rarity]);
+  }, [attribute, collection, favorites, favoritesOnly, filter, levels, monsterClass, packFilter, query, race, rarity]);
 
   const deckCards = useMemo(
     () => cards.filter((card) => deck[card.id]).sort(compareCards),
@@ -86,14 +103,40 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     [fusionDeck],
   );
 
+  function saveActiveSlot(nextMain: Record<string, number>, nextFusion: Record<string, number>) {
+    const library = JSON.parse(localStorage.getItem(DECK_LIBRARY_STORAGE_KEY) ?? "{}") as DeckLibrary;
+    library[activeDeckSlot] = { main: nextMain, fusion: nextFusion };
+    localStorage.setItem(DECK_LIBRARY_STORAGE_KEY, JSON.stringify(library));
+    localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(nextMain));
+    localStorage.setItem(FUSION_DECK_STORAGE_KEY, JSON.stringify(nextFusion));
+  }
+
   function saveDeck(next: Record<string, number>) {
     setDeck(next);
-    localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(next));
+    saveActiveSlot(next, fusionDeck);
   }
 
   function saveFusionDeck(next: Record<string, number>) {
     setFusionDeck(next);
-    localStorage.setItem(FUSION_DECK_STORAGE_KEY, JSON.stringify(next));
+    saveActiveSlot(deck, next);
+  }
+
+  function selectDeckSlot(slot: DeckSlot) {
+    const library = JSON.parse(localStorage.getItem(DECK_LIBRARY_STORAGE_KEY) ?? "{}") as DeckLibrary;
+    const selected = library[slot] ?? { main: {}, fusion: {} };
+    setActiveDeckSlot(slot);
+    setDeck(selected.main);
+    setFusionDeck(selected.fusion);
+    localStorage.setItem(ACTIVE_DECK_SLOT_STORAGE_KEY, String(slot));
+    localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(selected.main));
+    localStorage.setItem(FUSION_DECK_STORAGE_KEY, JSON.stringify(selected.fusion));
+  }
+
+  function resetActiveDeck() {
+    if (!window.confirm(`デッキ${activeDeckSlot}のメインデッキと融合デッキを空にしますか？`)) return;
+    setDeck({});
+    setFusionDeck({});
+    saveActiveSlot({}, {});
   }
 
   function addCard(id: string) {
@@ -132,7 +175,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     setQuery("");
     setFilter("all");
     setMonsterClass("all");
-    setLevel("all");
+    setLevels([]);
     setAttribute("all");
     setRace("all");
     setRarity("all");
@@ -160,6 +203,25 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
           : `あと${MIN_DECK_SIZE - total}枚でデュエル可能`}
       </div>
 
+      <div className="deck-slot-toolbar" aria-label="保存デッキ切り替え">
+        <div className="deck-slot-buttons">
+          {DECK_SLOTS.map((slot) => (
+            <button className={activeDeckSlot === slot ? "active" : ""} key={slot} onClick={() => selectDeckSlot(slot)}>
+              デッキ{slot}
+            </button>
+          ))}
+        </div>
+        <button className="reset-active-deck" onClick={resetActiveDeck}>デッキ{activeDeckSlot}をリセット</button>
+      </div>
+
+      <div className="deck-composition" aria-label="デッキ枚数バランス">
+        <div><span>モンスター</span><strong>{composition.monsters}</strong></div>
+        <div><span>通常</span><strong>{composition.normalMonsters}</strong></div>
+        <div><span>効果</span><strong>{composition.effectMonsters}</strong></div>
+        <div><span>魔法</span><strong>{composition.spells}</strong></div>
+        <div><span>罠</span><strong>{composition.traps}</strong></div>
+      </div>
+
       <div className="deck-workspace">
         <div className="deck-panel">
           <div className="panel-title"><h3>所持カード</h3><span>{filteredCards.length}種</span></div>
@@ -181,7 +243,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                   setFilter(value);
                   if (value === "spell" || value === "trap") {
                     setMonsterClass("all");
-                    setLevel("all");
+                    setLevels([]);
                     setAttribute("all");
                     setRace("all");
                   }
@@ -207,19 +269,22 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                 >{label}</button>
               ))}
             </div>
-            <label className="level-filter">
+            <div className="level-filter level-multi-filter">
               <span>★レベル</span>
-              <select value={level} onChange={(event) => {
-                const value = event.target.value as LevelFilter;
-                setLevel(value);
-                if (value !== "all") setFilter("monster");
-              }}>
-                <option value="all">すべて</option>
+              <div>
                 {Array.from({ length: 12 }, (_, index) => index + 1).map((value) => (
-                  <option value={String(value)} key={value}>★{value}</option>
+                  <button
+                    className={levels.includes(value) ? "active" : ""}
+                    key={value}
+                    onClick={() => {
+                      setLevels((current) => current.includes(value) ? current.filter((level) => level !== value) : [...current, value]);
+                      setFilter("monster");
+                    }}
+                    aria-pressed={levels.includes(value)}
+                  >★{value}</button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
             <label className="attribute-filter">
               <span>属性</span>
               <select value={attribute} onChange={(event) => {

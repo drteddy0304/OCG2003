@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { matchesDeckFilters, sanitizeDeckCounts } from "../app/deck-rules.mjs";
+import { deckComposition, matchesDeckFilters, normalizeDeckLibrary, sanitizeDeckCounts } from "../app/deck-rules.mjs";
 
 const effectMonster = { name: "人喰い虫", cardType: "monster", kind: "昆虫族", attribute: "地", level: 2, effect: true };
 const fusionMonster = { name: "竜騎士ガイア", cardType: "monster", kind: "ドラゴン族", attribute: "風", level: 7, fusion: true };
@@ -18,6 +18,17 @@ test("★の数と文字検索を組み合わせられる", () => {
   assert.equal(matchesDeckFilters(effectMonster, "★2", "all", "all", "2"), true);
   assert.equal(matchesDeckFilters(effectMonster, "効果", "all", "all", "7"), false);
   assert.equal(matchesDeckFilters(fusionMonster, "融合", "monster", "fusion", "7"), true);
+});
+
+test("★3と★7のように複数レベルを同時に絞り込める", () => {
+  assert.equal(matchesDeckFilters(effectMonster, "", "monster", "all", [3, 7]), false);
+  assert.equal(matchesDeckFilters(fusionMonster, "", "monster", "all", [3, 7]), true);
+  assert.equal(matchesDeckFilters({ ...normalMonster, level: 3 }, "", "monster", "all", [3, 7]), true);
+});
+
+test("効果モンスターという文字でも検索できる", () => {
+  assert.equal(matchesDeckFilters(effectMonster, "効果モンスター", "all", "all", []), true);
+  assert.equal(matchesDeckFilters(normalMonster, "効果モンスター", "all", "all", []), false);
 });
 
 test("属性と種族で絞り込める", () => {
@@ -70,4 +81,29 @@ test("2003年10月改訂の制限・準制限枚数を保存デッキにも適�
     semi: 2,
     unlimited: 3,
   });
+});
+
+test("デッキ内の通常・効果モンスター、魔法、罠の枚数を集計する", () => {
+  const cardsById = new Map([
+    ["normal", { cardType: "monster" }],
+    ["effect", { cardType: "monster", effect: true }],
+    ["spell", { cardType: "spell" }],
+    ["trap", { cardType: "trap" }],
+  ]);
+  assert.deepEqual(deckComposition({ normal: 3, effect: 2, spell: 10, trap: 5 }, cardsById), {
+    monsters: 5,
+    normalMonsters: 3,
+    effectMonsters: 2,
+    spells: 10,
+    traps: 5,
+  });
+});
+
+test("既存デッキをデッキ1へ残したまま5つの保存枠を作る", () => {
+  const cardsById = new Map([["normal", { cardType: "monster" }]]);
+  const library = normalizeDeckLibrary(null, { normal: 2 }, {}, { normal: 5 }, cardsById);
+  assert.equal(Object.keys(library).length, 5);
+  assert.deepEqual(library[1].main, { normal: 2 });
+  assert.deepEqual(library[2].main, {});
+  assert.deepEqual(library[5].fusion, {});
 });
