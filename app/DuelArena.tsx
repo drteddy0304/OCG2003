@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -117,6 +117,7 @@ type ZoneCard = {
   positionChanged: boolean;
   guardianEffectUsed?: boolean;
   attackLockedTurn?: number;
+  ironScorpionDestroyTurn?: number;
   blastPromptedTurn?: number;
   cocoonEquippedTurn?: number;
   controlReturn?: Side;
@@ -1181,6 +1182,7 @@ export function DuelArena({
           : playerEnd.log,
       };
     }
+    playerEnd = resolveIronScorpionEndPhase(playerEnd);
     playerEnd = returnChangedMonsters(playerEnd);
     const cpuStart: DuelState = {
       ...playerEnd,
@@ -1688,7 +1690,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.6 強化CPU · BUILD 078</strong>
+          <strong>VOL.1〜Vol.6 強化CPU · BUILD 079</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2605,6 +2607,9 @@ function FieldRow({
         if (!card) return null;
         const hidden = owner === "cpu" && zone.faceDown;
         const attackLocked = !canDeclareAttackOnTurn(zone.attackLockedTurn, state.turnNumber);
+        const scorpionTurns = zone.ironScorpionDestroyTurn === undefined
+          ? null
+          : Math.max(0, Math.ceil((zone.ironScorpionDestroyTurn - state.turnNumber) / 2));
         const validEquipTarget = equipTarget && !zone.faceDown && Boolean(equipId && canEquip(equipId, card));
         const showPositionChange = owner === "player" && canChangePosition?.(index);
         return (
@@ -2619,6 +2624,7 @@ function FieldRow({
               {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
               {!hidden && card.effect && <small className="field-effect-badge">効果モンスター</small>}
               {!hidden && attackLocked && <small className="field-effect-badge">でんきトカゲ・攻撃不可</small>}
+              {!hidden && scorpionTurns !== null && <small className="field-effect-badge">鉄のサソリ・あと{scorpionTurns}自ターン</small>}
               {!hidden && zone.controlReturn === "cpu" && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
               {owner === "player" && zone.position === "attack" && <small>{attackLocked ? "次のターンまで攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
@@ -2767,6 +2773,27 @@ function returnChangedMonsters(state: DuelState): DuelState {
   };
 }
 
+function resolveIronScorpionEndPhase(state: DuelState): DuelState {
+  const isDue = (zone: ZoneCard) => isIronScorpionDestructionDue(zone.ironScorpionDestroyTurn, state.turnNumber);
+  const destroyedOnPlayerField = state.playerField.filter(isDue);
+  const destroyedCpu = state.cpuField.filter(isDue);
+  if (destroyedOnPlayerField.length + destroyedCpu.length === 0) return state;
+  const returnedCpu = destroyedOnPlayerField.filter((zone) => zone.controlReturn === "cpu");
+  const destroyedPlayer = destroyedOnPlayerField.filter((zone) => zone.controlReturn !== "cpu");
+  let next: DuelState = {
+    ...state,
+    playerField: state.playerField.filter((zone) => !isDue(zone)),
+    cpuField: state.cpuField.filter((zone) => !isDue(zone)),
+    playerSpellTrap: discardEquips(state.playerSpellTrap, destroyedPlayer),
+    cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpu, ...returnedCpu]),
+    playerGraveyard: [...state.playerGraveyard, ...graveCards(destroyedPlayer)],
+    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpu), ...graveCards(returnedCpu)],
+    log: appendLog(state.log, `鉄のサソリの効果でモンスター${destroyedOnPlayerField.length + destroyedCpu.length}体を破壊。`),
+  };
+  next = applyDeckSearchTriggers(next, destroyedPlayer, [...destroyedCpu, ...returnedCpu]);
+  return next;
+}
+
 function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   let state: DuelState = { ...initial, pendingTrapResponse: null };
   if (!resumeBattle) {
@@ -2814,6 +2841,8 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     }
   }
   if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse) return state;
+
+  state = resolveIronScorpionEndPhase(state);
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
   if (swords.expired > 0) {
@@ -3312,6 +3341,10 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   if (!defender) return state;
   const attackLockedTurn = electricLizardAttackLockTurn(defender.id, attacker.kind, state.turnNumber);
   if (attackLockedTurn !== null) attackerZone.attackLockedTurn = attackLockedTurn;
+  const scorpionDestroyTurn = ironScorpionDestroyTurn(defender.id, attacker.kind, state.turnNumber);
+  if (scorpionDestroyTurn !== null) {
+    attackerZone.ironScorpionDestroyTurn = Math.min(attackerZone.ironScorpionDestroyTurn ?? scorpionDestroyTurn, scorpionDestroyTurn);
+  }
   if (guardianEffect) defenderZone.guardianEffectUsed = true;
   const defenderSide: Side = attackerSide === "player" ? "cpu" : "player";
   const attackValue = guardianAdjustedAttack(effectiveAtk(attackerZone, state, attackerSide), guardianEffect);
@@ -3358,6 +3391,9 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   } as DuelState;
   if (attackLockedTurn !== null) {
     next.log = appendLog(next.log, `でんきトカゲの効果が発動。${attacker.name}は次の自分ターンに攻撃できない。`);
+  }
+  if (scorpionDestroyTurn !== null) {
+    next.log = appendLog(next.log, `鉄のサソリの効果が発動。${attacker.name}は攻撃側の3ターン目終了時に破壊される。`);
   }
   next = applyDeckSearchTriggers(next, ownedDestroyedPlayerZones, [...destroyedCpuZones, ...returnedDestroyedZones]);
   if (defenderDamage > 0 && next[defenderLpKey] > 0) {

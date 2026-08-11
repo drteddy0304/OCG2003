@@ -45,7 +45,7 @@ const descriptions: Record<string, string> = {
   "vol3-gravedigger-ghoul": "相手の墓地からモンスターを2体まで除外する。",
   "vol4-cocoon-evolution": "手札から表側表示のプチモスに装備できる。装備中はATK0・DEF2000になる。",
   "vol4-magician-faith": "リバース：自分の墓地から魔法カード1枚を手札に戻す。",
-  "vol4-iron-scorpion": "このカードと戦闘した機械族以外のモンスターに時限カウンターを置き、3ターン後に破壊する。",
+  "vol4-iron-scorpion": "機械族以外がこのカードを攻撃した場合、その攻撃側の3ターン目のエンドフェイズに破壊する。",
   "vol4-electric-lizard": "このカードを攻撃したアンデット族以外のモンスターは、次のターン攻撃できない。",
   "vol4-mask-darkness": "リバース：自分の墓地から罠カード1枚を手札に戻す。",
   "vol4-harpie-sisters": "通常召喚できない。万華鏡－華麗なる分身－の効果で特殊召喚する。",

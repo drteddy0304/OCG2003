@@ -116,6 +116,16 @@ export function canDeclareAttackOnTurn(attackLockedTurn, currentTurn) {
   return attackLockedTurn !== currentTurn;
 }
 
+export function ironScorpionDestroyTurn(defenderId, attackerKind, currentTurn) {
+  return defenderId === "vol4-iron-scorpion" && attackerKind !== "機械族"
+    ? currentTurn + 4
+    : null;
+}
+
+export function isIronScorpionDestructionDue(destroyTurn, currentTurn) {
+  return destroyTurn === currentTurn;
+}
+
 const battleDamageEffects = Object.freeze({
   "vol5-white-magical-hat": "discard-random",
   "vol5-masked-sorcerer": "draw",

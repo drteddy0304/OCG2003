@@ -44,6 +44,8 @@ export function shouldPlayerChooseFlipTarget(
 export function canMonsterAttackDirectly(id: string): boolean;
 export function electricLizardAttackLockTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
 export function canDeclareAttackOnTurn(attackLockedTurn: number | undefined, currentTurn: number): boolean;
+export function ironScorpionDestroyTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
+export function isIronScorpionDestructionDue(destroyTurn: number | undefined, currentTurn: number): boolean;
 
 export type BattleDamageEffect = "discard-random" | "draw";
 export function battleDamageEffect(id: string): BattleDamageEffect | null;

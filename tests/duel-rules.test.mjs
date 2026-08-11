@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -181,6 +181,14 @@ test("でんきトカゲを攻撃したアンデット族以外は次の自分�
   assert.equal(electricLizardAttackLockTurn("vol3-man-eater-bug", "戦士族", 3), null);
   assert.equal(canDeclareAttackOnTurn(5, 5), false);
   assert.equal(canDeclareAttackOnTurn(5, 7), true);
+});
+
+test("鉄のサソリを攻撃した機械族以外は攻撃側の3ターン目終了時に破壊される", () => {
+  assert.equal(ironScorpionDestroyTurn("vol4-iron-scorpion", "戦士族", 3), 7);
+  assert.equal(ironScorpionDestroyTurn("vol4-iron-scorpion", "機械族", 3), null);
+  assert.equal(ironScorpionDestroyTurn("vol4-electric-lizard", "戦士族", 3), null);
+  assert.equal(isIronScorpionDestructionDue(7, 5), false);
+  assert.equal(isIronScorpionDestructionDue(7, 7), true);
 });
 
 test("Vol.5の戦闘ダメージ発動効果を判定する", () => {
