@@ -64,6 +64,7 @@ export function moveDeckCard(cards: string[], fromIndex: number, toIndex: number
 export function canActivateTributeToDoomed(handSize: number, fieldMonsterCount: number): boolean;
 export function toggleLimitedSelection(values: string[], value: string, limit?: number): string[];
 export function canActivateCheerfulCoffin(cardTypes: string[]): boolean;
+export function canActivateTwoProngedAttack(playerMonsterCount: number, opponentMonsterCount: number, trapIds: string[]): boolean;
 export function isGuardianMonster(id: string): boolean;
 export function guardianAdjustedAttack(attack: number, activate: boolean): number;
 export function canBlastJugglerTarget(faceDown: boolean, attack: number): boolean;

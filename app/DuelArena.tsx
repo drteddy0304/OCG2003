@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -71,6 +71,11 @@ type PendingFakeTrap = {
   targetIndex: number;
   targetId: string;
   fakeTrapIndex: number;
+};
+type PendingTwoPronged = {
+  trapIndex: number;
+  selectedPlayer: number[];
+  selectedCpu: number | null;
 };
 type PendingBlastJuggler = {
   monsterIndex: number;
@@ -157,6 +162,7 @@ type DuelState = {
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
   pendingFakeTrap: PendingFakeTrap | null;
+  pendingTwoPronged: PendingTwoPronged | null;
   pendingFlipTarget: PendingFlipTarget | null;
   pendingDeckReorder: PendingDeckReorder | null;
   pendingDeckSearch: PendingDeckSearch | null;
@@ -223,6 +229,7 @@ export function DuelArena({
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
     && !duel.pendingFakeTrap
+    && !duel.pendingTwoPronged
     && !duel.pendingFlipTarget
     && !duel.pendingDeckReorder
     && !duel.pendingDeckSearch
@@ -345,6 +352,7 @@ export function DuelArena({
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
       pendingFakeTrap: null,
+      pendingTwoPronged: null,
       pendingFlipTarget: null,
       pendingDeckReorder: null,
       pendingDeckSearch: null,
@@ -1488,6 +1496,63 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function toggleTwoProngedPlayer(index: number) {
+    if (!duel?.pendingTwoPronged || !duel.playerField[index]) return;
+    const selected = duel.pendingTwoPronged.selectedPlayer;
+    const nextSelected = selected.includes(index)
+      ? selected.filter((value) => value !== index)
+      : selected.length < 2 ? [...selected, index] : selected;
+    setDuel({
+      ...duel,
+      pendingTwoPronged: { ...duel.pendingTwoPronged, selectedPlayer: nextSelected },
+    });
+  }
+
+  function selectTwoProngedCpu(index: number) {
+    if (!duel?.pendingTwoPronged || !duel.cpuField[index]) return;
+    setDuel({
+      ...duel,
+      pendingTwoPronged: { ...duel.pendingTwoPronged, selectedCpu: index },
+    });
+  }
+
+  function resolveTwoPronged(activate: boolean) {
+    if (!duel?.pendingTwoPronged) return;
+    const pending = duel.pendingTwoPronged;
+    const marker = "はさみ撃ちの発動確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingTwoPronged: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (activate) {
+      if (pending.selectedPlayer.length !== 2 || pending.selectedCpu === null) return;
+      if (duel.playerSpellTrap[pending.trapIndex] !== "stb-two-pronged-attack") return;
+      const playerIndexes = new Set(pending.selectedPlayer);
+      const destroyedOnPlayerField = duel.playerField.filter((_, index) => playerIndexes.has(index));
+      const destroyedCpuTarget = duel.cpuField[pending.selectedCpu];
+      if (destroyedOnPlayerField.length !== 2 || !destroyedCpuTarget) return;
+      const returnedCpu = destroyedOnPlayerField.filter((zone) => zone.controlReturn === "cpu");
+      const destroyedPlayer = destroyedOnPlayerField.filter((zone) => zone.controlReturn !== "cpu");
+      const remainingPlayerSpellTrap = duel.playerSpellTrap.filter((_, index) => index !== pending.trapIndex);
+      resumed = {
+        ...resumed,
+        playerField: duel.playerField.filter((_, index) => !playerIndexes.has(index)),
+        cpuField: duel.cpuField.filter((_, index) => index !== pending.selectedCpu),
+        playerSpellTrap: discardEquips(remainingPlayerSpellTrap, destroyedPlayer),
+        cpuSpellTrap: discardEquips(duel.cpuSpellTrap, [destroyedCpuTarget, ...returnedCpu]),
+        playerGraveyard: [...duel.playerGraveyard, "stb-two-pronged-attack", ...graveCards(destroyedPlayer)],
+        cpuGraveyard: [...duel.cpuGraveyard, ...graveCards([destroyedCpuTarget]), ...graveCards(returnedCpu)],
+        log: appendLog(resumed.log, "はさみ撃ちを発動。自分のモンスター2体とCPUモンスター1体を同時に破壊。"),
+      };
+      resumed = applyDeckSearchTriggers(resumed, destroyedPlayer, [destroyedCpuTarget, ...returnedCpu]);
+    } else {
+      resumed = { ...resumed, log: appendLog(resumed.log, "はさみ撃ちを発動しませんでした。") };
+    }
+    const finalState = finishCpuTurn(resumed, true);
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
   function respondToGuardian(activate: boolean) {
     if (!duel?.pendingGuardianResponse) return;
     const pending = duel.pendingGuardianResponse;
@@ -1712,7 +1777,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.6 強化CPU · BUILD 080</strong>
+          <strong>VOL.1〜Vol.6 強化CPU · BUILD 081</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -1798,6 +1863,8 @@ export function DuelArena({
                 {cpuPlayback.index >= cpuPlayback.messages.length - 1
                   ? cpuPlayback.finalState.pendingTrapResponse
                     ? "落とし穴の発動確認へ"
+                    : cpuPlayback.finalState.pendingTwoPronged
+                      ? "はさみ撃ちの発動確認へ"
                     : cpuPlayback.finalState.pendingMagicJammer
                       ? "マジック・ジャマーの発動確認へ"
                     : cpuPlayback.finalState.pendingHornOfHeaven
@@ -1837,6 +1904,47 @@ export function DuelArena({
               <button className="activate-trap" onClick={() => respondToTrap(true)}>発動する</button>
               <button onClick={() => respondToTrap(false)}>発動しない</button>
             </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingTwoPronged && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">TWO-PRONGED ATTACK</p>
+            <h2>はさみ撃ちを発動しますか？</h2>
+            <p>自分のモンスター2体とCPUモンスター1体を選択してください。裏側表示も選べます。</p>
+            <h3>自分のモンスター（{duel.pendingTwoPronged.selectedPlayer.length}/2）</h3>
+            <div className="spell-target-list">
+              {duel.playerField.map((zone, index) => (
+                <button
+                  className={duel.pendingTwoPronged!.selectedPlayer.includes(index) ? "selected" : ""}
+                  key={`two-pronged-player-${zone.id}-${index}`}
+                  onClick={() => toggleTwoProngedPlayer(index)}
+                >
+                  <span>{duel.pendingTwoPronged!.selectedPlayer.includes(index) ? "選択中" : "自分フィールド"}</span>
+                  <strong>{zone.faceDown ? "伏せモンスター" : cardById.get(zone.id)?.name}</strong>
+                </button>
+              ))}
+            </div>
+            <h3>CPUモンスター（1体）</h3>
+            <div className="spell-target-list">
+              {duel.cpuField.map((zone, index) => (
+                <button
+                  className={duel.pendingTwoPronged!.selectedCpu === index ? "selected" : ""}
+                  key={`two-pronged-cpu-${zone.id}-${index}`}
+                  onClick={() => selectTwoProngedCpu(index)}
+                >
+                  <span>{duel.pendingTwoPronged!.selectedCpu === index ? "選択中" : "CPUフィールド"}</span>
+                  <strong>{zone.faceDown ? "伏せモンスター" : cardById.get(zone.id)?.name}</strong>
+                </button>
+              ))}
+            </div>
+            <button
+              className="overlay-close"
+              disabled={duel.pendingTwoPronged.selectedPlayer.length !== 2 || duel.pendingTwoPronged.selectedCpu === null}
+              onClick={() => resolveTwoPronged(true)}
+            >選んだ3体を破壊</button>
+            <button onClick={() => resolveTwoPronged(false)}>発動しない</button>
           </div>
         </div>
       )}
@@ -2828,6 +2936,17 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       ...state,
       cpuField: state.cpuField.map((zone) => ({ ...zone, attacked: false })),
     };
+    if (canActivateTwoProngedAttack(state.playerField.length, state.cpuField.length, state.playerSpellTrap)) {
+      return {
+        ...state,
+        pendingTwoPronged: {
+          trapIndex: state.playerSpellTrap.indexOf("stb-two-pronged-attack"),
+          selectedPlayer: [],
+          selectedCpu: null,
+        },
+        log: appendLog(state.log, "CPUのバトル前。はさみ撃ちを発動しますか？"),
+      };
+    }
   }
   state = { ...state, phase: "battle" };
   if (state.playerSwordsTurns.length > 0) {
@@ -4045,6 +4164,7 @@ function trapDescription(id: string) {
   if (id === "vol5-call-darkness") return "死者蘇生を使用できなくし、死者蘇生で蘇ったモンスターを墓地へ送る";
   if (id === "vol5-fake-trap") return "自分の罠カードが破壊される時、代わりにこのカードを破壊する";
   if (id === "stb-dragon-capture-jar") return "表側のドラゴン族を守備表示にし、表示形式の変更を封じる";
+  if (id === "stb-two-pronged-attack") return "自分のモンスター2体と相手のモンスター1体を選び、同時に破壊する";
   if (id === "vol6-seven-tools") return "1000LPを払い、罠カードの発動を無効にして破壊する";
   if (id === "vol6-magic-jammer") return "手札を1枚捨て、魔法カードの発動を無効にして破壊する";
   if (id === "vol6-horn-heaven") return "自分のモンスター1体を生け贄にし、モンスターの召喚を無効にして破壊する";
@@ -4053,7 +4173,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment";
 }
 
 function monsterDescription(id: string) {

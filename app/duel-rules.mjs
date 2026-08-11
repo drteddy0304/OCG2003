@@ -171,6 +171,10 @@ export function canActivateCheerfulCoffin(cardTypes) {
   return cardTypes.includes("monster");
 }
 
+export function canActivateTwoProngedAttack(playerMonsterCount, opponentMonsterCount, trapIds) {
+  return playerMonsterCount >= 2 && opponentMonsterCount >= 1 && trapIds.includes("stb-two-pronged-attack");
+}
+
 const guardianMonsters = new Set(["vol5-sanga", "vol5-kazejin", "vol5-suijin"]);
 
 export function isGuardianMonster(id) {
