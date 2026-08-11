@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { cardById, cards, packs, type Card, type Rarity } from "./card-data";
 import { cardDescription, rarityNames } from "./card-text";
 import { matchesDeckFilters, sanitizeDeckCounts, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter, type RarityFilter } from "./deck-rules.mjs";
+import { cardCopyLimit, cardLimitStatus, LIMIT_REGULATION_DATE } from "./limit-regulation.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
 const FAVORITES_STORAGE_KEY = "ocg2003.deck.favorites.v1";
-const COPY_LIMIT = 3;
 const MIN_DECK_SIZE = 40;
 type SortOrder = "name" | "level" | "atk" | "def";
 
@@ -101,7 +101,8 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     const targetDeck = fusion ? fusionDeck : deck;
     const current = targetDeck[id] ?? 0;
     const owned = collection[id] ?? 0;
-    if (current >= owned || current >= COPY_LIMIT) return;
+    const copyLimit = cardCopyLimit(cardById.get(id)!);
+    if (current >= owned || current >= copyLimit) return;
     const next = { ...targetDeck, [id]: current + 1 };
     if (fusion) saveFusionDeck(next);
     else saveDeck(next);
@@ -145,7 +146,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
         <div>
           <p className="section-label">DECK EDITOR</p>
           <h2>デッキ編集</h2>
-          <p>メインは40枚以上。融合デッキは当時仕様の枚数上限なし。同名カードは各3枚まで。</p>
+          <p>メインは40枚以上。{LIMIT_REGULATION_DATE.replaceAll("-", ".")}適用の制限・準制限カードに対応。禁止カードはありません。</p>
         </div>
         <div className={`deck-total ${total >= MIN_DECK_SIZE ? "valid" : ""}`}>
           <strong>{ready ? total : "—"}</strong>
@@ -281,12 +282,13 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
             {filteredCards.length ? [...filteredCards].sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || compareCardsBy(a, b, sortOrder)).map((card) => {
               const used = (card.fusion ? fusionDeck : deck)[card.id] ?? 0;
               const owned = collection[card.id] ?? 0;
+              const copyLimit = cardCopyLimit(card);
               return (
                 <DeckRow
                   actionLabel={card.fusion ? "融合へ" : "追加"}
                   card={card}
                   count={`${used} / ${owned}`}
-                  disabled={used >= owned || used >= COPY_LIMIT}
+                  disabled={used >= owned || used >= copyLimit}
                   key={card.id}
                   onAction={() => addCard(card.id)}
                   favorite={Boolean(favorites[card.id])}
@@ -373,6 +375,11 @@ function DeckRow({
     <article className={`deck-row row-${card.cardType}`}>
       <div>
         <strong>{card.name}</strong>
+        {cardLimitStatus(card) !== "unlimited" && (
+          <span className={`deck-limit-badge ${cardLimitStatus(card)}`}>
+            {cardLimitStatus(card) === "limited" ? "制限・1枚まで" : "準制限・2枚まで"}
+          </span>
+        )}
         <span>{typeLabel}</span>
         {(card.effect || card.fusion || card.cardType !== "monster") && <span className="deck-effect-text">{cardDescription(card)}</span>}
         {card.cardType === "monster" && <span className="monster-stats">ATK {card.atk} / DEF {card.def}</span>}

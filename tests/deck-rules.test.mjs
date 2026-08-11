@@ -56,3 +56,18 @@ test("メインデッキと融合デッキを分離して所持数・同名3枚�
   assert.deepEqual(sanitizeDeckCounts(counts, collection, cardsById, false), { normal: 2 });
   assert.deepEqual(sanitizeDeckCounts(counts, collection, cardsById, true), { fusion: 3 });
 });
+
+test("2003年10月改訂の制限・準制限枚数を保存デッキにも適用する", () => {
+  const cardsById = new Map([
+    ["limited", { name: "強欲な壺", cardType: "spell" }],
+    ["semi", { name: "増援", cardType: "spell" }],
+    ["unlimited", { name: "地割れ", cardType: "spell" }],
+  ]);
+  const counts = { limited: 3, semi: 3, unlimited: 3 };
+  const collection = { limited: 5, semi: 5, unlimited: 5 };
+  assert.deepEqual(sanitizeDeckCounts(counts, collection, cardsById, false), {
+    limited: 1,
+    semi: 2,
+    unlimited: 3,
+  });
+});

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
 import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -1868,7 +1869,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 087</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 088</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4055,13 +4056,17 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
 
 function expandDeck(counts: Record<string, number>) {
   return Object.entries(counts).flatMap(([id, count]) =>
-    cardById.has(id) && !cardById.get(id)?.fusion && Number.isInteger(count) && count > 0 ? Array(Math.min(3, count)).fill(id) : [],
+    cardById.has(id) && !cardById.get(id)?.fusion && Number.isInteger(count) && count > 0
+      ? Array(Math.min(cardCopyLimit(cardById.get(id)!), count)).fill(id)
+      : [],
   );
 }
 
 function expandFusionDeck(counts: Record<string, number>) {
   return Object.entries(counts).flatMap(([id, count]) =>
-    cardById.get(id)?.fusion && Number.isInteger(count) && count > 0 ? Array(Math.min(3, count)).fill(id) : [],
+    cardById.get(id)?.fusion && Number.isInteger(count) && count > 0
+      ? Array(Math.min(cardCopyLimit(cardById.get(id)!), count)).fill(id)
+      : [],
   );
 }
 

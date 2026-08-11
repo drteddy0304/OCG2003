@@ -394,11 +394,16 @@ test("クリッターと黒き森のウィッチはそれぞれATK・DEF1500以�
   assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "spell" }), false);
 });
 
-test("強化CPUは40枚デッキを使い、同名カードは3枚までにする", () => {
+test("強化CPUは40枚デッキを使い、2003年10月の制限枚数を守る", () => {
   assert.equal(competitiveCpuDeck.length, 40);
   const counts = competitiveCpuDeck.reduce((result, id) => ({ ...result, [id]: (result[id] ?? 0) + 1 }), {});
   assert.ok(Math.max(...Object.values(counts)) <= 3);
   assert.equal(counts["vol1-dark-hole"], 1);
+  assert.equal(counts["vol2-swords-revealing-light"], 1);
+  assert.equal(counts["vol2-monster-reborn"], 1);
+  assert.equal(counts["vol3-pot-of-greed"], 1);
+  assert.equal(counts["stb-raigeki"], 1);
+  assert.equal(counts["vol7-mirror-force"], 1);
   assert.equal(counts["vol2-monster-reborn"], 1);
   assert.equal(counts["vol3-pot-of-greed"], 1);
   assert.ok(counts["vol3-man-eater-bug"] >= 1);

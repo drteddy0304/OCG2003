@@ -1,3 +1,5 @@
+import { cardCopyLimit } from "./limit-regulation.mjs";
+
 export function matchesDeckFilters(card, query, cardType, monsterClass, level, attribute = "all", race = "all", rarity = "all", description = "") {
   if (cardType !== "all" && card.cardType !== cardType) return false;
   if (monsterClass !== "all") {
@@ -23,7 +25,7 @@ export function sanitizeDeckCounts(counts, collection, cardsById, fusion) {
     const card = cardsById.get(id);
     const owned = collection[id] ?? 0;
     if (card && Boolean(card.fusion) === fusion && Number.isInteger(count) && count > 0 && owned > 0) {
-      result[id] = Math.min(count, owned, 3);
+      result[id] = Math.min(count, owned, cardCopyLimit(card));
     }
     return result;
   }, {});
