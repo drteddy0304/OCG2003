@@ -531,7 +531,7 @@ export function DuelArena({
     }
 
     if (card.id === "vol2-de-spell") {
-      if (duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0) return;
+      if (duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell) return;
       setPendingDeSpell(handIndex);
       setSelectedAttacker(null);
       setSelectedEquip(null);
@@ -809,10 +809,12 @@ export function DuelArena({
     setPendingReborn(null);
   }
 
-  function resolveDeSpell(targetSide: Side, targetIndex: number) {
+  function resolveDeSpell(targetSide: Side, targetIndex: number, fieldSpell = false) {
     if (!duel || pendingDeSpell === null || duel.playerHand[pendingDeSpell] !== "vol2-de-spell") return;
     const targetZones = targetSide === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap;
-    const targetId = targetZones[targetIndex];
+    const targetId = fieldSpell
+      ? targetSide === "player" ? duel.playerFieldSpell : duel.cpuFieldSpell
+      : targetZones[targetIndex];
     const target = cardById.get(targetId);
     if (!target) return;
     let next: DuelState = {
@@ -820,7 +822,11 @@ export function DuelArena({
       playerGraveyard: [...duel.playerGraveyard, "vol2-de-spell"],
     };
     if (deSpellDestroys(target.cardType, target.id)) {
-      if (targetSide === "player") {
+      if (fieldSpell) {
+        next = targetSide === "player"
+          ? { ...next, playerFieldSpell: null, playerGraveyard: [...next.playerGraveyard, targetId] }
+          : { ...next, cpuFieldSpell: null, cpuGraveyard: [...next.cpuGraveyard, targetId] };
+      } else if (targetSide === "player") {
         const swordsIndex = targetId === "vol2-swords-revealing-light"
           ? duel.playerSpellTrap.slice(0, targetIndex + 1).filter((id) => id === targetId).length - 1
           : -1;
@@ -1665,7 +1671,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 074</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 075</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -1956,6 +1962,16 @@ export function DuelArena({
                   );
                 }),
               )}
+              {(["player", "cpu"] as const).map((side) => {
+                const id = side === "player" ? duel.playerFieldSpell : duel.cpuFieldSpell;
+                if (!id) return null;
+                return (
+                  <button key={`${side}-field-spell`} onClick={() => resolveDeSpell(side, -1, true)}>
+                    <span>{side === "player" ? "自分" : "CPU"}のフィールド魔法</span>
+                    <strong>{cardById.get(id)?.name}</strong>
+                  </button>
+                );
+              })}
             </div>
             <button className="overlay-close" onClick={() => setPendingReborn(null)}>キャンセル</button>
           </div>
@@ -2409,7 +2425,7 @@ export function DuelArena({
                           || ![...duel.playerGraveyard, ...duel.cpuGraveyard]
                             .some((id) => cardById.get(id)?.cardType === "monster")
                         ))
-                        || (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0)
+                        || (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell)
                         || (card.id === "vol3-pot-of-greed" && duel.playerDeck.length < 2)
                         || (card.id === "vol3-stop-defense" && !duel.cpuField.some((zone) => zone.position === "defense"))
                         || (card.id === "vol3-gravedigger-ghoul" && !duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "monster"))
@@ -2884,7 +2900,7 @@ function playCpuFusion(initial: DuelState): DuelState {
 }
 
 function firstCpuPlayableSpell(state: DuelState): string | null {
-  if (state.cpuHand.includes("vol2-de-spell") && firstSpellTargetIndex(state.playerSpellTrap.map(fieldCardType)) !== null) return "vol2-de-spell";
+  if (state.cpuHand.includes("vol2-de-spell") && (firstSpellTargetIndex(state.playerSpellTrap.map(fieldCardType)) !== null || state.playerFieldSpell)) return "vol2-de-spell";
   if (state.cpuHand.includes("stb-raigeki") && state.playerField.length > 0) return "stb-raigeki";
   if (state.cpuHand.includes("vol1-dark-hole")
     && state.playerField.length > 0
@@ -2928,7 +2944,17 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
   const deSpellTarget = firstSpellTargetIndex(
     state.playerSpellTrap.map(fieldCardType),
   );
-  if (state.cpuHand.includes("vol2-de-spell") && deSpellTarget !== null) {
+  if (state.cpuHand.includes("vol2-de-spell") && (deSpellTarget !== null || state.playerFieldSpell)) {
+    if (deSpellTarget === null && state.playerFieldSpell) {
+      const targetId = state.playerFieldSpell;
+      state = {
+        ...removeCpuHandCard(state, "vol2-de-spell"),
+        playerFieldSpell: null,
+        playerGraveyard: [...state.playerGraveyard, targetId],
+        cpuGraveyard: [...state.cpuGraveyard, "vol2-de-spell"],
+        log: appendLog(state.log, `CPUが魔法除去を発動。${cardById.get(targetId)?.name ?? "フィールド魔法"}を破壊。`),
+      };
+    } else if (deSpellTarget !== null) {
     const targetId = state.playerSpellTrap[deSpellTarget];
     const target = cardById.get(targetId);
     const swordsIndex = targetId === "vol2-swords-revealing-light"
@@ -2945,6 +2971,7 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       cpuGraveyard: [...state.cpuGraveyard, "vol2-de-spell"],
       log: appendLog(state.log, `CPUが魔法除去を発動。${target?.name ?? "魔法カード"}を破壊。`),
     };
+    }
   }
 
   if (state.cpuHand.includes("stb-raigeki") && state.playerField.length > 0) {
