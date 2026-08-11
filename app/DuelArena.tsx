@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
@@ -1671,7 +1671,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 075</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 076</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2829,6 +2829,33 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   return openBlastJugglerPrompt(playerStart);
 }
 
+function cpuFieldSpellChoice(state: DuelState) {
+  const fieldSpellIds = state.cpuHand.filter((id) => FIELD_SPELL_IDS.includes(id) && id !== state.cpuFieldSpell);
+  const cpuKinds = [
+    ...state.cpuField.filter((zone) => !zone.faceDown).map((zone) => cardById.get(zone.id)?.kind ?? ""),
+    ...state.cpuHand
+      .map((id) => cardById.get(id))
+      .filter((card) => card?.cardType === "monster")
+      .map((card) => card?.kind ?? ""),
+  ];
+  const opponentKinds = state.playerField
+    .filter((zone) => !zone.faceDown)
+    .map((zone) => cardById.get(zone.id)?.kind ?? "");
+  return bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds);
+}
+
+function playCpuFieldSpell(initial: DuelState): DuelState {
+  const fieldSpellId = cpuFieldSpellChoice(initial);
+  if (!fieldSpellId) return initial;
+  const oldFieldSpell = initial.cpuFieldSpell;
+  return {
+    ...removeCpuHandCard(initial, fieldSpellId),
+    cpuFieldSpell: fieldSpellId,
+    cpuGraveyard: oldFieldSpell ? [...initial.cpuGraveyard, oldFieldSpell] : initial.cpuGraveyard,
+    log: appendLog(initial.log, `CPUが${cardById.get(fieldSpellId)?.name ?? "フィールド魔法"}を発動。`),
+  };
+}
+
 function cpuFusionPlan(state: DuelState) {
   const spellId = state.cpuHand.includes("stb-polymerization")
     ? "stb-polymerization"
@@ -2916,6 +2943,8 @@ function firstCpuPlayableSpell(state: DuelState): string | null {
   if (state.cpuHand.includes("vol3-stop-defense") && state.playerField.some((zone) => zone.position === "defense"
     && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)))) return "vol3-stop-defense";
   if (state.cpuHand.includes("vol3-gravedigger-ghoul") && state.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster")) return "vol3-gravedigger-ghoul";
+  const fieldSpellId = cpuFieldSpellChoice(state);
+  if (fieldSpellId) return fieldSpellId;
   const fusionPlan = cpuFusionPlan(state);
   if (fusionPlan) return fusionPlan.spellId;
   return state.cpuHand.find((id) => simpleSpellEffect(id) && shouldCpuUseSimpleSpell(id, state.cpuLp, STARTING_LP)) ?? null;
@@ -3141,6 +3170,7 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
     }
   }
 
+  state = playCpuFieldSpell(state);
   state = playCpuFusion(state);
 
   for (const spellId of [...state.cpuHand]) {

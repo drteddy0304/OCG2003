@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, battleDamageEffect, battleOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canBlastJugglerTarget, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, isDragonCaptureJarLocked, isElegantEgotistTarget, isGuardianMonster, isMonsterRebornBlocked, moveDeckCard, shouldCpuActivateSwords, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -303,6 +303,11 @@ test("フィールド魔法6種は対象種族を200強化し海と闇は対象�
   assert.equal(fieldSpellStatModifier("ドラゴン族", ["stb-mountain", "stb-mountain"]), 400);
 });
 
+test("CPUは相手より自分への恩恵が大きいフィールド魔法だけを選ぶ", () => {
+  assert.equal(bestCpuFieldSpell(["stb-mountain", "stb-umi"], ["ドラゴン族", "鳥獣族"], ["戦士族"]), "stb-mountain");
+  assert.equal(bestCpuFieldSpell(["stb-mountain"], ["戦士族"], ["ドラゴン族"]), null);
+});
+
 test("クリッターと黒き森のウィッチはそれぞれATK・DEF1500以下を検索する", () => {
   assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "monster", atk: 1500, def: 2000 }), true);
   assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "monster", atk: 1501, def: 0 }), false);
@@ -321,6 +326,7 @@ test("強化CPUは40枚デッキを使い、同名カードは3枚までにす�
   assert.ok(counts["vol3-man-eater-bug"] >= 1);
   assert.equal(counts["stb-polymerization"], 1);
   assert.equal(counts["vol1-gaia"], 2);
+  assert.equal(counts["stb-mountain"], 1);
 });
 
 test("CPUは勝てる相手を攻撃し、表側の強敵へ自滅攻撃しない", () => {

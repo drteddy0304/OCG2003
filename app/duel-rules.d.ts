@@ -83,6 +83,7 @@ export function continuousMonsterStats(input: {
 }): { atk: number; def: number };
 
 export function fieldSpellStatModifier(kind: string, fieldSpellIds?: string[]): number;
+export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[]): string | null;
 
 export function canDeckSearchTarget(sourceId: string, target?: {
   cardType: "monster" | "spell" | "trap";

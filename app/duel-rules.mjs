@@ -257,6 +257,17 @@ export function fieldSpellStatModifier(kind, fieldSpellIds = []) {
   }, 0);
 }
 
+export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds) {
+  return fieldSpellIds
+    .map((id) => ({
+      id,
+      score: cpuKinds.reduce((sum, kind) => sum + fieldSpellStatModifier(kind, [id]), 0)
+        - opponentKinds.reduce((sum, kind) => sum + fieldSpellStatModifier(kind, [id]), 0),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)[0]?.id ?? null;
+}
+
 export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, auraIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;
@@ -288,7 +299,8 @@ export const competitiveCpuDeck = Object.freeze([
   ...Array(3).fill("vol3-skull-red-bird"),
   "vol2-wild-raptor",
   ...Array(2).fill("vol1-gaia"),
-  ...Array(3).fill("vol2-holy-elf"),
+  ...Array(2).fill("vol2-holy-elf"),
+  "stb-mountain",
   ...Array(3).fill("vol3-giant-soldier-stone"),
   ...Array(3).fill("vol3-man-eater-bug"),
   ...Array(3).fill("vol3-hane-hane"),
