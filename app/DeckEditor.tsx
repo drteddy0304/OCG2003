@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { cardById, cards, packs, type Card, type Rarity } from "./card-data";
 import { cardDescription, rarityNames } from "./card-text";
-import { matchesDeckFilters, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter, type RarityFilter } from "./deck-rules.mjs";
+import { matchesDeckFilters, sanitizeDeckCounts, type AttributeFilter, type DeckCardTypeFilter, type LevelFilter, type MonsterClassFilter, type RaceFilter, type RarityFilter } from "./deck-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
+const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
 const FAVORITES_STORAGE_KEY = "ocg2003.deck.favorites.v1";
 const COPY_LIMIT = 3;
 const MIN_DECK_SIZE = 40;
@@ -16,6 +17,7 @@ const MONSTER_RACES = [...new Set(cards.flatMap((card) => card.cardType === "mon
 
 export function DeckEditor({ collection }: { collection: Record<string, number> }) {
   const [deck, setDeck] = useState<Record<string, number>>({});
+  const [fusionDeck, setFusionDeck] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<DeckCardTypeFilter>("all");
   const [monsterClass, setMonsterClass] = useState<MonsterClassFilter>("all");
@@ -32,15 +34,13 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
-      const valid = Object.entries(saved).reduce<Record<string, number>>((result, [id, count]) => {
-        const owned = collection[id] ?? 0;
-        if (cardById.has(id) && !cardById.get(id)?.fusion && Number.isInteger(count) && count > 0 && owned > 0) {
-          result[id] = Math.min(count, owned, COPY_LIMIT);
-        }
-        return result;
-      }, {});
+      const savedFusion = JSON.parse(localStorage.getItem(FUSION_DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
+      const valid = sanitizeDeckCounts(saved, collection, cardById, false);
+      const validFusion = sanitizeDeckCounts(savedFusion, collection, cardById, true);
       setDeck(valid);
+      setFusionDeck(validFusion);
       localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(valid));
+      localStorage.setItem(FUSION_DECK_STORAGE_KEY, JSON.stringify(validFusion));
       const savedFavorites = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? "{}") as Record<string, boolean>;
       const validFavorites = Object.fromEntries(
         Object.entries(savedFavorites).filter(([id, value]) => cardById.has(id) && value === true),
@@ -49,8 +49,10 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
       localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(validFavorites));
     } catch {
       setDeck({});
+      setFusionDeck({});
       setFavorites({});
       localStorage.removeItem(DECK_STORAGE_KEY);
+      localStorage.removeItem(FUSION_DECK_STORAGE_KEY);
       localStorage.removeItem(FAVORITES_STORAGE_KEY);
     } finally {
       setReady(true);
@@ -60,6 +62,10 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
   const total = useMemo(
     () => Object.values(deck).reduce((sum, count) => sum + count, 0),
     [deck],
+  );
+  const fusionTotal = useMemo(
+    () => Object.values(fusionDeck).reduce((sum, count) => sum + count, 0),
+    [fusionDeck],
   );
 
   const filteredCards = useMemo(() => {
@@ -75,26 +81,42 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
     () => cards.filter((card) => deck[card.id]).sort(compareCards),
     [deck],
   );
+  const fusionDeckCards = useMemo(
+    () => cards.filter((card) => fusionDeck[card.id]).sort(compareCards),
+    [fusionDeck],
+  );
 
   function saveDeck(next: Record<string, number>) {
     setDeck(next);
     localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(next));
   }
 
+  function saveFusionDeck(next: Record<string, number>) {
+    setFusionDeck(next);
+    localStorage.setItem(FUSION_DECK_STORAGE_KEY, JSON.stringify(next));
+  }
+
   function addCard(id: string) {
-    const current = deck[id] ?? 0;
+    const fusion = Boolean(cardById.get(id)?.fusion);
+    const targetDeck = fusion ? fusionDeck : deck;
+    const current = targetDeck[id] ?? 0;
     const owned = collection[id] ?? 0;
     if (current >= owned || current >= COPY_LIMIT) return;
-    saveDeck({ ...deck, [id]: current + 1 });
+    const next = { ...targetDeck, [id]: current + 1 };
+    if (fusion) saveFusionDeck(next);
+    else saveDeck(next);
   }
 
   function removeCard(id: string) {
-    const current = deck[id] ?? 0;
+    const fusion = Boolean(cardById.get(id)?.fusion);
+    const targetDeck = fusion ? fusionDeck : deck;
+    const current = targetDeck[id] ?? 0;
     if (current <= 0) return;
-    const next = { ...deck };
+    const next = { ...targetDeck };
     if (current === 1) delete next[id];
     else next[id] = current - 1;
-    saveDeck(next);
+    if (fusion) saveFusionDeck(next);
+    else saveDeck(next);
   }
 
   function toggleFavorite(id: string) {
@@ -122,12 +144,12 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
       <div className="deck-heading">
         <div>
           <p className="section-label">DECK EDITOR</p>
-          <h2>メインデッキ</h2>
-          <p>所持カードから40枚以上を選択。同名カードは3枚まで。</p>
+          <h2>デッキ編集</h2>
+          <p>メインは40枚以上。融合デッキは当時仕様の枚数上限なし。同名カードは各3枚まで。</p>
         </div>
         <div className={`deck-total ${total >= MIN_DECK_SIZE ? "valid" : ""}`}>
           <strong>{ready ? total : "—"}</strong>
-          <span>CARDS</span>
+          <span>MAIN / 融合 {fusionTotal}</span>
         </div>
       </div>
 
@@ -257,14 +279,14 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
           </div>
           <div className="deck-list">
             {filteredCards.length ? [...filteredCards].sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || compareCardsBy(a, b, sortOrder)).map((card) => {
-              const used = deck[card.id] ?? 0;
+              const used = (card.fusion ? fusionDeck : deck)[card.id] ?? 0;
               const owned = collection[card.id] ?? 0;
               return (
                 <DeckRow
-                  actionLabel={card.fusion ? "EX対象" : "追加"}
+                  actionLabel={card.fusion ? "融合へ" : "追加"}
                   card={card}
                   count={`${used} / ${owned}`}
-                  disabled={card.fusion || used >= owned || used >= COPY_LIMIT}
+                  disabled={used >= owned || used >= COPY_LIMIT}
                   key={card.id}
                   onAction={() => addCard(card.id)}
                   favorite={Boolean(favorites[card.id])}
@@ -276,7 +298,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
         </div>
 
         <div className="deck-panel main-deck-panel">
-          <div className="panel-title"><h3>デッキ内容</h3><span>{total}枚</span></div>
+          <div className="panel-title"><h3>メインデッキ</h3><span>{total}枚</span></div>
           <div className="deck-list">
             {deckCards.length ? deckCards.map((card) => (
               <DeckRow
@@ -289,6 +311,23 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                 onToggleFavorite={() => toggleFavorite(card.id)}
               />
             )) : <p className="deck-empty">左の所持カードから追加してください。</p>}
+          </div>
+          <div className="fusion-deck-section">
+            <div className="panel-title"><h3>融合デッキ</h3><span>{fusionTotal}枚・上限なし</span></div>
+            <p className="fusion-deck-note">融合モンスターはデュエル開始時の手札・ドローには入りません。</p>
+            <div className="deck-list fusion-deck-list">
+              {fusionDeckCards.length ? fusionDeckCards.map((card) => (
+                <DeckRow
+                  actionLabel="外す"
+                  card={card}
+                  count={`× ${fusionDeck[card.id]}`}
+                  key={card.id}
+                  onAction={() => removeCard(card.id)}
+                  favorite={Boolean(favorites[card.id])}
+                  onToggleFavorite={() => toggleFavorite(card.id)}
+                />
+              )) : <p className="deck-empty">融合モンスターを「融合へ」で追加できます。</p>}
+            </div>
           </div>
         </div>
       </div>

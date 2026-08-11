@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { matchesDeckFilters } from "../app/deck-rules.mjs";
+import { matchesDeckFilters, sanitizeDeckCounts } from "../app/deck-rules.mjs";
 
 const effectMonster = { name: "人喰い虫", cardType: "monster", kind: "昆虫族", attribute: "地", level: 2, effect: true };
 const fusionMonster = { name: "竜騎士ガイア", cardType: "monster", kind: "ドラゴン族", attribute: "風", level: 7, fusion: true };
@@ -44,4 +44,15 @@ test("カードの効果文でも検索できる", () => {
   const directAttacker = { name: "魔法のランプ", cardType: "monster", kind: "魔法使い族", attribute: "闇", level: 1, effect: true, rarity: "N" };
   assert.equal(matchesDeckFilters(directAttacker, "直接攻撃", "all", "all", "all", "all", "all", "all", "相手に直接攻撃できる。"), true);
   assert.equal(matchesDeckFilters(directAttacker, "破壊する", "all", "all", "all", "all", "all", "all", "相手に直接攻撃できる。"), false);
+});
+
+test("メインデッキと融合デッキを分離して所持数・同名3枚制限を適用する", () => {
+  const cardsById = new Map([
+    ["normal", { cardType: "monster" }],
+    ["fusion", { cardType: "monster", fusion: true }],
+  ]);
+  const counts = { normal: 5, fusion: 4, missing: 2 };
+  const collection = { normal: 2, fusion: 5, missing: 5 };
+  assert.deepEqual(sanitizeDeckCounts(counts, collection, cardsById, false), { normal: 2 });
+  assert.deepEqual(sanitizeDeckCounts(counts, collection, cardsById, true), { fusion: 3 });
 });

@@ -7,6 +7,7 @@ import { feedbackForMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
+const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
 const MIN_DECK_SIZE = 40;
 const STARTING_LP = 8000;
 const FIELD_LIMIT = 5;
@@ -116,6 +117,7 @@ type ZoneCard = {
 
 type DuelState = {
   playerDeck: string[];
+  playerFusionDeck: string[];
   cpuDeck: string[];
   playerHand: string[];
   cpuHand: string[];
@@ -191,6 +193,15 @@ export function DuelArena({
       return [];
     }
   }, [collection, duel]);
+  const savedFusionDeck = useMemo(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const counts = JSON.parse(localStorage.getItem(FUSION_DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
+      return expandFusionDeck(counts);
+    } catch {
+      return [];
+    }
+  }, [collection, duel]);
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingGuardianResponse
     && !duel.pendingSevenTools
@@ -259,7 +270,9 @@ export function DuelArena({
   function startDuel() {
     unlockDuelAudio(soundEnabled);
     const counts = JSON.parse(localStorage.getItem(DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
+    const fusionCounts = JSON.parse(localStorage.getItem(FUSION_DECK_STORAGE_KEY) ?? "{}") as Record<string, number>;
     const playerCards = expandDeck(counts);
+    const playerFusionCards = expandFusionDeck(fusionCounts);
     if (playerCards.length < MIN_DECK_SIZE) return;
 
     const shuffledPlayer = shuffle(playerCards);
@@ -284,6 +297,7 @@ export function DuelArena({
     setActiveFeedback(null);
     setDuel({
       playerDeck: shuffledPlayer.slice(6),
+      playerFusionDeck: playerFusionCards,
       cpuDeck: shuffledCpu.slice(5),
       playerHand: playerDraw,
       cpuHand: cpuDraw,
@@ -1561,12 +1575,12 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 069</strong>
+          <strong>VOL.1 + VOL.2 + VOL.3 強化CPU · BUILD 070</strong>
           <p>40枚の実戦向けデッキを使用し、勝てる戦闘と効果カードを優先します。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
-          <div><dt>開始条件</dt><dd>40枚以上</dd></div>
+          <div><dt>融合デッキ</dt><dd>{savedFusionDeck.length}枚</dd></div>
           <div><dt>勝利報酬</dt><dd>CPUデッキから1枚</dd></div>
         </dl>
         <button className="duel-start" disabled={savedDeck.length < MIN_DECK_SIZE} onClick={startDuel}>
@@ -3352,6 +3366,12 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
 function expandDeck(counts: Record<string, number>) {
   return Object.entries(counts).flatMap(([id, count]) =>
     cardById.has(id) && !cardById.get(id)?.fusion && Number.isInteger(count) && count > 0 ? Array(Math.min(3, count)).fill(id) : [],
+  );
+}
+
+function expandFusionDeck(counts: Record<string, number>) {
+  return Object.entries(counts).flatMap(([id, count]) =>
+    cardById.get(id)?.fusion && Number.isInteger(count) && count > 0 ? Array(Math.min(3, count)).fill(id) : [],
   );
 }
 

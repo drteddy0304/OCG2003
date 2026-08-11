@@ -17,3 +17,14 @@ export function matchesDeckFilters(card, query, cardType, monsterClass, level, a
   const searchable = `${card.name} ${card.kind} ${card.attribute ?? ""} ${monsterLabel} ${card.level ? `★${card.level}` : ""} ${card.atk !== undefined ? `ATK ${card.atk}` : ""} ${card.def !== undefined ? `DEF ${card.def}` : ""} ${description}`;
   return searchable.toLocaleLowerCase("ja").includes(normalized);
 }
+
+export function sanitizeDeckCounts(counts, collection, cardsById, fusion) {
+  return Object.entries(counts).reduce((result, [id, count]) => {
+    const card = cardsById.get(id);
+    const owned = collection[id] ?? 0;
+    if (card && Boolean(card.fusion) === fusion && Number.isInteger(count) && count > 0 && owned > 0) {
+      result[id] = Math.min(count, owned, 3);
+    }
+    return result;
+  }, {});
+}

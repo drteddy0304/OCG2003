@@ -18,3 +18,10 @@ export function matchesDeckFilters(
   rarity?: RarityFilter,
   description?: string,
 ): boolean;
+
+export function sanitizeDeckCounts(
+  counts: Record<string, number>,
+  collection: Record<string, number>,
+  cardsById: Map<string, Card>,
+  fusion: boolean,
+): Record<string, number>;
