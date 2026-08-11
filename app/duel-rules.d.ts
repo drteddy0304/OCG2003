@@ -12,6 +12,8 @@ export function battleOutcome(
 ): BattleOutcome;
 
 export const equipRules: Readonly<Record<string, string>>;
+export const competitiveCpuDeckLatestPackId: "vol-7";
+export const competitiveCpuDeck: readonly string[];
 
 export type SimpleSpellEffect = {
   gain: number;

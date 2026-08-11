@@ -385,22 +385,28 @@ export function canDeckSearchTarget(sourceId, target) {
   return false;
 }
 
+export const competitiveCpuDeckLatestPackId = "vol-7";
+
 export const competitiveCpuDeck = Object.freeze([
-  ...Array(3).fill("vol3-rogue-doll"),
+  ...Array(2).fill("vol3-rogue-doll"),
+  "vol5-white-magical-hat",
   ...Array(3).fill("vol3-skull-red-bird"),
-  "vol2-wild-raptor",
+  "vol7-rainbow-fish",
   ...Array(2).fill("vol1-gaia"),
-  ...Array(2).fill("vol2-holy-elf"),
+  ...Array(2).fill("vol7-prevent-rat"),
   "stb-mountain",
   ...Array(3).fill("vol3-giant-soldier-stone"),
   ...Array(3).fill("vol3-man-eater-bug"),
-  ...Array(3).fill("vol3-hane-hane"),
-  ...Array(2).fill("vol3-witty-phantom"),
+  "vol3-hane-hane",
+  "vol6-sangan",
+  "vol6-witch-black-forest",
+  ...Array(2).fill("vol7-rainbow-fish"),
   "vol3-reaper-cards",
   ...Array(2).fill("vol2-curse-of-dragon"),
-  ...Array(2).fill("vol1-dark-magician"),
+  ...Array(2).fill("vol7-dark-elf"),
   "vol1-dark-hole",
-  ...Array(2).fill("vol1-fissure"),
+  "vol1-fissure",
+  "vol7-tremendous-fire",
   "vol4-acid-storm",
   "vol1-trap-hole",
   "vol7-mirror-force",
