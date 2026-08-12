@@ -282,6 +282,14 @@ export function graveyardLifeLoss(id) {
   return id === "vol7-thunder-nyan-nyan" ? 5000 : 0;
 }
 
+export function catapultTurtleDamage(originalAttack) {
+  return Math.max(0, Math.floor((originalAttack ?? 0) / 2));
+}
+
+export function thunderDragonSearchIndexes(deck, limit = 2) {
+  return deck.flatMap((id, index) => id === "vol7-thunder-dragon" ? [index] : []).slice(0, limit);
+}
+
 export function isDragonCaptureJarLocked(kind, faceDown, jarActive) {
   return jarActive && !faceDown && kind === "ドラゴン族";
 }

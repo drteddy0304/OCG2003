@@ -5,6 +5,13 @@ import test from "node:test";
 const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
 
+test("Vol.7の起動効果に専用の操作導線がある", () => {
+  assert.match(arena, /カタパルト・タートルの効果を使う/);
+  assert.match(arena, /捨てて同名カードをサーチ/);
+  assert.match(arena, /catapultUsedTurn/);
+  assert.match(arena, /pendingCatapultTurtle !== null/);
+});
+
 test("攻撃・守備表示はプレイヤーごとの正しい向きになる", () => {
   assert.match(css, /\.zones-player \.field-card\.attack \{ transform: rotate\(0deg\)/);
   assert.match(css, /\.zones-player \.field-card\.defense \{ transform: rotate\(90deg\)/);
