@@ -264,10 +264,22 @@ const flipEffects = Object.freeze({
   "vol4-magician-faith": "recover-spell",
   "vol4-mask-darkness": "recover-trap",
   "vol5-big-eye": "reorder-five",
+  "vol7-thunder-nyan-nyan": "gain-3000",
+  "vol7-sword-queen": "damage-spell-traps",
 });
 
 export function flipEffect(id) {
   return flipEffects[id] ?? null;
+}
+
+export function flipLifeAmount(id, opponentSpellTrapCount = 0) {
+  if (id === "vol7-thunder-nyan-nyan") return { gain: 3000, damage: 0 };
+  if (id === "vol7-sword-queen") return { gain: 0, damage: Math.max(0, opponentSpellTrapCount) * 500 };
+  return null;
+}
+
+export function graveyardLifeLoss(id) {
+  return id === "vol7-thunder-nyan-nyan" ? 5000 : 0;
 }
 
 export function isDragonCaptureJarLocked(kind, faceDown, jarActive) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -1872,7 +1872,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 093</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 094</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3889,6 +3889,28 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
 function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
   const ownerName = owner === "player" ? "あなた" : "CPU";
   const effect = flipEffect(monsterId);
+  if (effect === "gain-3000") {
+    const amount = flipLifeAmount(monsterId)?.gain ?? 0;
+    return {
+      ...state,
+      playerLp: owner === "player" ? state.playerLp + amount : state.playerLp,
+      cpuLp: owner === "cpu" ? state.cpuLp + amount : state.cpuLp,
+      log: appendLog(state.log, `${ownerName}の雷仙人がリバース。${amount}LP回復。`),
+    };
+  }
+  if (effect === "damage-spell-traps") {
+    const opponentCards = owner === "player" ? state.cpuSpellTrap.length : state.playerSpellTrap.length;
+    const damage = flipLifeAmount(monsterId, opponentCards)?.damage ?? 0;
+    const nextPlayerLp = owner === "cpu" ? Math.max(0, state.playerLp - damage) : state.playerLp;
+    const nextCpuLp = owner === "player" ? Math.max(0, state.cpuLp - damage) : state.cpuLp;
+    return {
+      ...state,
+      playerLp: nextPlayerLp,
+      cpuLp: nextCpuLp,
+      result: nextPlayerLp === 0 ? "lose" : nextCpuLp === 0 ? "win" : state.result,
+      log: appendLog(state.log, `${ownerName}の剣の女王がリバース。相手の魔法・罠${opponentCards}枚につき500、合計${damage}ダメージ。`),
+    };
+  }
   if (effect === "destroy-dragon-jar") {
     const playerJars = state.playerSpellTrap.filter((id) => id === "stb-dragon-capture-jar");
     const cpuJars = state.cpuSpellTrap.filter((id) => id === "stb-dragon-capture-jar");
@@ -4220,6 +4242,26 @@ function equipGraveCards(zones: ZoneCard[]) {
 
 function applyDeckSearchTriggers(state: DuelState, playerZones: ZoneCard[] = [], cpuZones: ZoneCard[] = []): DuelState {
   let next = state;
+  const playerLifeLoss = playerZones.reduce((total, zone) => total + graveyardLifeLoss(zone.id), 0);
+  const cpuLifeLoss = cpuZones.reduce((total, zone) => total + graveyardLifeLoss(zone.id), 0);
+  if (playerLifeLoss > 0 || cpuLifeLoss > 0) {
+    const playerLp = Math.max(0, next.playerLp - playerLifeLoss);
+    const cpuLp = Math.max(0, next.cpuLp - cpuLifeLoss);
+    next = {
+      ...next,
+      playerLp,
+      cpuLp,
+      result: playerLp === 0 && cpuLp === 0 ? "draw" : playerLp === 0 ? "lose" : cpuLp === 0 ? "win" : next.result,
+      log: appendLog(
+        next.log,
+        playerLifeLoss > 0 && cpuLifeLoss > 0
+          ? `双方の雷仙人が墓地へ送られ、双方が${playerLifeLoss}LPを失った。`
+          : playerLifeLoss > 0
+            ? `雷仙人が墓地へ送られ、プレイヤーが${playerLifeLoss}LPを失った。`
+            : `CPUの雷仙人が墓地へ送られ、CPUが${cpuLifeLoss}LPを失った。`,
+      ),
+    };
+  }
   const playerTriggers = playerZones
     .map((zone) => zone.id)
     .filter((id) => (id === "vol6-sangan" || id === "vol6-witch-black-forest")
