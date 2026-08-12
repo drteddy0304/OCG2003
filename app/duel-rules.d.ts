@@ -100,6 +100,7 @@ export function continuousMonsterStats(input: {
   def: number;
   handSize?: number;
   graveyardMonsterCount?: number;
+  faceUpPlantCount?: number;
   auraIds?: string[];
   allyIds?: string[];
   fieldSpellIds?: string[];

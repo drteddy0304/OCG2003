@@ -446,10 +446,11 @@ export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds) {
     .sort((a, b) => b.score - a.score)[0]?.id ?? null;
 }
 
-export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
+export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;
   if (id === "vol6-shadow-ghoul") nextAtk += graveyardMonsterCount * 100;
+  if (id === "bo3-udan") nextAtk += faceUpPlantCount * 100;
   if (id === "vol6-muka-muka") {
     nextAtk += handSize * 300;
     nextDef += handSize * 300;

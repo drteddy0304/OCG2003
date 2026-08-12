@@ -428,6 +428,10 @@ test("シャドウ・グールは自分の墓地のモンスター1体につきA
   assert.deepEqual(continuousMonsterStats({ id: "vol6-shadow-ghoul", attribute: "闇", atk: 1600, def: 1300, graveyardMonsterCount: 4 }), { atk: 2000, def: 1300 });
 });
 
+test("森の住人 ウダンは表側表示の植物族1体につきATK100アップする", () => {
+  assert.deepEqual(continuousMonsterStats({ id: "bo3-udan", attribute: "地", atk: 900, def: 1200, faceUpPlantCount: 3 }), { atk: 1200, def: 1200 });
+});
+
 test("ムカムカは自分の手札1枚につきATK・DEF300アップする", () => {
   assert.deepEqual(continuousMonsterStats({ id: "vol6-muka-muka", attribute: "地", atk: 600, def: 300, handSize: 5 }), { atk: 2100, def: 1800 });
 });

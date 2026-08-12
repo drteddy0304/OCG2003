@@ -24,6 +24,10 @@ export const FUSION_RECIPES = {
   "vol6-musician-king": ["vol6-witch-black-forest", "vol6-lady-faith"],
   "vol7-twin-headed-thunder-dragon": ["vol7-thunder-dragon", "vol7-thunder-dragon"],
   "vol7-labyrinth-tank": ["vol6-gigatech-wolf", "vol6-cannon-soldier"],
+  "bo3-vermilion-sparrow": ["bo3-raimundos", "vol3-fireyarou"],
+  "bo3-death-bird": ["bo3-takuhee", "bo3-skull-temple"],
+  "bo3-kwagar-hercules": ["bo3-kuwagata-alpha", "bo3-hercules-beetle"],
+  "bo3-warrior-elimination": ["bo3-otome", "bo3-headless-beauty"],
 };
 
 export function fusionRecipe(fusionId) {
