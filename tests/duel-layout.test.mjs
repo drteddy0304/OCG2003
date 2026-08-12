@@ -18,6 +18,8 @@ test("Vol.7の起動効果に専用の操作導線がある", () => {
   assert.match(arena, /マタンゴをCPUへ渡しますか/);
   assert.match(arena, /function applyMatangoStandby/);
   assert.match(arena, /function transferCpuMatangos/);
+  assert.match(arena, /守備表示にするモンスターを選ぶ/);
+  assert.match(arena, /statsSwappedTurn/);
 });
 
 test("攻撃・守備表示はプレイヤーごとの正しい向きになる", () => {

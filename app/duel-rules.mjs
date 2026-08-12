@@ -308,6 +308,14 @@ export function canTransferMatango(lifePoints, opponentFieldCount, fieldLimit = 
   return lifePoints > 500 && opponentFieldCount < fieldLimit;
 }
 
+export function canStopAttackTarget(position, faceDown) {
+  return position === "attack" && !faceDown;
+}
+
+export function swappedMonsterStats(attack, defense, active) {
+  return active ? { atk: defense ?? 0, def: attack ?? 0 } : { atk: attack ?? 0, def: defense ?? 0 };
+}
+
 export function isDragonCaptureJarLocked(kind, faceDown, jarActive) {
   return jarActive && !faceDown && kind === "ドラゴン族";
 }

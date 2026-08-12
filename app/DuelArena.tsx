@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -141,6 +141,7 @@ type ZoneCard = {
   catapultUsedTurn?: number;
   barrelUsedTurn?: number;
   matangoOfferedTurn?: number;
+  statsSwappedTurn?: number;
 };
 
 type DuelState = {
@@ -213,6 +214,7 @@ export function DuelArena({
   const [pendingCatapultTurtle, setPendingCatapultTurtle] = useState<number | null>(null);
   const [pendingBarrelDragon, setPendingBarrelDragon] = useState<number | null>(null);
   const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
+  const [pendingStopAttack, setPendingStopAttack] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -263,6 +265,7 @@ export function DuelArena({
     && pendingCatapultTurtle === null
     && pendingBarrelDragon === null
     && pendingMatangoTransfer === null
+    && pendingStopAttack === null
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
@@ -343,6 +346,7 @@ export function DuelArena({
     setPendingCatapultTurtle(null);
     setPendingBarrelDragon(null);
     setPendingMatangoTransfer(null);
+    setPendingStopAttack(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -622,6 +626,14 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "vol7-stop-attack") {
+      if (!duel.cpuField.some((zone) => canStopAttackTarget(zone.position, zone.faceDown))) return;
+      setPendingStopAttack(handIndex);
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
     if (card.id === "stb-polymerization" || card.id === "vol6-polymerization") {
       const choices = fusionChoices(
         duel.playerFusionDeck,
@@ -741,11 +753,19 @@ export function DuelArena({
         .map(({ index }) => index);
       if (targets.length === 0) return;
       next = { ...next, cpuGraveyard: next.cpuGraveyard.filter((_, index) => !targets.includes(index)) };
+    } else if (card.id === "vol7-shield-sword") {
+      next = {
+        ...next,
+        playerField: next.playerField.map((zone) => zone.faceDown ? zone : { ...zone, statsSwappedTurn: duel.turnNumber }),
+        cpuField: next.cpuField.map((zone) => zone.faceDown ? zone : { ...zone, statsSwappedTurn: duel.turnNumber }),
+      };
     } else return;
     next.log = appendLog(
       next.log,
       card.id === "vol7-tremendous-fire"
         ? "火炎地獄を発動。CPUに1000ダメージ、自分に500ダメージ。"
+        : card.id === "vol7-shield-sword"
+          ? "右手に盾を左手に剣をを発動。現在表側表示の全モンスターの元々のATKとDEFをターン終了時まで入れ替えた。"
         : `${card.name}を発動。`,
     );
     setDuel(next);
@@ -1054,6 +1074,23 @@ export function DuelArena({
     setPendingChangeOfHeart(null);
   }
 
+  function resolveStopAttack(targetIndex: number) {
+    if (!duel || pendingStopAttack === null || duel.playerHand[pendingStopAttack] !== "vol7-stop-attack") return;
+    const target = duel.cpuField[targetIndex];
+    if (!target || !canStopAttackTarget(target.position, target.faceDown)) return;
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    const next = removeHandCard(duel, pendingStopAttack);
+    setDuel({
+      ...next,
+      cpuField: next.cpuField.map((zone, index) => index === targetIndex
+        ? { ...zone, position: "defense", positionChanged: true }
+        : zone),
+      playerGraveyard: [...next.playerGraveyard, "vol7-stop-attack"],
+      log: appendLog(next.log, `『攻撃』封じを発動。${targetName}を表側守備表示に変更した。`),
+    });
+    setPendingStopAttack(null);
+  }
+
   function activateCannonSoldier(targetIndex: number) {
     if (!duel || pendingCannonSoldier === null || duel.turn !== "player" || (duel.phase !== "main1" && duel.phase !== "main2")) return;
     const source = duel.playerField[pendingCannonSoldier];
@@ -1322,7 +1359,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -1345,7 +1382,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -1407,12 +1444,13 @@ export function DuelArena({
   }
 
   function completePlayerEndTurn(playerEnd: DuelState) {
+    const clearedPlayerEnd = clearSwappedStats(playerEnd);
     const cpuStart: DuelState = {
-      ...playerEnd,
+      ...clearedPlayerEnd,
       turn: "cpu",
-      turnNumber: playerEnd.turnNumber + 1,
+      turnNumber: clearedPlayerEnd.turnNumber + 1,
       phase: "main1",
-      log: appendLog(playerEnd.log, "ターン終了。CPUのターン。"),
+      log: appendLog(clearedPlayerEnd.log, "ターン終了。CPUのターン。"),
     };
     const finalState = runCpuTurn(cpuStart);
     beginCpuPlayback(cpuStart, finalState, "ターン終了。CPUのターン。");
@@ -2054,7 +2092,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 098</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 099</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2594,6 +2632,24 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingStopAttack !== null && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">STOP ATTACK</p>
+            <h2>守備表示にするモンスターを選ぶ</h2>
+            <p>CPUの表側攻撃表示モンスター1体を表側守備表示に変更します。</p>
+            <div className="spell-target-list">
+              {duel.cpuField.map((zone, index) => canStopAttackTarget(zone.position, zone.faceDown) ? (
+                <button key={`${zone.id}-${index}`} onClick={() => resolveStopAttack(index)}>
+                  <span>表側攻撃表示</span>
+                  <strong>{cardById.get(zone.id)?.name ?? "モンスター"}</strong>
+                </button>
+              ) : null)}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingStopAttack(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {duel.pendingFlipTarget && (
         <div className="card-overlay flip-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -2954,6 +3010,7 @@ export function DuelArena({
                         || pendingCheerfulCoffin !== null
                         || pendingFusion !== null
                         || pendingChangeOfHeart !== null
+                        || pendingStopAttack !== null
                         || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField, duel, "cpu") === null)
                         || (card.id === "vol2-monster-reborn" && (
@@ -2965,6 +3022,7 @@ export function DuelArena({
                         || (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell)
                         || (card.id === "vol3-pot-of-greed" && duel.playerDeck.length < 2)
                         || (card.id === "vol3-stop-defense" && !duel.cpuField.some((zone) => zone.position === "defense"))
+                        || (card.id === "vol7-stop-attack" && !duel.cpuField.some((zone) => canStopAttackTarget(zone.position, zone.faceDown)))
                         || (card.id === "vol3-gravedigger-ghoul" && !duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "monster"))
                         || (card.id === "vol4-elegant-egotist" && !canActivateElegantEgotist(duel, index))
                         || (card.id === "vol5-tribute-doomed" && !canActivateTributeToDoomed(duel.playerHand.length, duel.playerField.length + duel.cpuField.length))
@@ -3335,6 +3393,15 @@ function transferCpuMatangos(initial: DuelState): DuelState {
   return state;
 }
 
+function clearSwappedStats(state: DuelState): DuelState {
+  const clear = ({ statsSwappedTurn: _statsSwappedTurn, ...zone }: ZoneCard): ZoneCard => zone;
+  return {
+    ...state,
+    playerField: state.playerField.map(clear),
+    cpuField: state.cpuField.map(clear),
+  };
+}
+
 function resolveIronScorpionEndPhase(state: DuelState): DuelState {
   const isDue = (zone: ZoneCard) => isIronScorpionDestructionDue(zone.ironScorpionDestroyTurn, state.turnNumber);
   const destroyedOnPlayerField = state.playerField.filter(isDue);
@@ -3440,6 +3507,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
 
   state = resolveIronScorpionEndPhase(state);
   state = transferCpuMatangos(state);
+  state = clearSwappedStats(state);
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
   if (swords.expired > 0) {
@@ -4503,7 +4571,8 @@ function lowestFaceUpAttackIndex(field: ZoneCard[], state?: DuelState, side?: Si
 
 function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   const card = cardById.get(zone.id);
-  const equipped = equippedMonsterStats(card?.atk ?? 0, card?.def ?? 0, zone.equipped);
+  const base = swappedMonsterStats(card?.atk ?? 0, card?.def ?? 0, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
+  const equipped = equippedMonsterStats(base.atk, base.def, zone.equipped);
   if (!state || !side || zone.faceDown || !card) return equipped.atk;
   return continuousMonsterStats({
     id: zone.id,
@@ -4522,7 +4591,8 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
 
 function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
   const card = cardById.get(zone.id);
-  const equipped = equippedMonsterStats(card?.atk ?? 0, card?.def ?? 0, zone.equipped);
+  const base = swappedMonsterStats(card?.atk ?? 0, card?.def ?? 0, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
+  const equipped = equippedMonsterStats(base.atk, base.def, zone.equipped);
   if (!state || !side || zone.faceDown || !card) return equipped.def;
   return continuousMonsterStats({
     id: zone.id,
@@ -4726,6 +4796,8 @@ function spellDescription(id: string) {
   if (id === "vol5-soul-release") return "自分・相手の墓地からカードを合計5枚まで除外する";
   if (id === "vol5-cheerful-coffin") return "手札のモンスターを3枚まで墓地へ送る";
   if (id === "vol5-change-heart") return "相手モンスター1体のコントロールをターン終了時まで得る";
+  if (id === "vol7-stop-attack") return "相手の表側攻撃表示モンスター1体を表側守備表示に変更";
+  if (id === "vol7-shield-sword") return "現在表側表示の全モンスターの元々のATKとDEFをターン終了時まで入れ替える";
   if (id === "stb-polymerization" || id === "vol6-polymerization") return "手札・フィールドの決められた素材を墓地へ送り、融合デッキから融合召喚する";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
@@ -4749,6 +4821,8 @@ function isSpellImplemented(id: string) {
       "vol5-soul-release",
       "vol5-cheerful-coffin",
       "vol5-change-heart",
+      "vol7-stop-attack",
+      "vol7-shield-sword",
       "stb-remove-trap",
       "stb-polymerization",
       "vol6-polymerization",
