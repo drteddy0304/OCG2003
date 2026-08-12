@@ -15,6 +15,9 @@ test("Vol.7の起動効果に専用の操作導線がある", () => {
   assert.match(arena, /function useCpuBarrelDragon/);
   assert.match(arena, /クリボーの効果を使いますか/);
   assert.match(arena, /pendingKuribohResponse/);
+  assert.match(arena, /マタンゴをCPUへ渡しますか/);
+  assert.match(arena, /function applyMatangoStandby/);
+  assert.match(arena, /function transferCpuMatangos/);
 });
 
 test("攻撃・守備表示はプレイヤーごとの正しい向きになる", () => {

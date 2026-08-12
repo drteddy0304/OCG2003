@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -140,6 +140,7 @@ type ZoneCard = {
   revivedByMonsterReborn?: boolean;
   catapultUsedTurn?: number;
   barrelUsedTurn?: number;
+  matangoOfferedTurn?: number;
 };
 
 type DuelState = {
@@ -211,6 +212,7 @@ export function DuelArena({
   const [pendingCannonSoldier, setPendingCannonSoldier] = useState<number | null>(null);
   const [pendingCatapultTurtle, setPendingCatapultTurtle] = useState<number | null>(null);
   const [pendingBarrelDragon, setPendingBarrelDragon] = useState<number | null>(null);
+  const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -260,6 +262,7 @@ export function DuelArena({
     && pendingCannonSoldier === null
     && pendingCatapultTurtle === null
     && pendingBarrelDragon === null
+    && pendingMatangoTransfer === null
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
@@ -339,6 +342,7 @@ export function DuelArena({
     setPendingCannonSoldier(null);
     setPendingCatapultTurtle(null);
     setPendingBarrelDragon(null);
+    setPendingMatangoTransfer(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -1318,7 +1322,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -1341,7 +1345,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -1363,6 +1367,46 @@ export function DuelArena({
     }
     playerEnd = resolveIronScorpionEndPhase(playerEnd);
     playerEnd = returnChangedMonsters(playerEnd);
+    const matangoIndex = nextPlayerMatangoTransferIndex(playerEnd);
+    if (matangoIndex !== null) {
+      setDuel(playerEnd);
+      setPendingMatangoTransfer(matangoIndex);
+      return;
+    }
+    completePlayerEndTurn(playerEnd);
+  }
+
+  function respondToMatangoTransfer(activate: boolean) {
+    if (!duel || pendingMatangoTransfer === null) return;
+    const target = duel.playerField[pendingMatangoTransfer];
+    if (!target || target.id !== "vol7-matango") return;
+    let resumed: DuelState = {
+      ...duel,
+      playerField: duel.playerField.map((zone, index) => index === pendingMatangoTransfer
+        ? { ...zone, matangoOfferedTurn: duel.turnNumber }
+        : zone),
+      log: appendLog(duel.log, activate ? "マタンゴの効果を発動。500LPを払ってCPUへコントロールを移した。" : "マタンゴのコントロールを移さなかった。"),
+    };
+    if (activate && canTransferMatango(duel.playerLp, duel.cpuField.length, FIELD_LIMIT)) {
+      const transferred = { ...target, matangoOfferedTurn: duel.turnNumber, attacked: true, positionChanged: true };
+      resumed = {
+        ...resumed,
+        playerLp: resumed.playerLp - 500,
+        playerField: resumed.playerField.filter((_, index) => index !== pendingMatangoTransfer),
+        cpuField: [...resumed.cpuField, transferred],
+      };
+    }
+    setPendingMatangoTransfer(null);
+    const nextIndex = nextPlayerMatangoTransferIndex(resumed);
+    if (nextIndex !== null) {
+      setDuel(resumed);
+      setPendingMatangoTransfer(nextIndex);
+      return;
+    }
+    completePlayerEndTurn(resumed);
+  }
+
+  function completePlayerEndTurn(playerEnd: DuelState) {
     const cpuStart: DuelState = {
       ...playerEnd,
       turn: "cpu",
@@ -2010,7 +2054,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 097</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 098</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2323,6 +2367,21 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToKuriboh(true)}>手札から捨てて使う</button>
               <button onClick={() => respondToKuriboh(false)}>使わない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingMatangoTransfer !== null && (
+        <div className="trap-response matango-response">
+          <div>
+            <p className="section-label">END PHASE EFFECT</p>
+            <h2>マタンゴをCPUへ渡しますか？</h2>
+            <p>
+              500LPを払うと、このマタンゴのコントロールをCPUへ移します。次のCPUスタンバイフェイズにはCPUが300ダメージを受けます。
+            </p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToMatangoTransfer(true)}>500LP払って渡す</button>
+              <button onClick={() => respondToMatangoTransfer(false)}>渡さない</button>
             </div>
           </div>
         </div>
@@ -3112,6 +3171,8 @@ function runCpuTurn(initial: DuelState): DuelState {
     cpuHand: [...state.cpuHand, state.cpuDeck[0]],
     cpuDeck: state.cpuDeck.slice(1),
   };
+  state = applyMatangoStandby(state, "cpu");
+  if (state.result) return state;
   state = playCpuNormalSpells(state);
   if (state.result || state.pendingAntiRaigeki || state.pendingMagicJammer || state.pendingSolemnJudgment) return state;
   return continueCpuTurnAfterSpells(state);
@@ -3235,6 +3296,45 @@ function returnChangedMonsters(state: DuelState): DuelState {
   };
 }
 
+function nextPlayerMatangoTransferIndex(state: DuelState) {
+  if (!canTransferMatango(state.playerLp, state.cpuField.length, FIELD_LIMIT)) return null;
+  const index = state.playerField.findIndex((zone) => zone.id === "vol7-matango"
+    && !zone.faceDown
+    && zone.matangoOfferedTurn !== state.turnNumber);
+  return index >= 0 ? index : null;
+}
+
+function applyMatangoStandby(state: DuelState, side: Side): DuelState {
+  const field = side === "player" ? state.playerField : state.cpuField;
+  const damage = matangoStandbyDamage(field.filter((zone) => !zone.faceDown).map((zone) => zone.id));
+  if (damage === 0) return state;
+  const lifeKey = side === "player" ? "playerLp" : "cpuLp";
+  const lifePoints = Math.max(0, state[lifeKey] - damage);
+  return {
+    ...state,
+    [lifeKey]: lifePoints,
+    result: lifePoints === 0 ? side === "player" ? "lose" : "win" : state.result,
+    log: appendLog(state.log, `${side === "player" ? "プレイヤー" : "CPU"}のスタンバイフェイズ。マタンゴの効果で${damage}ダメージ。`),
+  };
+}
+
+function transferCpuMatangos(initial: DuelState): DuelState {
+  let state = initial;
+  while (canTransferMatango(state.cpuLp, state.playerField.length, FIELD_LIMIT)) {
+    const index = state.cpuField.findIndex((zone) => zone.id === "vol7-matango" && !zone.faceDown);
+    if (index < 0) break;
+    const target = state.cpuField[index];
+    state = {
+      ...state,
+      cpuLp: state.cpuLp - 500,
+      cpuField: state.cpuField.filter((_, fieldIndex) => fieldIndex !== index),
+      playerField: [...state.playerField, { ...target, attacked: true, positionChanged: true }],
+      log: appendLog(state.log, "CPUがマタンゴの効果で500LPを払い、プレイヤーへコントロールを移した。"),
+    };
+  }
+  return state;
+}
+
 function resolveIronScorpionEndPhase(state: DuelState): DuelState {
   const isDue = (zone: ZoneCard) => isIronScorpionDestructionDue(zone.ironScorpionDestroyTurn, state.turnNumber);
   const destroyedOnPlayerField = state.playerField.filter(isDue);
@@ -3339,6 +3439,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce || state.pendingKuribohResponse) return state;
 
   state = resolveIronScorpionEndPhase(state);
+  state = transferCpuMatangos(state);
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
   if (swords.expired > 0) {
@@ -3359,7 +3460,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerDeck.length === 0) {
     return { ...state, result: "lose", log: appendLog(state.log, "デッキからカードを引けず敗北。") };
   }
-  const playerStart: DuelState = {
+  let playerStart: DuelState = {
     ...state,
     playerHand: [...state.playerHand, state.playerDeck[0]],
     playerDeck: state.playerDeck.slice(1),
@@ -3370,6 +3471,8 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     normalSummoned: false,
     log: appendLog(state.log, "あなたのターン。1枚ドロー。"),
   };
+  playerStart = applyMatangoStandby(playerStart, "player");
+  if (playerStart.result) return playerStart;
   return openBlastJugglerPrompt(playerStart);
 }
 
