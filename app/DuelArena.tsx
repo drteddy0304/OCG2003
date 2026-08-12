@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -134,6 +134,7 @@ type ZoneCard = {
   controlReturn?: Side;
   revivedByMonsterReborn?: boolean;
   catapultUsedTurn?: number;
+  barrelUsedTurn?: number;
 };
 
 type DuelState = {
@@ -203,6 +204,7 @@ export function DuelArena({
   const [pendingChangeOfHeart, setPendingChangeOfHeart] = useState<number | null>(null);
   const [pendingCannonSoldier, setPendingCannonSoldier] = useState<number | null>(null);
   const [pendingCatapultTurtle, setPendingCatapultTurtle] = useState<number | null>(null);
+  const [pendingBarrelDragon, setPendingBarrelDragon] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -250,6 +252,7 @@ export function DuelArena({
     && pendingChangeOfHeart === null
     && pendingCannonSoldier === null
     && pendingCatapultTurtle === null
+    && pendingBarrelDragon === null
     && pendingEgotist === null
     && (duel.phase === "main1" || duel.phase === "main2");
   const feedbackMessage = duel
@@ -328,6 +331,7 @@ export function DuelArena({
     setPendingChangeOfHeart(null);
     setPendingCannonSoldier(null);
     setPendingCatapultTurtle(null);
+    setPendingBarrelDragon(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -1118,6 +1122,38 @@ export function DuelArena({
     });
   }
 
+  function openBarrelDragonPicker(monsterIndex: number) {
+    setFeedbackQueue([]);
+    setActiveFeedback(null);
+    setPendingBarrelDragon(monsterIndex);
+  }
+
+  function activateBarrelDragon(targetIndex: number) {
+    if (!duel || pendingBarrelDragon === null || duel.turn !== "player" || (duel.phase !== "main1" && duel.phase !== "main2")) return;
+    const source = duel.playerField[pendingBarrelDragon];
+    const target = duel.cpuField[targetIndex];
+    if (!source || source.id !== "vol7-barrel-dragon" || source.faceDown || source.barrelUsedTurn === duel.turnNumber || !target) return;
+    const tosses = Array.from({ length: 3 }, () => Math.random() < 0.5);
+    const result = barrelDragonCoinResult(tosses);
+    const targetName = target.faceDown ? "裏側モンスター" : cardById.get(target.id)?.name ?? "モンスター";
+    let resolved: DuelState = {
+      ...duel,
+      playerField: duel.playerField.map((zone, index) => index === pendingBarrelDragon ? { ...zone, barrelUsedTurn: duel.turnNumber } : zone),
+      log: appendLog(duel.log, `リボルバー・ドラゴンの効果でコイントス。表${result.heads}・裏${3 - result.heads}。${result.destroys ? `${targetName}を破壊した。` : "破壊できなかった。"}`),
+    };
+    if (result.destroys) {
+      resolved = {
+        ...resolved,
+        cpuField: resolved.cpuField.filter((_, index) => index !== targetIndex),
+        cpuSpellTrap: discardEquips(resolved.cpuSpellTrap, [target]),
+        cpuGraveyard: [...resolved.cpuGraveyard, ...graveCards([target])],
+      };
+      resolved = applyDeckSearchTriggers(resolved, [], [target]);
+    }
+    setPendingBarrelDragon(null);
+    setDuel(resolved);
+  }
+
   function equipSpell(fieldIndex: number) {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
@@ -1274,7 +1310,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -1297,7 +1333,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -1923,7 +1959,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 095</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 096</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2561,6 +2597,14 @@ export function DuelArena({
             カタパルト・タートルの効果を使う
           </button>
         )}
+        {isPlayerMainPhase && duel.cpuField.length > 0 && duel.playerField.some((zone) => zone.id === "vol7-barrel-dragon" && !zone.faceDown && zone.barrelUsedTurn !== duel.turnNumber) && (
+          <button
+            className="effect-action-button"
+            onClick={() => openBarrelDragonPicker(duel.playerField.findIndex((zone) => zone.id === "vol7-barrel-dragon" && !zone.faceDown && zone.barrelUsedTurn !== duel.turnNumber))}
+          >
+            リボルバー・ドラゴンの効果を使う
+          </button>
+        )}
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
             <div className={duel.playerSpellTrap[index] ? "set-card" : "empty-zone"} key={index}>
@@ -2630,6 +2674,24 @@ export function DuelArena({
               })}
             </div>
             <button className="overlay-close" onClick={() => setPendingCatapultTurtle(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
+      {pendingBarrelDragon !== null && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">MONSTER EFFECT</p>
+            <h2>リボルバー・ドラゴン</h2>
+            <p>破壊する相手モンスターを選んでください。コインを3回投げ、表が2回以上なら破壊します。</p>
+            <div className="target-list cannon-target-list">
+              {duel.cpuField.map((zone, index) => (
+                <button key={`${zone.id}-${index}`} onClick={() => activateBarrelDragon(index)}>
+                  <strong>{zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name}</strong>
+                  <small>{zone.faceDown ? "表示形式：裏側" : `ATK ${effectiveAtk(zone, duel, "cpu")} ／ DEF ${effectiveDef(zone, duel, "cpu")}`}</small>
+                </button>
+              ))}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingBarrelDragon(null)}>キャンセル</button>
           </article>
         </div>
       )}
@@ -3129,6 +3191,8 @@ function resolveIronScorpionEndPhase(state: DuelState): DuelState {
 function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   let state: DuelState = { ...initial, pendingTrapResponse: null };
   if (!resumeBattle) {
+    state = useCpuBarrelDragon(state);
+    if (state.result || state.pendingDeckSearch) return state;
     state = setCpuTrapAndEquips(state);
     state = {
       ...state,
@@ -4408,6 +4472,35 @@ function useCpuCannonSoldierForLethal(state: DuelState): DuelState {
   };
   resolved = applyDeckSearchTriggers(resolved, [], [target]);
   return resolved;
+}
+
+function useCpuBarrelDragon(state: DuelState): DuelState {
+  const sourceIndex = state.cpuField.findIndex((zone) => zone.id === "vol7-barrel-dragon"
+    && !zone.faceDown
+    && zone.barrelUsedTurn !== state.turnNumber);
+  if (sourceIndex < 0 || state.playerField.length === 0) return state;
+  const targetIndex = strongestAttackIndex(state.playerField.map((zone) => Math.max(
+    effectiveAtk(zone, state, "player"),
+    effectiveDef(zone, state, "player"),
+  )));
+  if (targetIndex === null) return state;
+  const target = state.playerField[targetIndex];
+  const targetName = target.faceDown ? "裏側モンスター" : cardById.get(target.id)?.name ?? "モンスター";
+  const tosses = Array.from({ length: 3 }, () => Math.random() < 0.5);
+  const result = barrelDragonCoinResult(tosses);
+  let resolved: DuelState = {
+    ...state,
+    cpuField: state.cpuField.map((zone, index) => index === sourceIndex ? { ...zone, barrelUsedTurn: state.turnNumber } : zone),
+    log: appendLog(state.log, `CPUのリボルバー・ドラゴンが効果を発動。コイントスは表${result.heads}・裏${3 - result.heads}。${result.destroys ? `${targetName}を破壊。` : "破壊できなかった。"}`),
+  };
+  if (!result.destroys) return resolved;
+  resolved = {
+    ...resolved,
+    playerField: resolved.playerField.filter((_, index) => index !== targetIndex),
+    playerSpellTrap: discardEquips(resolved.playerSpellTrap, [target]),
+    playerGraveyard: [...resolved.playerGraveyard, ...graveCards([target])],
+  };
+  return applyDeckSearchTriggers(resolved, [target]);
 }
 
 function spellDescription(id: string) {

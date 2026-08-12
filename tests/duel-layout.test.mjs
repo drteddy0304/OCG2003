@@ -10,6 +10,9 @@ test("Vol.7の起動効果に専用の操作導線がある", () => {
   assert.match(arena, /捨てて同名カードをサーチ/);
   assert.match(arena, /catapultUsedTurn/);
   assert.match(arena, /pendingCatapultTurtle !== null/);
+  assert.match(arena, /リボルバー・ドラゴンの効果を使う/);
+  assert.match(arena, /pendingBarrelDragon !== null/);
+  assert.match(arena, /function useCpuBarrelDragon/);
 });
 
 test("攻撃・守備表示はプレイヤーごとの正しい向きになる", () => {

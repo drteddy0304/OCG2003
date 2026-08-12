@@ -290,6 +290,12 @@ export function thunderDragonSearchIndexes(deck, limit = 2) {
   return deck.flatMap((id, index) => id === "vol7-thunder-dragon" ? [index] : []).slice(0, limit);
 }
 
+export function barrelDragonCoinResult(tosses) {
+  const normalized = tosses.slice(0, 3).map(Boolean);
+  const heads = normalized.filter(Boolean).length;
+  return { heads, destroys: normalized.length === 3 && heads >= 2 };
+}
+
 export function isDragonCaptureJarLocked(kind, faceDown, jarActive) {
   return jarActive && !faceDown && kind === "ドラゴン族";
 }
@@ -427,7 +433,8 @@ export const competitiveCpuDeck = Object.freeze([
   "vol5-white-magical-hat",
   ...Array(3).fill("vol3-skull-red-bird"),
   "vol7-rainbow-fish",
-  ...Array(2).fill("vol1-gaia"),
+  "vol1-gaia",
+  "vol7-barrel-dragon",
   ...Array(2).fill("vol7-prevent-rat"),
   "stb-mountain",
   ...Array(3).fill("vol3-giant-soldier-stone"),
