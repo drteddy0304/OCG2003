@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -142,6 +142,7 @@ type ZoneCard = {
   barrelUsedTurn?: number;
   matangoOfferedTurn?: number;
   statsSwappedTurn?: number;
+  germStandbys?: number;
 };
 
 type DuelState = {
@@ -556,7 +557,7 @@ export function DuelArena({
       return;
     }
     if (EQUIP_RULES[card.id]) {
-      if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+      if (!canActivateEquip(duel, card.id)) return;
       setSelectedEquip(handIndex);
       setSelectedAttacker(null);
       return;
@@ -1203,15 +1204,17 @@ export function DuelArena({
     setDuel(resolved);
   }
 
-  function equipSpell(fieldIndex: number) {
+  function equipSpell(fieldIndex: number, owner: Side = "player") {
     if (!duel || !isPlayerMainPhase || selectedEquip === null) return;
     const spell = cardById.get(duel.playerHand[selectedEquip]);
-    const zone = duel.playerField[fieldIndex];
+    const fieldKey = owner === "player" ? "playerField" : "cpuField";
+    const spellTrapKey = owner === "player" ? "playerSpellTrap" : "cpuSpellTrap";
+    const zone = duel[fieldKey][fieldIndex];
     const monster = zone ? cardById.get(zone.id) : null;
-    if (!spell || !zone || zone.faceDown || !monster || !canEquip(spell.id, monster) || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+    if (!spell || !zone || zone.faceDown || !monster || !canEquip(spell.id, monster) || duel[spellTrapKey].length >= FIELD_LIMIT) return;
     setDuel({
       ...removeHandCard(duel, selectedEquip),
-      playerField: duel.playerField.map((item, index) =>
+      [fieldKey]: duel[fieldKey].map((item, index) =>
         index === fieldIndex
           ? {
               ...item,
@@ -1220,12 +1223,18 @@ export function DuelArena({
             }
           : item,
       ),
-      playerSpellTrap: [...duel.playerSpellTrap, spell.id],
+      [spellTrapKey]: [...duel[spellTrapKey], spell.id],
       log: appendLog(
         duel.log,
         spell.id === "vol4-cocoon-evolution"
           ? `進化の繭を${monster.name}に装備。ATK 0・DEF 2000を適用。`
-          : `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`,
+          : spell.id === "vol7-germ-infection"
+            ? `細菌感染を${monster.name}に装備。スタンバイフェイズ毎にATKが300ダウン。`
+            : spell.id === "vol7-paralyzing-potion"
+              ? `しびれ薬を${monster.name}に装備。攻撃を封じた。`
+              : spell.id === "vol7-sword-deep-seated"
+                ? `執念の剣を${monster.name}に装備。ATK・DEFが500アップ。`
+                : `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`,
       ),
     });
     setSelectedEquip(null);
@@ -2092,7 +2101,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 099</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 100</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2728,7 +2737,17 @@ export function DuelArena({
         <div className={`field-spell-zone ${duel.cpuFieldSpell ? "active" : ""}`}>
           <span>CPU FIELD</span><strong>{duel.cpuFieldSpell ? cardById.get(duel.cpuFieldSpell)?.name : "—"}</strong>
         </div>
-        <FieldRow zones={duel.cpuField} owner="cpu" state={duel} selectedTarget={selectedAttacker !== null} onTarget={attackTarget} onInspect={setDetailCardId} />
+        <FieldRow
+          zones={duel.cpuField}
+          owner="cpu"
+          state={duel}
+          selectedTarget={selectedAttacker !== null}
+          onTarget={attackTarget}
+          equipTarget={selectedEquip !== null && isOpponentEquip(duel.playerHand[selectedEquip])}
+          onEquip={(index) => equipSpell(index, "cpu")}
+          equipId={selectedEquip === null ? null : duel.playerHand[selectedEquip]}
+          onInspect={setDetailCardId}
+        />
         {selectedAttacker !== null
           && duel.cpuField.length > 0
           && canMonsterAttackDirectly(duel.playerField[selectedAttacker]?.id ?? "") && (
@@ -3011,7 +3030,7 @@ export function DuelArena({
                         || pendingFusion !== null
                         || pendingChangeOfHeart !== null
                         || pendingStopAttack !== null
-                        || ((Boolean(EQUIP_RULES[card.id]) || card.id === "vol2-swords-revealing-light") && duel.playerSpellTrap.length >= FIELD_LIMIT)
+                        || (card.id === "vol2-swords-revealing-light" && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField, duel, "cpu") === null)
                         || (card.id === "vol2-monster-reborn" && (
                           duel.playerField.length >= FIELD_LIMIT
@@ -3036,10 +3055,7 @@ export function DuelArena({
                             [...duel.playerHand.filter((_, handIndex) => handIndex !== index), ...duel.playerField.map((zone) => zone.id)],
                           ).length === 0
                         ))
-                        || (Boolean(EQUIP_RULES[card.id]) && !duel.playerField.some((zone) => {
-                          const monster = cardById.get(zone.id);
-                          return Boolean(monster && canEquip(card.id, monster));
-                        }))
+                        || (Boolean(EQUIP_RULES[card.id]) && !canActivateEquip(duel, card.id))
                       }
                       onClick={() => useSpell(index)}
                     >
@@ -3184,6 +3200,7 @@ function FieldRow({
         const hidden = owner === "cpu" && zone.faceDown;
         const attackLocked = !canDeclareAttackOnTurn(zone.attackLockedTurn, state.turnNumber);
         const cannotPayAttackCost = owner === "player" && attackDeclarationCost(zone.id, state.playerLp) === null;
+        const paralyzed = paralyzingPotionPreventsAttack(zone.equipped);
         const scorpionTurns = zone.ironScorpionDestroyTurn === undefined
           ? null
           : Math.max(0, Math.ceil((zone.ironScorpionDestroyTurn - state.turnNumber) / 2));
@@ -3193,7 +3210,7 @@ function FieldRow({
           <div className="field-slot" key={`${zone.id}-${index}`}>
             <button
               className={`field-card ${zone.position} field-card-${owner} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
-              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || !canAttack || zone.position !== "attack" || zone.attacked || attackLocked || cannotPayAttackCost}
+              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || !canAttack || zone.position !== "attack" || zone.attacked || attackLocked || paralyzed || cannotPayAttackCost}
               onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
             >
               <strong>{hidden ? "伏せモンスター" : card.name}</strong>
@@ -3202,11 +3219,12 @@ function FieldRow({
               {!hidden && zone.equipped.length > 0 && <small>装備 ×{zone.equipped.length}</small>}
               {!hidden && card.effect && <small className="field-effect-badge">効果モンスター</small>}
               {!hidden && attackLocked && <small className="field-effect-badge">でんきトカゲ・攻撃不可</small>}
+              {!hidden && paralyzed && <small className="field-effect-badge">しびれ薬・攻撃不可</small>}
               {!hidden && zone.id === "vol7-dark-elf" && <small className="field-effect-badge">攻撃時1000LP</small>}
               {!hidden && scorpionTurns !== null && <small className="field-effect-badge">鉄のサソリ・あと{scorpionTurns}自ターン</small>}
               {!hidden && zone.controlReturn === "cpu" && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
-              {owner === "player" && zone.position === "attack" && <small>{attackLocked ? "次のターンまで攻撃不可" : cannotPayAttackCost ? "LP不足で攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
+              {owner === "player" && zone.position === "attack" && <small>{paralyzed ? "しびれ薬で攻撃不可" : attackLocked ? "次のターンまで攻撃不可" : cannotPayAttackCost ? "LP不足で攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
             </button>
             {showPositionChange && (
               <button className="position-change" onClick={() => onPositionChange?.(index)}>
@@ -3230,6 +3248,7 @@ function runCpuTurn(initial: DuelState): DuelState {
     cpuDeck: state.cpuDeck.slice(1),
   };
   state = applyMatangoStandby(state, "cpu");
+  state = applyGermInfectionStandby(state, "cpu");
   if (state.result) return state;
   state = playCpuNormalSpells(state);
   if (state.result || state.pendingAntiRaigeki || state.pendingMagicJammer || state.pendingSolemnJudgment) return state;
@@ -3376,6 +3395,19 @@ function applyMatangoStandby(state: DuelState, side: Side): DuelState {
   };
 }
 
+function applyGermInfectionStandby(state: DuelState, side: Side): DuelState {
+  const fieldKey = side === "player" ? "playerField" : "cpuField";
+  const affected = state[fieldKey].filter((zone) => zone.equipped.includes("vol7-germ-infection")).length;
+  if (affected === 0) return state;
+  return {
+    ...state,
+    [fieldKey]: state[fieldKey].map((zone) => zone.equipped.includes("vol7-germ-infection")
+      ? { ...zone, germStandbys: (zone.germStandbys ?? 0) + 1 }
+      : zone),
+    log: appendLog(state.log, `細菌感染の効果で${side === "player" ? "プレイヤー" : "CPU"}のモンスター${affected}体のATKが300ダウン。`),
+  };
+}
+
 function transferCpuMatangos(initial: DuelState): DuelState {
   let state = initial;
   while (canTransferMatango(state.cpuLp, state.playerField.length, FIELD_LIMIT)) {
@@ -3451,7 +3483,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   } else {
     for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingKuribohResponse; index -= 1) {
       const attacker = state.cpuField[index];
-      if (attacker.position !== "attack" || attacker.attacked || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
+      if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(attacker.equipped) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
       if (attackDeclarationCost(attacker.id, state.cpuLp) === null) continue;
       if (state.playerField.length === 0) {
         const mirrorForceIndex = state.playerSpellTrap.indexOf("vol7-mirror-force");
@@ -3540,6 +3572,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     log: appendLog(state.log, "あなたのターン。1枚ドロー。"),
   };
   playerStart = applyMatangoStandby(playerStart, "player");
+  playerStart = applyGermInfectionStandby(playerStart, "player");
   if (playerStart.result) return playerStart;
   return openBlastJugglerPrompt(playerStart);
 }
@@ -4574,7 +4607,7 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   const base = swappedMonsterStats(card?.atk ?? 0, card?.def ?? 0, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
   const equipped = equippedMonsterStats(base.atk, base.def, zone.equipped);
   if (!state || !side || zone.faceDown || !card) return equipped.atk;
-  return continuousMonsterStats({
+  const stats = continuousMonsterStats({
     id: zone.id,
     attribute: card.attribute,
     kind: card.kind,
@@ -4586,7 +4619,8 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     auraIds: [...state.playerField, ...state.cpuField].filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     allyIds: (side === "player" ? state.playerField : state.cpuField).filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
-  }).atk;
+  });
+  return Math.max(0, stats.atk - germInfectionPenalty(zone.equipped, zone.germStandbys));
 }
 
 function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
@@ -4609,7 +4643,21 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
 
 function canEquip(spellId: string, monster: Card) {
   if (spellId === "vol4-cocoon-evolution") return monster.id === "vol4-petit-moth";
+  if (spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion") return monster.cardType === "monster" && monster.kind !== "機械族";
+  if (spellId === "vol7-sword-deep-seated") return monster.cardType === "monster";
   return monster.cardType === "monster" && EQUIP_RULES[spellId] === monster.kind;
+}
+
+function isOpponentEquip(spellId: string) {
+  return spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion";
+}
+
+function canActivateEquip(state: DuelState, spellId: string) {
+  const playerTarget = state.playerSpellTrap.length < FIELD_LIMIT
+    && state.playerField.some((zone) => !zone.faceDown && Boolean(cardById.get(zone.id) && canEquip(spellId, cardById.get(zone.id)!)));
+  const cpuTarget = isOpponentEquip(spellId) && state.cpuSpellTrap.length < FIELD_LIMIT
+    && state.cpuField.some((zone) => !zone.faceDown && Boolean(cardById.get(zone.id) && canEquip(spellId, cardById.get(zone.id)!)));
+  return playerTarget || cpuTarget;
 }
 
 function mothTargetIndex(state: DuelState, mothId: string) {
@@ -4661,6 +4709,18 @@ function equipGraveCards(zones: ZoneCard[]) {
 
 function applyDeckSearchTriggers(state: DuelState, playerZones: ZoneCard[] = [], cpuZones: ZoneCard[] = []): DuelState {
   let next = state;
+  const playerSwords = playerZones.flatMap((zone) => zone.equipped).filter((id) => id === "vol7-sword-deep-seated").length;
+  const cpuSwords = cpuZones.flatMap((zone) => zone.equipped).filter((id) => id === "vol7-sword-deep-seated").length;
+  if (playerSwords > 0 || cpuSwords > 0) {
+    next = {
+      ...next,
+      playerDeck: [...Array(playerSwords).fill("vol7-sword-deep-seated"), ...next.playerDeck],
+      cpuDeck: [...Array(cpuSwords).fill("vol7-sword-deep-seated"), ...next.cpuDeck],
+      playerGraveyard: removeCardCopies(next.playerGraveyard, "vol7-sword-deep-seated", playerSwords),
+      cpuGraveyard: removeCardCopies(next.cpuGraveyard, "vol7-sword-deep-seated", cpuSwords),
+      log: appendLog(next.log, `執念の剣${playerSwords + cpuSwords}枚を墓地からデッキの一番上へ戻した。`),
+    };
+  }
   const playerLifeLoss = playerZones.reduce((total, zone) => total + graveyardLifeLoss(zone.id), 0);
   const cpuLifeLoss = cpuZones.reduce((total, zone) => total + graveyardLifeLoss(zone.id), 0);
   if (playerLifeLoss > 0 || cpuLifeLoss > 0) {
@@ -4777,6 +4837,9 @@ function spellDescription(id: string) {
   if (id === "stb-sogen") return "表側の戦士・獣戦士族のATK・DEFを200アップ";
   if (id === "stb-umi") return "魚・海竜・雷・水族を200強化し、機械・炎族を200弱体化";
   if (id === "stb-yami") return "魔法使い・悪魔族を200強化し、天使族を200弱体化";
+  if (id === "vol7-germ-infection") return "機械族以外に装備し、装備モンスターのATKをスタンバイフェイズ毎に300ダウン";
+  if (id === "vol7-paralyzing-potion") return "機械族以外に装備し、装備モンスターの攻撃を封じる";
+  if (id === "vol7-sword-deep-seated") return "ATK・DEFを500アップし、墓地へ送られた時デッキの一番上へ戻る";
   if (EQUIP_RULES[id]) return `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
   if (id === "vol1-dark-hole") return "フィールドのモンスターをすべて破壊";
   if (id === "stb-raigeki") return "相手フィールドのモンスターをすべて破壊";

@@ -48,6 +48,9 @@ export const equipRules = Object.freeze({
   "vol3-electro-whip": "雷族",
   "vol3-mystical-moon": "獣戦士族",
   "vol3-follow-wind": "鳥獣族",
+  "vol7-germ-infection": "機械族以外",
+  "vol7-paralyzing-potion": "機械族以外",
+  "vol7-sword-deep-seated": "全モンスター",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -373,11 +376,21 @@ export function fakeTrapCanProtect(trapIds, targetIndex) {
 
 export function equippedMonsterStats(atk, defense, equippedIds) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
-  const regularEquipCount = equippedIds.filter((id) => id !== "vol4-cocoon-evolution").length;
+  const regularEquipCount = equippedIds.filter((id) => id !== "vol4-cocoon-evolution"
+    && !id.startsWith("vol7-")).length;
+  const deepSwordCount = equippedIds.filter((id) => id === "vol7-sword-deep-seated").length;
   return {
-    atk: (cocoonEquipped ? 0 : atk) + regularEquipCount * 300,
-    def: (cocoonEquipped ? 2000 : defense) + regularEquipCount * 300,
+    atk: (cocoonEquipped ? 0 : atk) + regularEquipCount * 300 + deepSwordCount * 500,
+    def: (cocoonEquipped ? 2000 : defense) + regularEquipCount * 300 + deepSwordCount * 500,
   };
+}
+
+export function germInfectionPenalty(equippedIds, standbyCount = 0) {
+  return equippedIds.includes("vol7-germ-infection") ? Math.max(0, standbyCount) * 300 : 0;
+}
+
+export function paralyzingPotionPreventsAttack(equippedIds) {
+  return equippedIds.includes("vol7-paralyzing-potion");
 }
 
 const attributeAuraEffects = Object.freeze({
