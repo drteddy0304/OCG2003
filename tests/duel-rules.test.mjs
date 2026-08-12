@@ -171,6 +171,18 @@ test("Booster 1・STARTER BOXの回復・ダメージ魔法の数値を適用す
   assert.deepEqual(simpleSpellEffect("stb-fireball"), { gain: 0, damage: 500 });
 });
 
+test("Booster 2の属性装備と回復・ダメージ魔法を適用する", () => {
+  assert.equal(equipRules["bo2-dark-piercing-sword"], "闇属性");
+  assert.equal(equipRules["bo2-elf-light"], "光属性");
+  assert.equal(equipRules["bo2-steel-shell"], "水属性");
+  assert.equal(equipRules["bo2-awakening"], "地属性");
+  assert.equal(equipRules["bo2-burning-spear"], "炎属性");
+  assert.equal(equipRules["bo2-gust-fan"], "風属性");
+  assert.deepEqual(equippedMonsterStats(1000, 1000, ["bo2-awakening"]), { atk: 1400, def: 800 });
+  assert.deepEqual(simpleSpellEffect("bo2-angel-blood"), { gain: 800, damage: 0 });
+  assert.deepEqual(simpleSpellEffect("bo2-fire"), { gain: 0, damage: 800 });
+});
+
 test("火炎地獄は相手に1000・自分に500ダメージを与え、同時0なら引き分けにする", () => {
   assert.deepEqual(simpleSpellEffect("vol7-tremendous-fire"), { gain: 0, damage: 1000, selfDamage: 500 });
   assert.deepEqual(resolveSimpleSpellLife("vol7-tremendous-fire", 4000, 3000), { ownLp: 3500, opponentLp: 2000, outcome: null });

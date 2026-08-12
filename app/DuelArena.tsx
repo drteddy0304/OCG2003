@@ -1242,7 +1242,9 @@ export function DuelArena({
               ? `しびれ薬を${monster.name}に装備。攻撃を封じた。`
               : spell.id === "vol7-sword-deep-seated"
                 ? `執念の剣を${monster.name}に装備。ATK・DEFが500アップ。`
-                : `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`,
+                : spell.id.startsWith("bo2-")
+                  ? `${spell.name}を${monster.name}に装備。ATKが400アップし、DEFが200ダウン。`
+                  : `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`,
       ),
     });
     setSelectedEquip(null);
@@ -2126,7 +2128,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 101</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 102</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4683,6 +4685,7 @@ function canEquip(spellId: string, monster: Card) {
   if (spellId === "vol4-cocoon-evolution") return monster.id === "vol4-petit-moth";
   if (spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion") return monster.cardType === "monster" && monster.kind !== "機械族";
   if (spellId === "vol7-sword-deep-seated") return monster.cardType === "monster";
+  if (EQUIP_RULES[spellId]?.endsWith("属性")) return monster.cardType === "monster" && `${monster.attribute}属性` === EQUIP_RULES[spellId];
   return monster.cardType === "monster" && EQUIP_RULES[spellId] === monster.kind;
 }
 
@@ -4878,7 +4881,9 @@ function spellDescription(id: string) {
   if (id === "vol7-germ-infection") return "機械族以外に装備し、装備モンスターのATKをスタンバイフェイズ毎に300ダウン";
   if (id === "vol7-paralyzing-potion") return "機械族以外に装備し、装備モンスターの攻撃を封じる";
   if (id === "vol7-sword-deep-seated") return "ATK・DEFを500アップし、墓地へ送られた時デッキの一番上へ戻る";
-  if (EQUIP_RULES[id]) return `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
+  if (EQUIP_RULES[id]) return id.startsWith("bo2-")
+    ? `${EQUIP_RULES[id]}モンスター1体のATKを400アップし、DEFを200ダウン`
+    : `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
   if (id === "vol1-dark-hole") return "フィールドのモンスターをすべて破壊";
   if (id === "stb-raigeki") return "相手フィールドのモンスターをすべて破壊";
   const effect = simpleSpellEffect(id);

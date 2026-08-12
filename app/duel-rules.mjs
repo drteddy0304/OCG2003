@@ -51,6 +51,12 @@ export const equipRules = Object.freeze({
   "vol7-germ-infection": "機械族以外",
   "vol7-paralyzing-potion": "機械族以外",
   "vol7-sword-deep-seated": "全モンスター",
+  "bo2-dark-piercing-sword": "闇属性",
+  "bo2-elf-light": "光属性",
+  "bo2-steel-shell": "水属性",
+  "bo2-awakening": "地属性",
+  "bo2-burning-spear": "炎属性",
+  "bo2-gust-fan": "風属性",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -63,6 +69,8 @@ const simpleSpellEffects = Object.freeze({
   "stb-moyan-curry": { gain: 200, damage: 0 },
   "stb-fireball": { gain: 0, damage: 500 },
   "vol7-tremendous-fire": { gain: 0, damage: 1000, selfDamage: 500 },
+  "bo2-angel-blood": { gain: 800, damage: 0 },
+  "bo2-fire": { gain: 0, damage: 800 },
 });
 
 export function simpleSpellEffect(id) {
@@ -376,12 +384,15 @@ export function fakeTrapCanProtect(trapIds, targetIndex) {
 
 export function equippedMonsterStats(atk, defense, equippedIds) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
-  const regularEquipCount = equippedIds.filter((id) => id !== "vol4-cocoon-evolution"
-    && !id.startsWith("vol7-")).length;
-  const deepSwordCount = equippedIds.filter((id) => id === "vol7-sword-deep-seated").length;
+  const modifiers = equippedIds.reduce((result, id) => {
+    if (id === "vol4-cocoon-evolution" || id === "vol7-germ-infection" || id === "vol7-paralyzing-potion") return result;
+    if (id === "vol7-sword-deep-seated") return { atk: result.atk + 500, def: result.def + 500 };
+    if (id.startsWith("bo2-")) return { atk: result.atk + 400, def: result.def - 200 };
+    return { atk: result.atk + 300, def: result.def + 300 };
+  }, { atk: 0, def: 0 });
   return {
-    atk: (cocoonEquipped ? 0 : atk) + regularEquipCount * 300 + deepSwordCount * 500,
-    def: (cocoonEquipped ? 2000 : defense) + regularEquipCount * 300 + deepSwordCount * 500,
+    atk: Math.max(0, (cocoonEquipped ? 0 : atk) + modifiers.atk),
+    def: Math.max(0, (cocoonEquipped ? 2000 : defense) + modifiers.def),
   };
 }
 
