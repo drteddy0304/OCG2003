@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, moveDeckCard, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -68,6 +68,11 @@ type PendingMirrorForce = {
   trapIndex: number;
   attackerIndex: number;
   defenderIndex: number | null;
+};
+type PendingKuribohResponse = {
+  attackerIndex: number;
+  defenderIndex: number | null;
+  guardianEffect: boolean;
 };
 type PendingAntiRaigeki = {
   trapIndex: number;
@@ -168,6 +173,7 @@ type DuelState = {
   pendingSolemnJudgment: PendingSolemnJudgment | null;
   pendingGuardianResponse: PendingGuardianResponse | null;
   pendingMirrorForce: PendingMirrorForce | null;
+  pendingKuribohResponse: PendingKuribohResponse | null;
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
   pendingFakeTrap: PendingFakeTrap | null;
@@ -237,6 +243,7 @@ export function DuelArena({
   const isPlayerMainPhase = duel?.turn === "player"
     && !duel.pendingGuardianResponse
     && !duel.pendingMirrorForce
+    && !duel.pendingKuribohResponse
     && !duel.pendingSevenTools
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
@@ -366,6 +373,7 @@ export function DuelArena({
       pendingSolemnJudgment: null,
       pendingGuardianResponse: null,
       pendingMirrorForce: null,
+      pendingKuribohResponse: null,
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
       pendingFakeTrap: null,
@@ -1710,7 +1718,45 @@ export function DuelArena({
           : `${guardianName}の効果を発動しなかった。`,
       ),
     };
+    const kuribohPrompt = prepareKuribohResponse(resumed, pending.attackerIndex, pending.defenderIndex, activate);
+    if (kuribohPrompt) {
+      beginCpuPlayback(resumed, kuribohPrompt, marker);
+      return;
+    }
     resumed = resolveBattle(resumed, "cpu", pending.attackerIndex, pending.defenderIndex, activate);
+    const finalState = finishCpuTurn(resumed, true);
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
+  function respondToKuriboh(activate: boolean) {
+    if (!duel?.pendingKuribohResponse) return;
+    const pending = duel.pendingKuribohResponse;
+    const marker = "クリボーの効果確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingKuribohResponse: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (activate) {
+      const handIndex = resumed.playerHand.indexOf("vol7-kuriboh");
+      if (handIndex < 0) return;
+      resumed = {
+        ...resumed,
+        playerHand: resumed.playerHand.filter((_, index) => index !== handIndex),
+        playerGraveyard: [...resumed.playerGraveyard, "vol7-kuriboh"],
+        log: appendLog(resumed.log, "クリボーを手札から捨て、この戦闘で受ける戦闘ダメージを0にした。"),
+      };
+    } else {
+      resumed = { ...resumed, log: appendLog(resumed.log, "クリボーの効果を使わなかった。") };
+    }
+    resumed = resolveBattle(
+      resumed,
+      "cpu",
+      pending.attackerIndex,
+      pending.defenderIndex,
+      pending.guardianEffect,
+      activate,
+    );
     const finalState = finishCpuTurn(resumed, true);
     beginCpuPlayback(resumed, finalState, marker);
   }
@@ -1752,6 +1798,11 @@ export function DuelArena({
         },
       };
       beginCpuPlayback(resumed, finalState, marker);
+      return;
+    }
+    const kuribohPrompt = prepareKuribohResponse(resumed, pending.attackerIndex, pending.defenderIndex);
+    if (kuribohPrompt) {
+      beginCpuPlayback(resumed, kuribohPrompt, marker);
       return;
     }
     resumed = resolveBattle(resumed, "cpu", pending.attackerIndex, pending.defenderIndex);
@@ -1959,7 +2010,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 096</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 097</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2060,6 +2111,8 @@ export function DuelArena({
                       ? "ミラーフォースの発動確認へ"
                     : cpuPlayback.finalState.pendingGuardianResponse
                       ? "三魔神の効果確認へ"
+                    : cpuPlayback.finalState.pendingKuribohResponse
+                      ? "クリボーの効果確認へ"
                     : cpuPlayback.finalState.pendingDeckReorder
                       ? "大王目玉の並べ替えへ"
                     : cpuPlayback.finalState.pendingDeckSearch
@@ -2255,6 +2308,21 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToGuardian(true)}>発動する</button>
               <button onClick={() => respondToGuardian(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingKuribohResponse && (
+        <div className="trap-response kuriboh-response">
+          <div>
+            <p className="section-label">HAND EFFECT</p>
+            <h2>クリボーの効果を使いますか？</h2>
+            <p>
+              手札のクリボーを捨てると、この戦闘で受ける戦闘ダメージを0にできます。モンスターの破壊は防ぎません。
+            </p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToKuriboh(true)}>手札から捨てて使う</button>
+              <button onClick={() => respondToKuriboh(false)}>使わない</button>
             </div>
           </div>
         </div>
@@ -3214,7 +3282,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerSwordsTurns.length > 0) {
     state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
   } else {
-    for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce; index -= 1) {
+    for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingKuribohResponse; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
       if (attackDeclarationCost(attacker.id, state.cpuLp) === null) continue;
@@ -3228,7 +3296,8 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
           };
           continue;
         }
-        state = resolveBattle(state, "cpu", index, null);
+        const kuribohPrompt = prepareKuribohResponse(state, index, null);
+        state = kuribohPrompt ?? resolveBattle(state, "cpu", index, null);
         continue;
       }
       const targetIndex = bestCpuBattleTargetIndex(
@@ -3262,11 +3331,12 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
           };
           continue;
         }
-        state = resolveBattle(state, "cpu", index, targetIndex);
+        const kuribohPrompt = prepareKuribohResponse(state, index, targetIndex);
+        state = kuribohPrompt ?? resolveBattle(state, "cpu", index, targetIndex);
       }
     }
   }
-  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce) return state;
+  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce || state.pendingKuribohResponse) return state;
 
   state = resolveIronScorpionEndPhase(state);
 
@@ -3759,7 +3829,29 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
   return state;
 }
 
-function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: number, defenderIndex: number | null, guardianEffect = false): DuelState {
+function projectedCpuBattleDamage(state: DuelState, attackerIndex: number, defenderIndex: number | null, guardianEffect = false) {
+  const attackerZone = state.cpuField[attackerIndex];
+  if (!attackerZone) return 0;
+  const attackValue = guardianAdjustedAttack(effectiveAtk(attackerZone, state, "cpu"), guardianEffect);
+  const defenderZone = defenderIndex === null ? null : state.playerField[defenderIndex];
+  if (!defenderZone) return attackValue;
+  const defenseValue = defenderZone.position === "attack"
+    ? effectiveAtk(defenderZone, state, "player")
+    : effectiveDef(defenderZone, state, "player");
+  return battleOutcome(attackValue, defenseValue, defenderZone.position).defenderDamage;
+}
+
+function prepareKuribohResponse(state: DuelState, attackerIndex: number, defenderIndex: number | null, guardianEffect = false): DuelState | null {
+  const damage = projectedCpuBattleDamage(state, attackerIndex, defenderIndex, guardianEffect);
+  if (!canUseKuriboh(state.playerHand, "cpu", damage)) return null;
+  return {
+    ...state,
+    pendingKuribohResponse: { attackerIndex, defenderIndex, guardianEffect },
+    log: appendLog(state.log, `CPUの攻撃で${damage}の戦闘ダメージを受けます。クリボーを使いますか？`),
+  };
+}
+
+function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: number, defenderIndex: number | null, guardianEffect = false, preventPlayerBattleDamage = false): DuelState {
   const attackerFieldKey = attackerSide === "player" ? "playerField" : "cpuField";
   const defenderFieldKey = attackerSide === "player" ? "cpuField" : "playerField";
   const attackerLpKey = attackerSide === "player" ? "playerLp" : "cpuLp";
@@ -3779,9 +3871,10 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
 
   if (defenderIndex === null || !defenderField[defenderIndex]) {
     const damage = effectiveAtk(attackerZone, state, attackerSide);
-    let next = { ...state, [attackerFieldKey]: attackerField, [attackerLpKey]: attackerLpAfterCost, [defenderLpKey]: state[defenderLpKey] - damage } as DuelState;
-    next.log = appendLog(attackLog, `${attacker.name}の直接攻撃。${damage}ダメージ。`);
-    if (next[defenderLpKey] > 0) next = resolveBattleDamageEffect(next, attackerSide, attacker.id, damage);
+    const appliedDamage = attackerSide === "cpu" && preventPlayerBattleDamage ? 0 : damage;
+    let next = { ...state, [attackerFieldKey]: attackerField, [attackerLpKey]: attackerLpAfterCost, [defenderLpKey]: state[defenderLpKey] - appliedDamage } as DuelState;
+    next.log = appendLog(attackLog, `${attacker.name}の直接攻撃。${appliedDamage}ダメージ。`);
+    if (appliedDamage > 0 && next[defenderLpKey] > 0) next = resolveBattleDamageEffect(next, attackerSide, attacker.id, appliedDamage);
     if (next[defenderLpKey] <= 0) next.result = attackerSide === "player" ? "win" : "lose";
     return next;
   }
@@ -3805,6 +3898,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     : effectiveDef(defenderZone, state, defenderSide);
   const { attackerDestroyed, defenderDestroyed, attackerDamage, defenderDamage } =
     battleOutcome(attackValue, defenseValue, defenderZone.position);
+  const appliedDefenderDamage = attackerSide === "cpu" && preventPlayerBattleDamage ? 0 : defenderDamage;
   const removal = battleRemovalOutcome(attacker.id, defender.id, attackerDestroyed, defenderDestroyed);
   const dimensionalBanish = removal.banishBoth;
   const unhappyMaidenDestroyed = endsBattlePhaseOnBattleDestruction(attacker.id, attackerDestroyed)
@@ -3837,7 +3931,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     [attackerFieldKey]: nextAttackerField,
     [defenderFieldKey]: nextDefenderField,
     [attackerLpKey]: attackerLpAfterCost - attackerDamage,
-    [defenderLpKey]: state[defenderLpKey] - defenderDamage,
+    [defenderLpKey]: state[defenderLpKey] - appliedDefenderDamage,
     playerSpellTrap: discardEquips(state.playerSpellTrap, [...ownedDestroyedPlayerZones, ...ownedBanishedPlayerZones]),
     cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpuZones, ...returnedDestroyedZones, ...banishedCpuZones, ...returnedBanishedZones]),
     playerGraveyard: [...state.playerGraveyard, ...graveCards(ownedDestroyedPlayerZones), ...equipGraveCards(ownedBanishedPlayerZones)],
@@ -3846,11 +3940,11 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
       attackLog,
       `${attacker.name}が${defender.name}を攻撃。${
         dimensionalBanish
-          ? `${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : defenderDamage ? `${defenderLpName}に${defenderDamage}ダメージ。` : ""}`
+          ? `${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : appliedDefenderDamage ? `${defenderLpName}に${appliedDefenderDamage}ダメージ。` : ""}`
           : attackerDestroyed && defenderDestroyed
           ? "両方を破壊。"
           : defenderDestroyed
-            ? `${defender.name}を破壊。${defenderDamage ? `${defenderLpName}に${defenderDamage}ダメージ。` : ""}`
+            ? `${defender.name}を破壊。${appliedDefenderDamage ? `${defenderLpName}に${appliedDefenderDamage}ダメージ。` : ""}`
             : attackerDestroyed
               ? `${attacker.name}を破壊。${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : ""}`
               : `モンスターは破壊されない。${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : ""}`
@@ -3874,8 +3968,8 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     };
   }
   next = applyDeckSearchTriggers(next, ownedDestroyedPlayerZones, [...destroyedCpuZones, ...returnedDestroyedZones]);
-  if (defenderDamage > 0 && next[defenderLpKey] > 0) {
-    next = resolveBattleDamageEffect(next, attackerSide, attacker.id, defenderDamage);
+  if (appliedDefenderDamage > 0 && next[defenderLpKey] > 0) {
+    next = resolveBattleDamageEffect(next, attackerSide, attacker.id, appliedDefenderDamage);
   }
   if (wasFaceDown) next = resolveFlipEffect(next, attackerSide === "player" ? "cpu" : "player", defender.id);
   if (next.cpuLp <= 0) next.result = "win";

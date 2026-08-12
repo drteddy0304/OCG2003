@@ -296,6 +296,10 @@ export function barrelDragonCoinResult(tosses) {
   return { heads, destroys: normalized.length === 3 && heads >= 2 };
 }
 
+export function canUseKuriboh(hand, attackerSide, battleDamage) {
+  return attackerSide === "cpu" && battleDamage > 0 && hand.includes("vol7-kuriboh");
+}
+
 export function isDragonCaptureJarLocked(kind, faceDown, jarActive) {
   return jarActive && !faceDown && kind === "ドラゴン族";
 }
