@@ -5,7 +5,7 @@ import { cardById, type Card } from "./card-data";
 import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
-import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
+import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
@@ -313,6 +313,12 @@ export function DuelArena({
     const timer = window.setTimeout(() => setActiveFeedback(null), activeFeedback.duration);
     return () => window.clearTimeout(timer);
   }, [activeFeedback, soundEnabled]);
+
+  useEffect(() => {
+    if (duel && soundEnabled) startDuelBgm(true);
+    else stopDuelBgm();
+    return () => stopDuelBgm();
+  }, [duel !== null, soundEnabled]);
 
   useEffect(() => {
     if (duel?.result !== "win" || rewarded.current) return;
@@ -2128,7 +2134,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 102</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 103</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2139,7 +2145,7 @@ export function DuelArena({
         <button className="duel-start" disabled={savedDeck.length < MIN_DECK_SIZE} onClick={startDuel}>
           {savedDeck.length >= MIN_DECK_SIZE ? "デュエル開始" : `あと${MIN_DECK_SIZE - savedDeck.length}枚必要`}
         </button>
-        <button className="sound-toggle lobby-sound-toggle" onClick={toggleSound}>効果音 {soundEnabled ? "ON" : "OFF"}</button>
+        <button className="sound-toggle lobby-sound-toggle" onClick={toggleSound}>音声・BGM {soundEnabled ? "ON" : "OFF"}</button>
       </section>
     );
   }
@@ -2148,7 +2154,7 @@ export function DuelArena({
     <section className={`duel-screen${activeFeedback ? ` action-${activeFeedback.kind}` : ""}`}>
       <div className="duel-hud">
         <div><span>CPU</span><strong>{Math.max(0, duel.cpuLp)}</strong><small>LP</small></div>
-        <div className="turn-badge">TURN {duel.turnNumber}<b>{duel.turn === "player" ? "YOUR TURN" : "CPU TURN"}</b><button className="sound-toggle" onClick={toggleSound} aria-label={`効果音を${soundEnabled ? "オフ" : "オン"}にする`}>{soundEnabled ? "SOUND ON" : "SOUND OFF"}</button></div>
+        <div className="turn-badge">TURN {duel.turnNumber}<b>{duel.turn === "player" ? "YOUR TURN" : "CPU TURN"}</b><button className="sound-toggle" onClick={toggleSound} aria-label={`音声とBGMを${soundEnabled ? "オフ" : "オン"}にする`}>{soundEnabled ? "BGM ON" : "BGM OFF"}</button></div>
         <div><span>PLAYER</span><strong>{Math.max(0, duel.playerLp)}</strong><small>LP</small></div>
       </div>
       {activeFeedback && (

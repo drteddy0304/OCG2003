@@ -2,6 +2,24 @@ export type DuelSound = "attack" | "destroy" | "guard" | "effect" | "spell" | "t
 
 let audioContext: AudioContext | null = null;
 let masterInput: GainNode | null = null;
+let bgmInput: GainNode | null = null;
+let bgmTimer: number | null = null;
+let bgmNextStart = 0;
+const bgmSources = new Set<OscillatorNode | AudioBufferSourceNode>();
+
+const CHIP_MELODY = [
+  72, null, 75, 77, 79, null, 77, 75,
+  70, null, 74, 75, 77, 74, 70, null,
+  68, null, 72, 75, 77, null, 75, 72,
+  67, 70, 74, 75, 74, 70, 67, null,
+] as const;
+const CHIP_BASS = [36, 36, 34, 34, 32, 32, 31, 31] as const;
+const CHIP_ARPEGGIOS = [
+  [60, 63, 67, 70],
+  [58, 62, 65, 69],
+  [56, 60, 63, 67],
+  [55, 58, 62, 65],
+] as const;
 
 function context() {
   if (typeof window === "undefined") return null;
@@ -68,6 +86,89 @@ function noise(ctx: AudioContext, start: number, duration: number, volume: numbe
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   source.connect(filter).connect(gain).connect(masterInput);
   source.start(start);
+}
+
+function midiFrequency(note: number) {
+  return 440 * 2 ** ((note - 69) / 12);
+}
+
+function chipNote(ctx: AudioContext, start: number, duration: number, note: number, type: OscillatorType, volume: number) {
+  if (!bgmInput) return;
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+  oscillator.type = type;
+  oscillator.frequency.value = midiFrequency(note);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.008);
+  gain.gain.setValueAtTime(volume * 0.72, start + Math.max(0.012, duration * 0.72));
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  oscillator.connect(gain).connect(bgmInput);
+  bgmSources.add(oscillator);
+  oscillator.onended = () => bgmSources.delete(oscillator);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.02);
+}
+
+function chipNoise(ctx: AudioContext, start: number, duration: number, volume: number, highpass = 1200) {
+  if (!bgmInput) return;
+  const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+  const source = ctx.createBufferSource();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+  source.buffer = buffer;
+  filter.type = "highpass";
+  filter.frequency.value = highpass;
+  gain.gain.setValueAtTime(volume, start);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  source.connect(filter).connect(gain).connect(bgmInput);
+  bgmSources.add(source);
+  source.onended = () => bgmSources.delete(source);
+  source.start(start);
+}
+
+function scheduleChipPattern(ctx: AudioContext, start: number) {
+  const step = 60 / 142 / 2;
+  CHIP_MELODY.forEach((note, index) => {
+    const at = start + index * step;
+    if (note !== null) chipNote(ctx, at, step * 0.78, note, "square", 0.17);
+    const chord = CHIP_ARPEGGIOS[Math.floor(index / 8) % CHIP_ARPEGGIOS.length];
+    chipNote(ctx, at, step * 0.42, chord[index % chord.length], "triangle", 0.09);
+    if (index % 4 === 0) chipNote(ctx, at, step * 3.4, CHIP_BASS[Math.floor(index / 4)], "square", 0.14);
+    if (index % 8 === 0) chipNote(ctx, at, step * 0.7, 28, "sine", 0.22);
+    if (index % 4 === 2) chipNoise(ctx, at, step * 0.42, 0.08, 2600);
+    if (index % 2 === 1) chipNoise(ctx, at, step * 0.16, 0.025, 5200);
+  });
+  return CHIP_MELODY.length * step;
+}
+
+export function startDuelBgm(enabled: boolean) {
+  if (!enabled || bgmTimer !== null) return;
+  const ctx = context();
+  if (!ctx || !masterInput) return;
+  bgmInput ??= ctx.createGain();
+  bgmInput.gain.value = 0.2;
+  bgmInput.connect(masterInput);
+  bgmNextStart = ctx.currentTime + 0.06;
+  const scheduleAhead = () => {
+    while (bgmNextStart < ctx.currentTime + 2.2) bgmNextStart += scheduleChipPattern(ctx, bgmNextStart);
+  };
+  scheduleAhead();
+  bgmTimer = window.setInterval(scheduleAhead, 700);
+}
+
+export function stopDuelBgm() {
+  if (bgmTimer !== null) window.clearInterval(bgmTimer);
+  bgmTimer = null;
+  bgmSources.forEach((source) => {
+    try { source.stop(); } catch { /* already stopped */ }
+  });
+  bgmSources.clear();
+  if (bgmInput) {
+    bgmInput.disconnect();
+    bgmInput = null;
+  }
 }
 
 export function unlockDuelAudio(enabled: boolean) {
