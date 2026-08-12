@@ -7,18 +7,58 @@ let bgmTimer: number | null = null;
 let bgmNextStart = 0;
 const bgmSources = new Set<OscillatorNode | AudioBufferSourceNode>();
 
-const CHIP_MELODY = [
-  72, null, 75, 77, 79, null, 77, 75,
-  70, null, 74, 75, 77, 74, 70, null,
-  68, null, 72, 75, 77, null, 75, 72,
-  67, 70, 74, 75, 74, 70, 67, null,
-] as const;
-const CHIP_BASS = [36, 36, 34, 34, 32, 32, 31, 31] as const;
-const CHIP_ARPEGGIOS = [
-  [60, 63, 67, 70],
-  [58, 62, 65, 69],
-  [56, 60, 63, 67],
-  [55, 58, 62, 65],
+type SongSection = {
+  melody: readonly (number | null)[];
+  chords: readonly (readonly number[])[];
+  bass: readonly number[];
+  energy: 1 | 2 | 3;
+};
+
+const MODERN_JPOP_CHIP_SONG: readonly SongSection[] = [
+  {
+    // Intro: 短いフックを提示し、後半からリズム隊が入る。
+    melody: [
+      76, null, 78, 80, null, 83, 80, null, 78, null, 76, 75, 76, null, 71, null,
+      76, 78, 80, null, 83, null, 85, 83, 80, 78, 76, null, 75, 76, 78, null,
+    ],
+    chords: [[57, 60, 64, 68], [55, 59, 62, 66], [52, 56, 59, 64], [54, 57, 61, 64]],
+    bass: [33, 31, 28, 30],
+    energy: 1,
+  },
+  {
+    // Verse: シンコペーションを増やし、カードを切るような細かい旋律にする。
+    melody: [
+      73, null, 76, 78, null, 76, 80, null, 78, null, 76, null, 73, 71, null, 73,
+      null, 76, 78, null, 80, 78, 76, null, 71, 73, null, 76, 75, null, 71, null,
+      73, 76, null, 78, 80, null, 83, 80, null, 78, 76, 75, null, 76, 78, null,
+      80, null, 83, 85, 83, null, 80, 78, 76, null, 75, 73, 71, 73, 75, null,
+    ],
+    chords: [[57, 60, 64, 68], [52, 56, 59, 64], [55, 59, 62, 66], [54, 57, 61, 64], [57, 60, 64, 68], [52, 56, 59, 64], [55, 59, 62, 66], [59, 62, 66, 69]],
+    bass: [33, 28, 31, 30, 33, 28, 31, 35],
+    energy: 2,
+  },
+  {
+    // Pre-chorus: 音域と和音を段階的に上げてサビへ接続。
+    melody: [
+      76, null, 78, null, 80, null, 83, null, 78, null, 80, null, 83, null, 85, null,
+      80, 81, 83, null, 85, 83, 88, null, 85, 83, 81, 80, 78, 80, 83, 85,
+    ],
+    chords: [[50, 54, 57, 61], [52, 56, 59, 64], [54, 57, 61, 64], [55, 59, 62, 66]],
+    bass: [26, 28, 30, 31],
+    energy: 2,
+  },
+  {
+    // Chorus: 跳躍のある主旋律と高速アルペジオで解放感を作る。
+    melody: [
+      85, 83, 80, null, 88, null, 85, 83, 81, 80, 78, null, 80, 83, 85, null,
+      83, 80, 78, 76, null, 80, 83, 85, 88, null, 85, 83, 80, 78, 76, null,
+      85, 83, 80, null, 88, 90, 88, 85, 83, null, 81, 80, 78, 80, 83, null,
+      85, 88, 90, null, 88, 85, 83, 80, 81, 83, 80, 78, 76, null, 73, null,
+    ],
+    chords: [[57, 60, 64, 68], [55, 59, 62, 66], [52, 56, 59, 64], [54, 57, 61, 64], [57, 60, 64, 68], [55, 59, 62, 66], [52, 56, 59, 64], [59, 62, 66, 69]],
+    bass: [33, 31, 28, 30, 33, 31, 28, 35],
+    energy: 3,
+  },
 ] as const;
 
 function context() {
@@ -128,19 +168,29 @@ function chipNoise(ctx: AudioContext, start: number, duration: number, volume: n
   source.start(start);
 }
 
-function scheduleChipPattern(ctx: AudioContext, start: number) {
-  const step = 60 / 142 / 2;
-  CHIP_MELODY.forEach((note, index) => {
+function scheduleSongSection(ctx: AudioContext, start: number, section: SongSection) {
+  const step = 60 / 158 / 4;
+  section.melody.forEach((note, index) => {
     const at = start + index * step;
-    if (note !== null) chipNote(ctx, at, step * 0.78, note, "square", 0.17);
-    const chord = CHIP_ARPEGGIOS[Math.floor(index / 8) % CHIP_ARPEGGIOS.length];
-    chipNote(ctx, at, step * 0.42, chord[index % chord.length], "triangle", 0.09);
-    if (index % 4 === 0) chipNote(ctx, at, step * 3.4, CHIP_BASS[Math.floor(index / 4)], "square", 0.14);
-    if (index % 8 === 0) chipNote(ctx, at, step * 0.7, 28, "sine", 0.22);
-    if (index % 4 === 2) chipNoise(ctx, at, step * 0.42, 0.08, 2600);
-    if (index % 2 === 1) chipNoise(ctx, at, step * 0.16, 0.025, 5200);
+    const chordIndex = Math.floor(index / 8) % section.chords.length;
+    const chord = section.chords[chordIndex];
+    if (note !== null) {
+      chipNote(ctx, at, step * (section.energy === 3 ? 1.7 : 1.25), note, "square", section.energy === 3 ? 0.16 : 0.13);
+      if (section.energy === 3 && index % 4 === 0) chipNote(ctx, at, step * 2.8, note - 12, "triangle", 0.055);
+    }
+    const arpRate = section.energy === 1 ? 2 : 1;
+    if (index % arpRate === 0) chipNote(ctx, at, step * 0.78, chord[index % chord.length], "triangle", 0.055 + section.energy * 0.012);
+    if (index % 8 === 0) chipNote(ctx, at, step * 7.1, section.bass[chordIndex], "square", 0.105 + section.energy * 0.016);
+    if (index % 4 === 0 && (section.energy > 1 || index >= 16)) chipNote(ctx, at, step * 0.9, 29, "sine", 0.16 + section.energy * 0.025);
+    if (index % 8 === 4 && (section.energy > 1 || index >= 16)) chipNoise(ctx, at, step * 1.8, 0.045 + section.energy * 0.018, 1800);
+    if (section.energy === 3 && index % 2 === 1) chipNoise(ctx, at, step * 0.36, 0.018, 5400);
+    if (section.energy === 2 && index % 4 === 2) chipNoise(ctx, at, step * 0.28, 0.014, 5000);
   });
-  return CHIP_MELODY.length * step;
+  return section.melody.length * step;
+}
+
+function scheduleChipSong(ctx: AudioContext, start: number) {
+  return MODERN_JPOP_CHIP_SONG.reduce((elapsed, section) => elapsed + scheduleSongSection(ctx, start + elapsed, section), 0);
 }
 
 export function startDuelBgm(enabled: boolean) {
@@ -152,7 +202,7 @@ export function startDuelBgm(enabled: boolean) {
   bgmInput.connect(masterInput);
   bgmNextStart = ctx.currentTime + 0.06;
   const scheduleAhead = () => {
-    while (bgmNextStart < ctx.currentTime + 2.2) bgmNextStart += scheduleChipPattern(ctx, bgmNextStart);
+    while (bgmNextStart < ctx.currentTime + 2.2) bgmNextStart += scheduleChipSong(ctx, bgmNextStart);
   };
   scheduleAhead();
   bgmTimer = window.setInterval(scheduleAhead, 700);

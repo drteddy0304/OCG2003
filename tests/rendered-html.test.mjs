@@ -34,7 +34,7 @@ test("Vol.1・Vol.2を各1日10パック開封できる初期画面を表示す�
   assert.match(html, /収録カード・このパックの排出率を見る/);
   assert.match(html, /Vol\.7/);
   assert.match(html, /Booster 2/);
-  assert.match(html, /PHASE 2 · BUILD 103/);
+  assert.match(html, /PHASE 2 · BUILD 104/);
   assert.match(html, /SE 2%/);
   assert.match(html, /UR 5%/);
   assert.doesNotMatch(html, /codex-preview/);

@@ -6,9 +6,11 @@ const audio = await readFile(new URL("../app/duel-audio.ts", import.meta.url), "
 const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
 
 test("デュエル中はオリジナルのチップチューンBGMをループ再生する", () => {
-  assert.match(audio, /CHIP_MELODY/);
-  assert.match(audio, /scheduleChipPattern/);
-  assert.match(audio, /142/);
+  assert.match(audio, /MODERN_JPOP_CHIP_SONG/);
+  assert.match(audio, /Intro:[\s\S]+Verse:[\s\S]+Pre-chorus:[\s\S]+Chorus:/);
+  assert.match(audio, /scheduleChipSong/);
+  assert.match(audio, /158/);
+  assert.match(audio, /energy: 3/);
   assert.match(audio, /export function startDuelBgm/);
   assert.match(audio, /export function stopDuelBgm/);
   assert.match(arena, /if \(duel && soundEnabled\) startDuelBgm\(true\)/);
