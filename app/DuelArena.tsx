@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -74,6 +74,7 @@ type PendingKuribohResponse = {
   defenderIndex: number | null;
   guardianEffect: boolean;
 };
+type PendingRobbinGoblin = { trapIndex: number };
 type PendingAntiRaigeki = {
   trapIndex: number;
 };
@@ -177,6 +178,9 @@ type DuelState = {
   pendingGuardianResponse: PendingGuardianResponse | null;
   pendingMirrorForce: PendingMirrorForce | null;
   pendingKuribohResponse: PendingKuribohResponse | null;
+  pendingRobbinGoblin: PendingRobbinGoblin | null;
+  playerActiveTraps: string[];
+  cpuActiveTraps: string[];
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
   pendingFakeTrap: PendingFakeTrap | null;
@@ -249,6 +253,7 @@ export function DuelArena({
     && !duel.pendingGuardianResponse
     && !duel.pendingMirrorForce
     && !duel.pendingKuribohResponse
+    && !duel.pendingRobbinGoblin
     && !duel.pendingSevenTools
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
@@ -383,6 +388,9 @@ export function DuelArena({
       pendingGuardianResponse: null,
       pendingMirrorForce: null,
       pendingKuribohResponse: null,
+      pendingRobbinGoblin: null,
+      playerActiveTraps: [],
+      cpuActiveTraps: [],
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
       pendingFakeTrap: null,
@@ -1368,7 +1376,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -1391,7 +1399,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -1852,6 +1860,23 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToRobbinGoblin(activate: boolean) {
+    if (!duel?.pendingRobbinGoblin) return;
+    const pending = duel.pendingRobbinGoblin;
+    let resumed: DuelState = { ...duel, pendingRobbinGoblin: null };
+    if (activate && resumed.playerSpellTrap[pending.trapIndex] === "vol7-robbin-goblin") {
+      resumed = {
+        ...resumed,
+        playerActiveTraps: [...new Set([...resumed.playerActiveTraps, "vol7-robbin-goblin"])],
+        log: appendLog(resumed.log, "追い剥ぎゴブリンを発動。CPUの手札をランダムに1枚捨てる。"),
+      };
+      resumed = discardRandomHandCard(resumed, "cpu", "追い剥ぎゴブリン");
+    } else {
+      resumed = { ...resumed, log: appendLog(resumed.log, "追い剥ぎゴブリンを発動しなかった。") };
+    }
+    setDuel(resumed);
+  }
+
   function respondToMirrorForce(activate: boolean) {
     if (!duel?.pendingMirrorForce) return;
     const pending = duel.pendingMirrorForce;
@@ -2101,7 +2126,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 100</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 101</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2414,6 +2439,19 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToKuriboh(true)}>手札から捨てて使う</button>
               <button onClick={() => respondToKuriboh(false)}>使わない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingRobbinGoblin && (
+        <div className="trap-response robbin-goblin-response">
+          <div>
+            <p className="section-label">BATTLE DAMAGE TRAP</p>
+            <h2>追い剥ぎゴブリンを発動しますか？</h2>
+            <p>戦闘ダメージを与えました。発動するとCPUの手札をランダムに1枚捨て、以後も戦闘ダメージのたびに適用します。</p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToRobbinGoblin(true)}>発動する</button>
+              <button onClick={() => respondToRobbinGoblin(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -3998,6 +4036,14 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     };
   }
 
+  if (state.cpuSpellTrap.length < FIELD_LIMIT && state.cpuHand.includes("vol7-robbin-goblin")) {
+    state = {
+      ...removeCpuHandCard(state, "vol7-robbin-goblin"),
+      cpuSpellTrap: [...state.cpuSpellTrap, "vol7-robbin-goblin"],
+      log: appendLog(state.log, "CPUが永続罠カードを1枚セット。"),
+    };
+  }
+
   if (state.cpuSpellTrap.length < FIELD_LIMIT && state.cpuHand.includes("vol1-trap-hole")) {
     state = {
       ...removeCpuHandCard(state, "vol1-trap-hole"),
@@ -4185,48 +4231,40 @@ function resolveBattleDamageEffect(state: DuelState, attackerSide: Side, attacke
   if (damage <= 0) return state;
   const effect = battleDamageEffect(attackerId);
   const attackerName = cardById.get(attackerId)?.name ?? "モンスター";
+  let next = state;
   if (effect === "discard-random") {
-    const opponentHand = attackerSide === "player" ? state.cpuHand : state.playerHand;
-    if (opponentHand.length === 0) return state;
-    const discardIndex = Math.floor(Math.random() * opponentHand.length);
-    const discardedId = opponentHand[discardIndex];
-    const discardedName = cardById.get(discardedId)?.name ?? "カード";
-    return attackerSide === "player"
-      ? {
-          ...state,
-          cpuHand: opponentHand.filter((_, index) => index !== discardIndex),
-          cpuGraveyard: [...state.cpuGraveyard, discardedId],
-          log: appendLog(state.log, `${attackerName}の効果でCPUの手札から${discardedName}を捨てた。`),
-        }
-      : {
-          ...state,
-          playerHand: opponentHand.filter((_, index) => index !== discardIndex),
-          playerGraveyard: [...state.playerGraveyard, discardedId],
-          log: appendLog(state.log, `${attackerName}の効果で手札から${discardedName}を捨てた。`),
-        };
+    next = discardRandomHandCard(next, attackerSide === "player" ? "cpu" : "player", attackerName);
+  } else if (effect === "draw") {
+    const deck = attackerSide === "player" ? next.playerDeck : next.cpuDeck;
+    if (deck.length === 0) {
+      return { ...next, result: attackerSide === "player" ? "lose" : "win", log: appendLog(next.log, `${attackerName}の効果でドローできず敗北。`) };
+    }
+    next = attackerSide === "player"
+      ? { ...next, playerDeck: deck.slice(1), playerHand: [...next.playerHand, deck[0]], log: appendLog(next.log, `${attackerName}の効果でカードを1枚ドロー。`) }
+      : { ...next, cpuDeck: deck.slice(1), cpuHand: [...next.cpuHand, deck[0]], log: appendLog(next.log, `${attackerName}の効果でCPUがカードを1枚ドロー。`) };
   }
-  if (effect !== "draw") return state;
-  const deck = attackerSide === "player" ? state.playerDeck : state.cpuDeck;
-  if (deck.length === 0) {
-    return {
-      ...state,
-      result: attackerSide === "player" ? "lose" : "win",
-      log: appendLog(state.log, `${attackerName}の効果でドローできず敗北。`),
-    };
+  if (attackerSide === "player" && robbinGoblinCanTrigger(next.playerSpellTrap, next.cpuHand.length)) {
+    if (next.playerActiveTraps.includes("vol7-robbin-goblin")) return discardRandomHandCard(next, "cpu", "追い剥ぎゴブリン");
+    return { ...next, pendingRobbinGoblin: { trapIndex: next.playerSpellTrap.indexOf("vol7-robbin-goblin") }, log: appendLog(next.log, "戦闘ダメージを与えた。追い剥ぎゴブリンを発動しますか？") };
   }
-  return attackerSide === "player"
-    ? {
-        ...state,
-        playerDeck: deck.slice(1),
-        playerHand: [...state.playerHand, deck[0]],
-        log: appendLog(state.log, `${attackerName}の効果でカードを1枚ドロー。`),
-      }
-    : {
-        ...state,
-        cpuDeck: deck.slice(1),
-        cpuHand: [...state.cpuHand, deck[0]],
-        log: appendLog(state.log, `${attackerName}の効果でCPUがカードを1枚ドロー。`),
-      };
+  if (attackerSide === "cpu" && robbinGoblinCanTrigger(next.cpuSpellTrap, next.playerHand.length)) {
+    const activated = next.cpuActiveTraps.includes("vol7-robbin-goblin")
+      ? next
+      : { ...next, cpuActiveTraps: [...next.cpuActiveTraps, "vol7-robbin-goblin"], log: appendLog(next.log, "CPUが追い剥ぎゴブリンを発動。") };
+    return discardRandomHandCard(activated, "player", "CPUの追い剥ぎゴブリン");
+  }
+  return next;
+}
+
+function discardRandomHandCard(state: DuelState, side: Side, sourceName: string): DuelState {
+  const hand = side === "player" ? state.playerHand : state.cpuHand;
+  if (hand.length === 0) return state;
+  const index = Math.floor(Math.random() * hand.length);
+  const discardedId = hand[index];
+  const discardedName = cardById.get(discardedId)?.name ?? "カード";
+  return side === "player"
+    ? { ...state, playerHand: hand.filter((_, handIndex) => handIndex !== index), playerGraveyard: [...state.playerGraveyard, discardedId], log: appendLog(state.log, `${sourceName}の効果で手札から${discardedName}を捨てた。`) }
+    : { ...state, cpuHand: hand.filter((_, handIndex) => handIndex !== index), cpuGraveyard: [...state.cpuGraveyard, discardedId], log: appendLog(state.log, `${sourceName}の効果でCPUの手札から${discardedName}を捨てた。`) };
 }
 
 type FlipTargetChoice = {
@@ -4896,6 +4934,7 @@ function isSpellImplemented(id: string) {
 function trapDescription(id: string) {
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
   if (id === "vol7-mirror-force") return "相手の攻撃宣言時、相手の攻撃表示モンスターをすべて破壊";
+  if (id === "vol7-robbin-goblin") return "自分のモンスターが戦闘ダメージを与えるたび、相手の手札をランダムに1枚捨てる";
   if (id === "vol5-anti-raigeki") return "相手のサンダー・ボルトを無効にし、相手モンスターをすべて破壊";
   if (id === "vol5-call-darkness") return "死者蘇生を使用できなくし、死者蘇生で蘇ったモンスターを墓地へ送る";
   if (id === "vol5-fake-trap") return "自分の罠カードが破壊される時、代わりにこのカードを破壊する";
@@ -4909,7 +4948,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin";
 }
 
 function monsterDescription(id: string) {

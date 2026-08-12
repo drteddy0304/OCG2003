@@ -23,6 +23,9 @@ test("Vol.7の起動効果に専用の操作導線がある", () => {
   assert.match(arena, /しびれ薬・攻撃不可/);
   assert.match(arena, /function applyGermInfectionStandby/);
   assert.match(arena, /執念の剣.*デッキの一番上/);
+  assert.match(arena, /追い剥ぎゴブリンを発動しますか/);
+  assert.match(arena, /playerActiveTraps/);
+  assert.match(arena, /CPUが追い剥ぎゴブリンを発動/);
 });
 
 test("攻撃・守備表示はプレイヤーごとの正しい向きになる", () => {

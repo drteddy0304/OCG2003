@@ -393,6 +393,10 @@ export function paralyzingPotionPreventsAttack(equippedIds) {
   return equippedIds.includes("vol7-paralyzing-potion");
 }
 
+export function robbinGoblinCanTrigger(spellTrapIds, opponentHandSize) {
+  return opponentHandSize > 0 && spellTrapIds.includes("vol7-robbin-goblin");
+}
+
 const attributeAuraEffects = Object.freeze({
   "vol6-hoshiningen": { boost: "光", weaken: "闇" },
   "vol6-star-boy": { boost: "水", weaken: "炎" },
@@ -462,7 +466,8 @@ export function canDeckSearchTarget(sourceId, target) {
 export const competitiveCpuDeckLatestPackId = "vol-7";
 
 export const competitiveCpuDeck = Object.freeze([
-  ...Array(2).fill("vol3-rogue-doll"),
+  "vol3-rogue-doll",
+  "vol7-robbin-goblin",
   "vol5-white-magical-hat",
   ...Array(3).fill("vol3-skull-red-bird"),
   "vol7-rainbow-fish",
