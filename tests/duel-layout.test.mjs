@@ -69,4 +69,6 @@ test("Boosterの追加魔法・罠に選択と発動確認の導線がある", (
   assert.match(arena, /DAMAGE STEP/);
   assert.match(arena, /pendingBattleStatTrap/);
   assert.match(arena, /battleDefBonusTurn/);
+  assert.match(arena, /血の代償を発動して追加召喚/);
+  assert.match(arena, /canUseUltimateOffering/);
 });

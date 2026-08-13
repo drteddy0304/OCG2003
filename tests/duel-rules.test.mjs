@@ -7,6 +7,7 @@ import { aileSwordsmanAttackBonus, bottomDeckSelection } from "../app/duel-rules
 import { gracefulCharityDraw, selectedCards } from "../app/duel-rules.mjs";
 import { justDessertsDamage } from "../app/duel-rules.mjs";
 import { temporaryBattleStatBonus } from "../app/duel-rules.mjs";
+import { canUseUltimateOffering } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -49,6 +50,14 @@ test("援軍と城壁の500アップは発動したターンだけ適用する",
   assert.equal(temporaryBattleStatBonus(8, 8), 500);
   assert.equal(temporaryBattleStatBonus(8, 9), 0);
   assert.equal(temporaryBattleStatBonus(undefined, 8), 0);
+});
+
+test("血の代償は通常召喚後に500LPを残して追加召喚できる", () => {
+  assert.equal(canUseUltimateOffering(501, true, 4, true), true);
+  assert.equal(canUseUltimateOffering(500, true, 4, true), false);
+  assert.equal(canUseUltimateOffering(8000, false, 4, true), false);
+  assert.equal(canUseUltimateOffering(8000, true, 5, true), false);
+  assert.equal(canUseUltimateOffering(8000, true, 4, false), false);
 });
 
 test("守備力を上回った場合は守備モンスターが破壊される", () => {

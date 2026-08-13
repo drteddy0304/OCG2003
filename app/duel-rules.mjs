@@ -302,6 +302,10 @@ export function temporaryBattleStatBonus(effectTurn, currentTurn) {
   return effectTurn === currentTurn ? 500 : 0;
 }
 
+export function canUseUltimateOffering(lifePoints, normalSummoned, fieldCount, hasSummonCandidate, fieldLimit = 5) {
+  return lifePoints > 500 && normalSummoned === true && fieldCount < fieldLimit && hasSummonCandidate === true;
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };
