@@ -65,4 +65,8 @@ test("Boosterの追加魔法・罠に選択と発動確認の導線がある", (
   assert.match(arena, /自業自得を発動しますか/);
   assert.match(arena, /pendingJustDesserts/);
   assert.match(arena, /"bo6-fusion-sage"/);
+  assert.match(arena, /"bo3-reinforcements"/);
+  assert.match(arena, /DAMAGE STEP/);
+  assert.match(arena, /pendingBattleStatTrap/);
+  assert.match(arena, /battleDefBonusTurn/);
 });

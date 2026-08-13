@@ -84,6 +84,7 @@ export function bottomDeckSelection(cards: string[], selectedIndexes: number[]):
 export function gracefulCharityDraw(hand: string[], deck: string[]): { hand: string[]; deck: string[] } | null;
 export function selectedCards(cards: string[], selectedIndexes: number[]): { remaining: string[]; chosen: string[] };
 export function justDessertsDamage(monsterCount: number): number;
+export function temporaryBattleStatBonus(effectTurn: number | undefined, currentTurn: number | undefined): number;
 
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];

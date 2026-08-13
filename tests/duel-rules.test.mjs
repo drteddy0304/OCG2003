@@ -6,6 +6,7 @@ import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { aileSwordsmanAttackBonus, bottomDeckSelection } from "../app/duel-rules.mjs";
 import { gracefulCharityDraw, selectedCards } from "../app/duel-rules.mjs";
 import { justDessertsDamage } from "../app/duel-rules.mjs";
+import { temporaryBattleStatBonus } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -42,6 +43,12 @@ test("自業自得は相手モンスター1体につき500ダメージを与え�
   assert.equal(justDessertsDamage(0), 0);
   assert.equal(justDessertsDamage(1), 500);
   assert.equal(justDessertsDamage(5), 2500);
+});
+
+test("援軍と城壁の500アップは発動したターンだけ適用する", () => {
+  assert.equal(temporaryBattleStatBonus(8, 8), 500);
+  assert.equal(temporaryBattleStatBonus(8, 9), 0);
+  assert.equal(temporaryBattleStatBonus(undefined, 8), 0);
 });
 
 test("守備力を上回った場合は守備モンスターが破壊される", () => {

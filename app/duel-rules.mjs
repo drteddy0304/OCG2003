@@ -298,6 +298,10 @@ export function justDessertsDamage(monsterCount) {
   return Number.isInteger(monsterCount) && monsterCount > 0 ? monsterCount * 500 : 0;
 }
 
+export function temporaryBattleStatBonus(effectTurn, currentTurn) {
+  return effectTurn === currentTurn ? 500 : 0;
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };
