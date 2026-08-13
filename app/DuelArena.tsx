@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -135,6 +135,7 @@ type ZoneCard = {
   guardianEffectUsed?: boolean;
   attackLockedTurn?: number;
   ironScorpionDestroyTurn?: number;
+  foreignSwordsmanDestroyTurn?: number;
   blastPromptedTurn?: number;
   cocoonEquippedTurn?: number;
   controlReturn?: Side;
@@ -466,6 +467,7 @@ export function DuelArena({
       normalSummoned: true,
       log: appendLog(duel.log, `${card.name}を${position === "attack" ? lockedByJar ? "召喚し、封印の壺で守備表示" : "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
     };
+    if (position === "attack") nextState = applyMysteriousPuppeteerGain(nextState);
     const cpuTrapIndex = nextState.cpuSpellTrap.indexOf("vol1-trap-hole");
     if (position === "attack" && (card.atk ?? 0) >= 1000 && cpuTrapIndex >= 0) {
       const trappedMonster = nextState.playerField[nextState.playerField.length - 1];
@@ -551,7 +553,10 @@ export function DuelArena({
         `${cardById.get(zone.id)?.name ?? "モンスター"}を${nextPosition === "attack" ? "攻撃" : "守備"}表示に変更。`,
       ),
     };
-    if (zone.faceDown) next = resolveFlipEffect(next, "player", zone.id);
+    if (zone.faceDown) {
+      next = applyMysteriousPuppeteerGain(next);
+      next = resolveFlipEffect(next, "player", zone.id);
+    }
     setDuel(next);
     setSelectedAttacker(null);
   }
@@ -2152,7 +2157,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 109</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 110</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3268,6 +3273,9 @@ function FieldRow({
         const scorpionTurns = zone.ironScorpionDestroyTurn === undefined
           ? null
           : Math.max(0, Math.ceil((zone.ironScorpionDestroyTurn - state.turnNumber) / 2));
+        const swordsmanTurns = zone.foreignSwordsmanDestroyTurn === undefined
+          ? null
+          : Math.max(0, zone.foreignSwordsmanDestroyTurn - state.turnNumber);
         const validEquipTarget = equipTarget && !zone.faceDown && Boolean(equipId && canEquip(equipId, card));
         const showPositionChange = owner === "player" && canChangePosition?.(index);
         return (
@@ -3286,6 +3294,7 @@ function FieldRow({
               {!hidden && paralyzed && <small className="field-effect-badge">しびれ薬・攻撃不可</small>}
               {!hidden && zone.id === "vol7-dark-elf" && <small className="field-effect-badge">攻撃時1000LP</small>}
               {!hidden && scorpionTurns !== null && <small className="field-effect-badge">鉄のサソリ・あと{scorpionTurns}自ターン</small>}
+              {!hidden && swordsmanTurns !== null && <small className="field-effect-badge">異国の剣士・あと{swordsmanTurns}ターン</small>}
               {!hidden && zone.controlReturn === "cpu" && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
               {owner === "player" && zone.position === "attack" && <small>{paralyzed ? "しびれ薬で攻撃不可" : attackLocked ? "次のターンまで攻撃不可" : cannotPayAttackCost ? "LP不足で攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
@@ -3359,6 +3368,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
           : `CPUが${summonChoice.card.name}を召喚。`,
       ),
     };
+    if (!defensive) state = applyMysteriousPuppeteerGain(state);
     state = applyDeckSearchTriggers(state, [], tributedZones);
     const hornIndex = state.playerSpellTrap.indexOf("vol6-horn-heaven");
     if (!defensive && canActivateHornOfHeaven(state.playerField.length, state.playerSpellTrap) && hornIndex >= 0) {
@@ -3513,8 +3523,28 @@ function clearSwappedStats(state: DuelState): DuelState {
   };
 }
 
+function applyMysteriousPuppeteerGain(state: DuelState): DuelState {
+  const playerGain = mysteriousPuppeteerLifeGain(
+    state.playerField.filter((zone) => !zone.faceDown).map((zone) => zone.id),
+  );
+  const cpuGain = mysteriousPuppeteerLifeGain(
+    state.cpuField.filter((zone) => !zone.faceDown).map((zone) => zone.id),
+  );
+  if (playerGain + cpuGain === 0) return state;
+  return {
+    ...state,
+    playerLp: state.playerLp + playerGain,
+    cpuLp: state.cpuLp + cpuGain,
+    log: appendLog(
+      state.log,
+      `謎の傀儡師の効果が発動。${playerGain ? `あなたは${playerGain}LP回復。` : ""}${cpuGain ? `CPUは${cpuGain}LP回復。` : ""}`,
+    ),
+  };
+}
+
 function resolveIronScorpionEndPhase(state: DuelState): DuelState {
-  const isDue = (zone: ZoneCard) => isIronScorpionDestructionDue(zone.ironScorpionDestroyTurn, state.turnNumber);
+  const isDue = (zone: ZoneCard) => isIronScorpionDestructionDue(zone.ironScorpionDestroyTurn, state.turnNumber)
+    || zone.foreignSwordsmanDestroyTurn === state.turnNumber;
   const destroyedOnPlayerField = state.playerField.filter(isDue);
   const destroyedCpu = state.cpuField.filter(isDue);
   if (destroyedOnPlayerField.length + destroyedCpu.length === 0) return state;
@@ -3528,7 +3558,7 @@ function resolveIronScorpionEndPhase(state: DuelState): DuelState {
     cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpu, ...returnedCpu]),
     playerGraveyard: [...state.playerGraveyard, ...graveCards(destroyedPlayer)],
     cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpu), ...graveCards(returnedCpu)],
-    log: appendLog(state.log, `鉄のサソリの効果でモンスター${destroyedOnPlayerField.length + destroyedCpu.length}体を破壊。`),
+    log: appendLog(state.log, `遅延破壊効果でモンスター${destroyedOnPlayerField.length + destroyedCpu.length}体を破壊。`),
   };
   next = applyDeckSearchTriggers(next, destroyedPlayer, [...destroyedCpu, ...returnedCpu]);
   return next;
@@ -4152,12 +4182,17 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
 function projectedCpuBattleDamage(state: DuelState, attackerIndex: number, defenderIndex: number | null, guardianEffect = false) {
   const attackerZone = state.cpuField[attackerIndex];
   if (!attackerZone) return 0;
-  const attackValue = guardianAdjustedAttack(effectiveAtk(attackerZone, state, "cpu"), guardianEffect);
+  const attacker = cardById.get(attackerZone.id);
   const defenderZone = defenderIndex === null ? null : state.playerField[defenderIndex];
+  const defender = defenderZone ? cardById.get(defenderZone.id) : null;
+  const attackValue = guardianAdjustedAttack(
+    effectiveAtk(attackerZone, state, "cpu") + battleAttackBonus(attackerZone.id, defender?.attribute),
+    guardianEffect,
+  );
   if (!defenderZone) return attackValue;
   const defenseValue = defenderZone.position === "attack"
     ? effectiveAtk(defenderZone, state, "player")
-    : effectiveDef(defenderZone, state, "player");
+    : battleDefenseValue(defenderZone.id, effectiveDef(defenderZone, state, "player"), attacker?.attribute);
   return battleOutcome(attackValue, defenseValue, defenderZone.position).defenderDamage;
 }
 
@@ -4212,17 +4247,29 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   }
   if (guardianEffect) defenderZone.guardianEffectUsed = true;
   const defenderSide: Side = attackerSide === "player" ? "cpu" : "player";
-  const attackValue = guardianAdjustedAttack(effectiveAtk(attackerZone, state, attackerSide), guardianEffect);
+  const attackValue = guardianAdjustedAttack(
+    effectiveAtk(attackerZone, state, attackerSide) + battleAttackBonus(attacker.id, defender.attribute),
+    guardianEffect,
+  );
   const defenseValue = defenderZone.position === "attack"
     ? effectiveAtk(defenderZone, state, defenderSide)
-    : effectiveDef(defenderZone, state, defenderSide);
+    : battleDefenseValue(defender.id, effectiveDef(defenderZone, state, defenderSide), attacker.attribute);
   const { attackerDestroyed, defenderDestroyed, attackerDamage, defenderDamage } =
     battleOutcome(attackValue, defenseValue, defenderZone.position);
   const appliedDefenderDamage = attackerSide === "cpu" && preventPlayerBattleDamage ? 0 : defenderDamage;
-  const removal = battleRemovalOutcome(attacker.id, defender.id, attackerDestroyed, defenderDestroyed);
+  const spiderDestroyed = mechanicalSpiderDestroys(attacker.id, defender.attribute);
+  const resolvedDefenderDestroyed = defenderDestroyed || spiderDestroyed;
+  const swordsmanTurn = foreignSwordsmanDestroyTurn(attacker.id, state.turnNumber);
+  if (swordsmanTurn !== null && !resolvedDefenderDestroyed) {
+    defenderZone.foreignSwordsmanDestroyTurn = Math.min(
+      defenderZone.foreignSwordsmanDestroyTurn ?? swordsmanTurn,
+      swordsmanTurn,
+    );
+  }
+  const removal = battleRemovalOutcome(attacker.id, defender.id, attackerDestroyed, resolvedDefenderDestroyed);
   const dimensionalBanish = removal.banishBoth;
   const unhappyMaidenDestroyed = endsBattlePhaseOnBattleDestruction(attacker.id, attackerDestroyed)
-    || endsBattlePhaseOnBattleDestruction(defender.id, defenderDestroyed);
+    || endsBattlePhaseOnBattleDestruction(defender.id, resolvedDefenderDestroyed);
 
   const nextAttackerField = removal.removeAttacker ? attackerField.filter((_, index) => index !== attackerIndex) : attackerField;
   const nextDefenderField = removal.removeDefender ? defenderField.filter((_, index) => index !== defenderIndex) : defenderField;
@@ -4261,9 +4308,9 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
       `${attacker.name}が${defender.name}を攻撃。${
         dimensionalBanish
           ? `${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : appliedDefenderDamage ? `${defenderLpName}に${appliedDefenderDamage}ダメージ。` : ""}`
-          : attackerDestroyed && defenderDestroyed
+          : attackerDestroyed && resolvedDefenderDestroyed
           ? "両方を破壊。"
-          : defenderDestroyed
+          : resolvedDefenderDestroyed
             ? `${defender.name}を破壊。${appliedDefenderDamage ? `${defenderLpName}に${appliedDefenderDamage}ダメージ。` : ""}`
             : attackerDestroyed
               ? `${attacker.name}を破壊。${attackerDamage ? `${attackerLpName}に${attackerDamage}ダメージ。` : ""}`
@@ -4279,6 +4326,12 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   }
   if (scorpionDestroyTurn !== null) {
     next.log = appendLog(next.log, `鉄のサソリの効果が発動。${attacker.name}は攻撃側の3ターン目終了時に破壊される。`);
+  }
+  if (spiderDestroyed && !defenderDestroyed) {
+    next.log = appendLog(next.log, `カラクリ蜘蛛の効果が発動。闇属性の${defender.name}を破壊。`);
+  }
+  if (swordsmanTurn !== null && !resolvedDefenderDestroyed) {
+    next.log = appendLog(next.log, `異国の剣士の効果が発動。${defender.name}は5ターン後に破壊される。`);
   }
   if (unhappyMaidenDestroyed) {
     next = {
@@ -4312,6 +4365,19 @@ function resolveBattleDamageEffect(state: DuelState, attackerSide: Side, attacke
     next = attackerSide === "player"
       ? { ...next, playerDeck: deck.slice(1), playerHand: [...next.playerHand, deck[0]], log: appendLog(next.log, `${attackerName}の効果でカードを1枚ドロー。`) }
       : { ...next, cpuDeck: deck.slice(1), cpuHand: [...next.cpuHand, deck[0]], log: appendLog(next.log, `${attackerName}の効果でCPUがカードを1枚ドロー。`) };
+  } else if (effect === "opponent-draw-two") {
+    const opponentSide: Side = attackerSide === "player" ? "cpu" : "player";
+    const deck = opponentSide === "player" ? next.playerDeck : next.cpuDeck;
+    if (deck.length < 2) {
+      return {
+        ...next,
+        result: opponentSide === "player" ? "lose" : "win",
+        log: appendLog(next.log, `${attackerName}の効果で2枚ドローできず${opponentSide === "player" ? "あなた" : "CPU"}の敗北。`),
+      };
+    }
+    next = opponentSide === "player"
+      ? { ...next, playerDeck: deck.slice(2), playerHand: [...next.playerHand, ...deck.slice(0, 2)], log: appendLog(next.log, `${attackerName}の効果であなたはカードを2枚ドロー。`) }
+      : { ...next, cpuDeck: deck.slice(2), cpuHand: [...next.cpuHand, ...deck.slice(0, 2)], log: appendLog(next.log, `${attackerName}の効果でCPUはカードを2枚ドロー。`) };
   }
   if (attackerSide === "player" && robbinGoblinCanTrigger(next.playerSpellTrap, next.cpuHand.length)) {
     if (next.playerActiveTraps.includes("vol7-robbin-goblin")) return discardRandomHandCard(next, "cpu", "追い剥ぎゴブリン");
@@ -4447,6 +4513,21 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
 function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
   const ownerName = owner === "player" ? "あなた" : "CPU";
   const effect = flipEffect(monsterId);
+  if (effect === "pay-2000-damage-1000") {
+    const ownerLp = owner === "player" ? state.playerLp : state.cpuLp;
+    if (ownerLp <= 2000) {
+      return { ...state, log: appendLog(state.log, `${ownerName}のニードル・ボールがリバース。LP不足のため効果は発動しなかった。`) };
+    }
+    const nextPlayerLp = owner === "player" ? state.playerLp - 2000 : Math.max(0, state.playerLp - 1000);
+    const nextCpuLp = owner === "cpu" ? state.cpuLp - 2000 : Math.max(0, state.cpuLp - 1000);
+    return {
+      ...state,
+      playerLp: nextPlayerLp,
+      cpuLp: nextCpuLp,
+      result: nextPlayerLp === 0 ? "lose" : nextCpuLp === 0 ? "win" : state.result,
+      log: appendLog(state.log, `${ownerName}のニードル・ボールがリバース。2000LPを払い、相手に1000ダメージ。`),
+    };
+  }
   if (effect === "gain-3000") {
     const amount = flipLifeAmount(monsterId)?.gain ?? 0;
     return {

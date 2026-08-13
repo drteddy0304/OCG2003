@@ -63,8 +63,13 @@ export function isMirrorForceDestructionTarget(position: "attack" | "defense"): 
 export function ironScorpionDestroyTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
 export function isIronScorpionDestructionDue(destroyTurn: number | undefined, currentTurn: number): boolean;
 
-export type BattleDamageEffect = "discard-random" | "draw";
+export type BattleDamageEffect = "discard-random" | "draw" | "opponent-draw-two";
 export function battleDamageEffect(id: string): BattleDamageEffect | null;
+export function battleAttackBonus(attackerId: string, defenderAttribute?: string): number;
+export function battleDefenseValue(defenderId: string, defenderDefense: number, attackerAttribute?: string): number;
+export function mechanicalSpiderDestroys(attackerId: string, defenderAttribute?: string): boolean;
+export function foreignSwordsmanDestroyTurn(attackerId: string, currentTurn: number): number | null;
+export function mysteriousPuppeteerLifeGain(faceUpMonsterIds: string[], summonedCount?: number): number;
 
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];
@@ -126,7 +131,7 @@ export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000";
 
 export function flipEffect(id: string): FlipEffect | null;
 export function isDragonCaptureJarLocked(kind: string | undefined, faceDown: boolean, jarActive: boolean): boolean;

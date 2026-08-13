@@ -195,10 +195,33 @@ export function isIronScorpionDestructionDue(destroyTurn, currentTurn) {
 const battleDamageEffects = Object.freeze({
   "vol5-white-magical-hat": "discard-random",
   "vol5-masked-sorcerer": "draw",
+  "bo7-devil-cook": "opponent-draw-two",
 });
 
 export function battleDamageEffect(id) {
   return battleDamageEffects[id] ?? null;
+}
+
+export function battleAttackBonus(attackerId, defenderAttribute) {
+  return attackerId === "bo7-flying-insect-soldier" && defenderAttribute === "風" ? 1000 : 0;
+}
+
+export function battleDefenseValue(defenderId, defenderDefense, attackerAttribute) {
+  if (defenderId !== "bo3-dark-artist" || attackerAttribute !== "光") return defenderDefense;
+  return Math.floor(Math.max(0, defenderDefense) / 2);
+}
+
+export function mechanicalSpiderDestroys(attackerId, defenderAttribute) {
+  return attackerId === "bo4-mechanical-spider" && defenderAttribute === "闇";
+}
+
+export function foreignSwordsmanDestroyTurn(attackerId, currentTurn) {
+  return attackerId === "bo4-foreign-swordsman" ? currentTurn + 8 : null;
+}
+
+export function mysteriousPuppeteerLifeGain(faceUpMonsterIds, summonedCount = 1) {
+  const puppeteers = faceUpMonsterIds.filter((id) => id === "bo5-mysterious-puppeteer").length;
+  return puppeteers * Math.max(0, summonedCount) * 500;
 }
 
 export function advanceSwordsTurns(turns) {
@@ -290,6 +313,7 @@ const flipEffects = Object.freeze({
   "bo5-trap-master": "destroy-trap",
   "bo5-needle-worm": "mill-five",
   "bo5-morphing-jar": "reload-five",
+  "bo5-needle-ball": "pay-2000-damage-1000",
 });
 
 export function flipEffect(id) {
