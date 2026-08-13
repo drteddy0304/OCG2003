@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, reverseAdjustedStat, robbinGoblinCanTrigger, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -77,6 +77,11 @@ type PendingKuribohResponse = {
 type PendingRobbinGoblin = { trapIndex: number };
 type PendingAntiRaigeki = {
   trapIndex: number;
+};
+type PendingSpellSpecificTrap = {
+  trapIndex: number;
+  trapId: "bo4-white-hole" | "bo4-call-grave" | "bo7-griffin-wing";
+  spellId: string;
 };
 type PendingFakeTrap = {
   monsterId: string;
@@ -206,6 +211,7 @@ type DuelState = {
   cpuActiveTraps: string[];
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
+  pendingSpellSpecificTrap: PendingSpellSpecificTrap | null;
   pendingFakeTrap: PendingFakeTrap | null;
   pendingTwoPronged: PendingTwoPronged | null;
   pendingFlipTarget: PendingFlipTarget | null;
@@ -290,6 +296,7 @@ export function DuelArena({
     && !duel.pendingSevenTools
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
+    && !duel.pendingSpellSpecificTrap
     && !duel.pendingFakeTrap
     && !duel.pendingTwoPronged
     && !duel.pendingFlipTarget
@@ -452,6 +459,7 @@ export function DuelArena({
       cpuActiveTraps: [],
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
+      pendingSpellSpecificTrap: null,
       pendingFakeTrap: null,
       pendingTwoPronged: null,
       pendingFlipTarget: null,
@@ -521,7 +529,7 @@ export function DuelArena({
       log: appendLog(duel.log, `${card.name}を${position === "attack" ? lockedByJar ? "召喚し、封印の壺で守備表示" : "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
     };
     if (position === "attack") nextState = applyMysteriousPuppeteerGain(nextState);
-    const cpuTrapIndex = nextState.cpuSpellTrap.indexOf("vol1-trap-hole");
+    const cpuTrapIndex = areTrapEffectsNegated(nextState) ? -1 : nextState.cpuSpellTrap.indexOf("vol1-trap-hole");
     if (position === "attack" && (card.atk ?? 0) >= 1000 && cpuTrapIndex >= 0) {
       const trappedMonster = nextState.playerField[nextState.playerField.length - 1];
       const sevenToolsIndex = nextState.playerSpellTrap.indexOf("vol6-seven-tools");
@@ -542,7 +550,7 @@ export function DuelArena({
         setPendingTribute(null);
         return;
       }
-      const solemnIndex = nextState.playerSpellTrap.indexOf("vol6-solemn-judgment");
+      const solemnIndex = areTrapEffectsNegated(nextState) ? -1 : nextState.playerSpellTrap.indexOf("vol6-solemn-judgment");
       if (trappedMonster && solemnIndex >= 0) {
         nextState = {
           ...nextState,
@@ -1663,6 +1671,16 @@ export function DuelArena({
       });
       return;
     }
+    if (card.id === "bo5-royal-decree" || card.id === "bo6-magic-thorn") {
+      const next = removeHandCard(duel, handIndex);
+      setDuel({
+        ...next,
+        playerSpellTrap: [...next.playerSpellTrap, card.id],
+        playerActiveTraps: [...new Set([...next.playerActiveTraps, card.id])],
+        log: appendLog(next.log, `${card.name}を発動。永続罠として表側表示にした。`),
+      });
+      return;
+    }
     setDuel({
       ...removeHandCard(duel, handIndex),
       playerSpellTrap: [...duel.playerSpellTrap, card.id],
@@ -1705,7 +1723,7 @@ export function DuelArena({
 
   function resolvePlayerAttack(attackerIndex: number, defenderIndex: number | null) {
     if (!duel) return;
-    const mirrorForceIndex = duel.cpuSpellTrap.indexOf("vol7-mirror-force");
+    const mirrorForceIndex = areTrapEffectsNegated(duel) ? -1 : duel.cpuSpellTrap.indexOf("vol7-mirror-force");
     if (mirrorForceIndex < 0) {
       setDuel(resolveBattle(duel, "player", attackerIndex, defenderIndex));
       return;
@@ -2464,6 +2482,60 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToSpellSpecificTrap(activate: boolean) {
+    if (!duel?.pendingSpellSpecificTrap) return;
+    const pending = duel.pendingSpellSpecificTrap;
+    const trapName = cardById.get(pending.trapId)?.name ?? "罠カード";
+    const marker = `${trapName}の発動確認が終了。`;
+    let resumed: DuelState = {
+      ...duel,
+      pendingSpellSpecificTrap: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (activate) {
+      resumed = {
+        ...resumed,
+        playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        playerGraveyard: [...resumed.playerGraveyard, pending.trapId],
+        log: appendLog(resumed.log, `${trapName}を発動。${cardById.get(pending.spellId)?.name ?? "魔法カード"}に対応した。`),
+      };
+    }
+
+    if (pending.trapId === "bo4-white-hole") {
+      const destroyedPlayer = activate ? [] : [...resumed.playerField];
+      const destroyedCpu = [...resumed.cpuField];
+      resumed = {
+        ...resumed,
+        playerField: activate ? resumed.playerField : [],
+        cpuField: [],
+        playerSpellTrap: activate ? resumed.playerSpellTrap : discardEquips(resumed.playerSpellTrap, resumed.playerField),
+        cpuSpellTrap: discardEquips(resumed.cpuSpellTrap, resumed.cpuField),
+        playerGraveyard: [...resumed.playerGraveyard, ...graveCards(destroyedPlayer)],
+        cpuGraveyard: [...resumed.cpuGraveyard, ...graveCards(destroyedCpu)],
+        log: appendLog(resumed.log, activate
+          ? "ホワイト・ホールにより自分のモンスターを守り、CPUのモンスターだけが破壊された。"
+          : "ホワイト・ホールを発動せず、すべてのモンスターが破壊された。"),
+      };
+      resumed = applyDeckSearchTriggers(resumed, destroyedPlayer, destroyedCpu);
+    } else if (pending.trapId === "bo4-call-grave") {
+      if (activate) {
+        resumed = { ...resumed, log: appendLog(resumed.log, "墓場からの呼び声により死者蘇生の効果を無効にした。") };
+      } else {
+        resumed = resolveCpuMonsterRebornEffect(resumed);
+      }
+    } else if (pending.trapId === "bo7-griffin-wing" && activate) {
+      const destroyedCpuTraps = [...resumed.cpuSpellTrap];
+      resumed = {
+        ...resumed,
+        cpuSpellTrap: [],
+        cpuGraveyard: [...resumed.cpuGraveyard, ...destroyedCpuTraps],
+        log: appendLog(resumed.log, `グリフォンの翼によりCPUの魔法・罠${destroyedCpuTraps.length}枚を破壊した。`),
+      };
+    }
+    const finalState = continueCpuTurnAfterSpells(resumed);
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
   function respondToFakeTrap(activate: boolean) {
     if (!duel?.pendingFakeTrap) return;
     const pending = duel.pendingFakeTrap;
@@ -2657,7 +2729,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 120</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 121</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2971,6 +3043,22 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToAntiRaigeki(true)}>発動する</button>
               <button onClick={() => respondToAntiRaigeki(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingSpellSpecificTrap && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">CHAIN RESPONSE</p>
+            <h2>{cardById.get(duel.pendingSpellSpecificTrap.trapId)?.name ?? "罠カード"}を発動しますか？</h2>
+            <p>
+              CPUが<strong>{cardById.get(duel.pendingSpellSpecificTrap.spellId)?.name ?? "魔法カード"}</strong>を発動しました。
+              対応する罠カードをチェーンできます。
+            </p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToSpellSpecificTrap(true)}>発動する</button>
+              <button onClick={() => respondToSpellSpecificTrap(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -4055,7 +4143,7 @@ function runCpuTurn(initial: DuelState): DuelState {
   state = applyPatrolRoboStandby(state, "cpu");
   if (state.result) return state;
   state = playCpuNormalSpells(state);
-  if (state.result || state.pendingAntiRaigeki || state.pendingMagicJammer || state.pendingSolemnJudgment) return state;
+  if (state.result || state.pendingAntiRaigeki || state.pendingSpellSpecificTrap || state.pendingMagicJammer || state.pendingSolemnJudgment) return state;
   return continueCpuTurnAfterSpells(state);
 }
 
@@ -4101,7 +4189,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     };
     if (!defensive) state = applyMysteriousPuppeteerGain(state);
     state = applyDeckSearchTriggers(state, [], tributedZones);
-    const hornIndex = state.playerSpellTrap.indexOf("vol6-horn-heaven");
+    const hornIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol6-horn-heaven");
     if (!defensive && canActivateHornOfHeaven(state.playerField.length, state.playerSpellTrap) && hornIndex >= 0) {
       return {
         ...state,
@@ -4113,7 +4201,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
         log: appendLog(state.log, `CPUが${summonChoice.card.name}を召喚。昇天の角笛を発動しますか？`),
       };
     }
-    const solemnIndex = state.playerSpellTrap.indexOf("vol6-solemn-judgment");
+    const solemnIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol6-solemn-judgment");
     if (!defensive && solemnIndex >= 0) {
       return {
         ...state,
@@ -4126,7 +4214,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
         log: appendLog(state.log, `CPUが${summonChoice.card.name}を召喚。神の宣告を発動しますか？`),
       };
     }
-    const trapIndex = state.playerSpellTrap.indexOf("vol1-trap-hole");
+    const trapIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol1-trap-hole");
     if (!defensive && (summonChoice.card.atk ?? 0) >= 1000 && trapIndex >= 0) {
       return {
         ...state,
@@ -4325,7 +4413,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       ...state,
       cpuField: state.cpuField.map((zone) => ({ ...zone, attacked: false })),
     };
-    const justDessertsIndex = state.playerSpellTrap.indexOf("bo5-just-desserts");
+    const justDessertsIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("bo5-just-desserts");
     if (justDessertsIndex >= 0 && state.cpuField.length > 0) {
       return {
         ...state,
@@ -4354,7 +4442,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(attacker.equipped) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
       if (attackDeclarationCost(attacker.id, state.cpuLp) === null) continue;
       if (state.playerField.length === 0) {
-        const mirrorForceIndex = state.playerSpellTrap.indexOf("vol7-mirror-force");
+        const mirrorForceIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol7-mirror-force");
         if (mirrorForceIndex >= 0) {
           state = {
             ...state,
@@ -4378,7 +4466,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       );
       if (targetIndex !== null) {
         const defender = state.playerField[targetIndex];
-        const mirrorForceIndex = state.playerSpellTrap.indexOf("vol7-mirror-force");
+        const mirrorForceIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol7-mirror-force");
         if (mirrorForceIndex >= 0) {
           state = {
             ...state,
@@ -4592,9 +4680,44 @@ function firstCpuPlayableSpell(state: DuelState): string | null {
   return state.cpuHand.find((id) => simpleSpellEffect(id) && shouldCpuUseSimpleSpell(id, state.cpuLp, STARTING_LP)) ?? null;
 }
 
+function resolveCpuMonsterRebornEffect(state: DuelState): DuelState {
+  if (state.cpuField.length >= FIELD_LIMIT || isMonsterRebornBlocked(state.playerSpellTrap, state.cpuSpellTrap)) return state;
+  const revivalCandidates = [
+    ...state.cpuGraveyard.map((id, index) => ({ id, index, side: "cpu" as const })),
+    ...state.playerGraveyard.map((id, index) => ({ id, index, side: "player" as const })),
+  ].filter(({ id }) => {
+    const card = cardById.get(id);
+    return card?.cardType === "monster" && !card.fusion;
+  });
+  const choiceIndex = strongestAttackIndex(revivalCandidates.map(({ id }) => cardById.get(id)?.atk ?? 0));
+  const choice = choiceIndex === null ? null : revivalCandidates[choiceIndex];
+  const graveyard = choice?.side === "cpu" ? state.cpuGraveyard : state.playerGraveyard;
+  const taken = choice ? takeGraveyardCard(graveyard, choice.index) : null;
+  const monster = taken ? cardById.get(taken.cardId) : null;
+  if (!choice || !taken || monster?.cardType !== "monster") return state;
+  const position: Position = (monster.def ?? 0) > (monster.atk ?? 0)
+    || isDragonCaptureJarLocked(monster.kind, false, isDragonCaptureJarActive(state)) ? "defense" : "attack";
+  return {
+    ...state,
+    cpuField: [...state.cpuField, {
+      id: taken.cardId,
+      position,
+      faceDown: false,
+      attacked: false,
+      equipped: [],
+      summonedTurn: state.turnNumber,
+      positionChanged: false,
+      revivedByMonsterReborn: true,
+    }],
+    cpuGraveyard: choice.side === "cpu" ? taken.remaining : state.cpuGraveyard,
+    playerGraveyard: choice.side === "player" ? taken.remaining : state.playerGraveyard,
+    log: appendLog(state.log, `死者蘇生の効果でCPUが${monster.name}を特殊召喚。`),
+  };
+}
+
 function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false): DuelState {
   let state = initial;
-  const magicJammerIndex = state.playerSpellTrap.indexOf("vol6-magic-jammer");
+  const magicJammerIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol6-magic-jammer");
   const pendingSpellId = firstCpuPlayableSpell(state);
   if (!skipMagicJammerPrompt && magicJammerIndex >= 0 && canActivateMagicJammer(state.playerHand.length, state.playerSpellTrap) && pendingSpellId) {
     return {
@@ -4603,7 +4726,7 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       log: appendLog(state.log, `CPUが${cardById.get(pendingSpellId)?.name ?? "魔法カード"}を発動。マジック・ジャマーを発動しますか？`),
     };
   }
-  const solemnIndex = state.playerSpellTrap.indexOf("vol6-solemn-judgment");
+  const solemnIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol6-solemn-judgment");
   if (!skipMagicJammerPrompt && solemnIndex >= 0 && pendingSpellId) {
     return {
       ...state,
@@ -4684,17 +4807,28 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
     && state.playerField.length > 0
     && fieldPower(state.playerField, state, "player") > fieldPower(state.cpuField, state, "cpu")
   ) {
-    const destroyedPlayer = state.playerField;
-    const destroyedCpu = state.cpuField;
-    state = {
+    const activated = {
       ...removeCpuHandCard(state, "vol1-dark-hole"),
-      playerSpellTrap: discardEquips(state.playerSpellTrap, state.playerField),
-      cpuSpellTrap: discardEquips(state.cpuSpellTrap, state.cpuField),
-      playerGraveyard: [...state.playerGraveyard, ...graveCards(state.playerField)],
-      cpuGraveyard: [...state.cpuGraveyard, "vol1-dark-hole", ...graveCards(state.cpuField)],
+      cpuGraveyard: [...state.cpuGraveyard, "vol1-dark-hole"],
+      log: appendLog(state.log, "CPUがブラック・ホールを発動。"),
+    };
+    const whiteHoleId = spellSpecificTrapResponse(activated.playerSpellTrap, "vol1-dark-hole");
+    const whiteHoleIndex = whiteHoleId ? activated.playerSpellTrap.indexOf(whiteHoleId) : -1;
+    if (whiteHoleId === "bo4-white-hole" && whiteHoleIndex >= 0 && !areTrapEffectsNegated(activated)) return {
+      ...activated,
+      pendingSpellSpecificTrap: { trapIndex: whiteHoleIndex, trapId: "bo4-white-hole", spellId: "vol1-dark-hole" },
+    };
+    const destroyedPlayer = activated.playerField;
+    const destroyedCpu = activated.cpuField;
+    state = {
+      ...activated,
+      playerSpellTrap: discardEquips(activated.playerSpellTrap, activated.playerField),
+      cpuSpellTrap: discardEquips(activated.cpuSpellTrap, activated.cpuField),
+      playerGraveyard: [...activated.playerGraveyard, ...graveCards(activated.playerField)],
+      cpuGraveyard: [...activated.cpuGraveyard, ...graveCards(activated.cpuField)],
       playerField: [],
       cpuField: [],
-      log: appendLog(state.log, "CPUがブラック・ホールを発動。すべてのモンスターを破壊。"),
+      log: appendLog(activated.log, "ブラック・ホールですべてのモンスターを破壊。"),
     };
     state = applyDeckSearchTriggers(state, destroyedPlayer, destroyedCpu);
   }
@@ -4777,51 +4911,19 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
     for (const zone of faceDownZones) state = resolveFlipEffect(state, "player", zone.id);
   }
 
-  if (
-    state.cpuHand.includes("vol2-monster-reborn")
-    && state.cpuField.length < FIELD_LIMIT
-    && !isMonsterRebornBlocked(state.playerSpellTrap, state.cpuSpellTrap)
-  ) {
-    const revivalCandidates = [
-      ...state.cpuGraveyard.map((id, index) => ({ id, index, side: "cpu" as const })),
-      ...state.playerGraveyard.map((id, index) => ({ id, index, side: "player" as const })),
-    ].filter(({ id }) => {
-      const card = cardById.get(id);
-      return card?.cardType === "monster" && !card.fusion;
-    });
-    const choiceIndex = strongestAttackIndex(
-      revivalCandidates.map(({ id }) => cardById.get(id)?.atk ?? 0),
-    );
-    const choice = choiceIndex === null ? null : revivalCandidates[choiceIndex];
-    const graveyard = choice?.side === "cpu" ? state.cpuGraveyard : state.playerGraveyard;
-    const taken = choice ? takeGraveyardCard(graveyard, choice.index) : null;
-    const monster = taken ? cardById.get(taken.cardId) : null;
-    if (choice && taken && monster?.cardType === "monster") {
-      const position: Position = (monster.def ?? 0) > (monster.atk ?? 0)
-        || isDragonCaptureJarLocked(monster.kind, false, isDragonCaptureJarActive(state)) ? "defense" : "attack";
-      state = {
-        ...removeCpuHandCard(state, "vol2-monster-reborn"),
-        cpuField: [
-          ...state.cpuField,
-          {
-            id: taken.cardId,
-            position,
-            faceDown: false,
-            attacked: false,
-            equipped: [],
-            summonedTurn: state.turnNumber,
-            positionChanged: false,
-            revivedByMonsterReborn: true,
-          },
-        ],
-        cpuGraveyard: [
-          ...(choice.side === "cpu" ? taken.remaining : state.cpuGraveyard),
-          "vol2-monster-reborn",
-        ],
-        playerGraveyard: choice.side === "player" ? taken.remaining : state.playerGraveyard,
-        log: appendLog(state.log, `CPUが死者蘇生を発動。${monster.name}を特殊召喚。`),
-      };
-    }
+  if (state.cpuHand.includes("vol2-monster-reborn") && state.cpuField.length < FIELD_LIMIT && !isMonsterRebornBlocked(state.playerSpellTrap, state.cpuSpellTrap)) {
+    const activated = {
+      ...removeCpuHandCard(state, "vol2-monster-reborn"),
+      cpuGraveyard: [...state.cpuGraveyard, "vol2-monster-reborn"],
+      log: appendLog(state.log, "CPUが死者蘇生を発動。"),
+    };
+    const callGraveId = spellSpecificTrapResponse(activated.playerSpellTrap, "vol2-monster-reborn");
+    const callGraveIndex = callGraveId ? activated.playerSpellTrap.indexOf(callGraveId) : -1;
+    if (callGraveId === "bo4-call-grave" && callGraveIndex >= 0 && !areTrapEffectsNegated(activated)) return {
+      ...activated,
+      pendingSpellSpecificTrap: { trapIndex: callGraveIndex, trapId: "bo4-call-grave", spellId: "vol2-monster-reborn" },
+    };
+    state = resolveCpuMonsterRebornEffect(activated);
   }
 
   while (state.cpuHand.includes("vol3-pot-of-greed") && state.cpuDeck.length >= 2) {
@@ -5207,11 +5309,11 @@ function resolveBattleDamageEffect(state: DuelState, attackerSide: Side, attacke
       ? { ...next, playerDeck: deck.slice(2), playerHand: [...next.playerHand, ...deck.slice(0, 2)], log: appendLog(next.log, `${attackerName}の効果であなたはカードを2枚ドロー。`) }
       : { ...next, cpuDeck: deck.slice(2), cpuHand: [...next.cpuHand, ...deck.slice(0, 2)], log: appendLog(next.log, `${attackerName}の効果でCPUはカードを2枚ドロー。`) };
   }
-  if (attackerSide === "player" && robbinGoblinCanTrigger(next.playerSpellTrap, next.cpuHand.length)) {
+  if (attackerSide === "player" && !areTrapEffectsNegated(next) && robbinGoblinCanTrigger(next.playerSpellTrap, next.cpuHand.length)) {
     if (next.playerActiveTraps.includes("vol7-robbin-goblin")) return discardRandomHandCard(next, "cpu", "追い剥ぎゴブリン");
     return { ...next, pendingRobbinGoblin: { trapIndex: next.playerSpellTrap.indexOf("vol7-robbin-goblin") }, log: appendLog(next.log, "戦闘ダメージを与えた。追い剥ぎゴブリンを発動しますか？") };
   }
-  if (attackerSide === "cpu" && robbinGoblinCanTrigger(next.cpuSpellTrap, next.playerHand.length)) {
+  if (attackerSide === "cpu" && !areTrapEffectsNegated(next) && robbinGoblinCanTrigger(next.cpuSpellTrap, next.playerHand.length)) {
     const activated = next.cpuActiveTraps.includes("vol7-robbin-goblin")
       ? next
       : { ...next, cpuActiveTraps: [...next.cpuActiveTraps, "vol7-robbin-goblin"], log: appendLog(next.log, "CPUが追い剥ぎゴブリンを発動。") };
@@ -5220,15 +5322,31 @@ function resolveBattleDamageEffect(state: DuelState, attackerSide: Side, attacke
   return next;
 }
 
+function areTrapEffectsNegated(state: DuelState): boolean {
+  return royalDecreeNegatesTraps(state.playerActiveTraps, state.cpuActiveTraps);
+}
+
 function discardRandomHandCard(state: DuelState, side: Side, sourceName: string): DuelState {
   const hand = side === "player" ? state.playerHand : state.cpuHand;
   if (hand.length === 0) return state;
   const index = Math.floor(Math.random() * hand.length);
   const discardedId = hand[index];
   const discardedName = cardById.get(discardedId)?.name ?? "カード";
-  return side === "player"
+  let next = side === "player"
     ? { ...state, playerHand: hand.filter((_, handIndex) => handIndex !== index), playerGraveyard: [...state.playerGraveyard, discardedId], log: appendLog(state.log, `${sourceName}の効果で手札から${discardedName}を捨てた。`) }
     : { ...state, cpuHand: hand.filter((_, handIndex) => handIndex !== index), cpuGraveyard: [...state.cpuGraveyard, discardedId], log: appendLog(state.log, `${sourceName}の効果でCPUの手札から${discardedName}を捨てた。`) };
+  if (areTrapEffectsNegated(next)) return next;
+  const thornDamage = magicThornDamage(1, side === "cpu" ? next.playerActiveTraps : next.cpuActiveTraps);
+  if (thornDamage === 0) return next;
+  const lifeKey = side === "cpu" ? "cpuLp" : "playerLp";
+  const result = Math.max(0, next[lifeKey] - thornDamage);
+  next = {
+    ...next,
+    [lifeKey]: result,
+    result: result === 0 ? (side === "cpu" ? "win" : "lose") : next.result,
+    log: appendLog(next.log, `魔力の棘の効果で${side === "cpu" ? "CPU" : "プレイヤー"}に${thornDamage}ダメージ。`),
+  };
+  return next;
 }
 
 type FlipTargetChoice = {
@@ -6135,11 +6253,16 @@ function trapDescription(id: string) {
   if (id === "bo3-castle-walls") return "ダメージステップ中、自分の表側モンスター1体のDEFをターン終了まで500アップ";
   if (id === "bo3-ultimate-offering") return "500LPを払うことで、通常召喚に加えてモンスター1体を召喚できる";
   if (id === "bo3-reverse-trap") return "ターン終了までATK・DEFをアップ・ダウンさせる効果を反転する";
+  if (id === "bo4-white-hole") return "相手のブラック・ホールにチェーンし、自分のモンスターの破壊を防ぐ";
+  if (id === "bo4-call-grave") return "相手の死者蘇生にチェーンし、その効果を無効にする";
+  if (id === "bo5-royal-decree") return "表側表示の間、このカード以外のフィールドの罠効果を無効にする";
+  if (id === "bo6-magic-thorn") return "相手が効果で手札を捨てるたび、1枚につき500ダメージ";
+  if (id === "bo7-griffin-wing") return "相手のハーピィの羽根帚にチェーンし、代わりに相手の魔法・罠を破壊する";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing";
 }
 
 function monsterDescription(id: string) {

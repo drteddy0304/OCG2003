@@ -110,6 +110,9 @@ export function canSpecialSummonLarvaeMoth(currentTurn: number, cocoonEquippedTu
 export function canSpecialSummonMoth(id: string, currentTurn: number, cocoonEquippedTurn?: number): boolean;
 export function canActivateChangeOfHeart(playerMonsterCount: number, opponentMonsterCount: number, fieldLimit?: number): boolean;
 export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): boolean;
+export function spellSpecificTrapResponse(trapIds: string[], spellId: string): string | null;
+export function royalDecreeNegatesTraps(playerActiveTrapIds: string[], cpuActiveTrapIds: string[]): boolean;
+export function magicThornDamage(discardCount: number, opponentActiveTrapIds: string[], trapsNegated?: boolean): number;
 export function canActivateSevenTools(lifePoints: number, trapIds: string[]): boolean;
 export function canActivateMagicJammer(handSize: number, trapIds: string[]): boolean;
 export function canActivateHornOfHeaven(monsterCount: number, trapIds: string[]): boolean;

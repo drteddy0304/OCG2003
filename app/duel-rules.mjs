@@ -484,6 +484,26 @@ export function canRespondWithAntiRaigeki(trapIds, spellId) {
   return spellId === "stb-raigeki" && trapIds.includes("vol5-anti-raigeki");
 }
 
+export function spellSpecificTrapResponse(trapIds, spellId) {
+  const responseBySpell = {
+    "vol1-dark-hole": "bo4-white-hole",
+    "vol2-monster-reborn": "bo4-call-grave",
+    "stb-harpies-feather-duster": "bo7-griffin-wing",
+  };
+  const trapId = responseBySpell[spellId] ?? null;
+  return trapId && trapIds.includes(trapId) ? trapId : null;
+}
+
+export function royalDecreeNegatesTraps(playerActiveTrapIds, cpuActiveTrapIds) {
+  return [...playerActiveTrapIds, ...cpuActiveTrapIds].includes("bo5-royal-decree");
+}
+
+export function magicThornDamage(discardCount, opponentActiveTrapIds, trapsNegated = false) {
+  return !trapsNegated && opponentActiveTrapIds.includes("bo6-magic-thorn")
+    ? Math.max(0, discardCount) * 500
+    : 0;
+}
+
 export function canActivateSevenTools(lifePoints, trapIds) {
   return lifePoints > 1000 && trapIds.includes("vol6-seven-tools");
 }
