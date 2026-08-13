@@ -264,6 +264,10 @@ export function giantSpiderAttackLife(id, lifePoints, coinMatched) {
   return Math.ceil(Math.max(0, lifePoints) / 2);
 }
 
+export function canPayMonsterEffect(lifePoints, cost) {
+  return Number.isFinite(lifePoints) && Number.isFinite(cost) && cost >= 0 && lifePoints > cost;
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };
