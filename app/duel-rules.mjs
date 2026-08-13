@@ -224,6 +224,21 @@ export function mysteriousPuppeteerLifeGain(faceUpMonsterIds, summonedCount = 1)
   return puppeteers * Math.max(0, summonedCount) * 500;
 }
 
+export function positionChangeEffect(id, fromPosition, toPosition) {
+  if (fromPosition === "defense" && toPosition === "attack" && id === "bo7-crass-clown") return "return-monster";
+  if (fromPosition === "attack" && toPosition === "defense" && id === "bo7-dream-clown") return "destroy-monster";
+  if (fromPosition === "attack" && toPosition === "defense" && id === "bo7-wisdom-devil") return "shuffle-deck";
+  return null;
+}
+
+export function cockroachKnightReturns(id) {
+  return id === "bo4-cockroach-knight";
+}
+
+export function patrolRoboCanInspect(faceUpMonsterIds, opponentSetCount) {
+  return opponentSetCount > 0 && faceUpMonsterIds.includes("bo3-patrol-robo");
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };

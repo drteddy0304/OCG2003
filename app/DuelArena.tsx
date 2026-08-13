@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -556,6 +556,24 @@ export function DuelArena({
     if (zone.faceDown) {
       next = applyMysteriousPuppeteerGain(next);
       next = resolveFlipEffect(next, "player", zone.id);
+    } else {
+      const effect = positionChangeEffect(zone.id, zone.position, nextPosition);
+      if (effect === "shuffle-deck") {
+        next = {
+          ...next,
+          playerDeck: shuffle(next.playerDeck),
+          log: appendLog(next.log, `${cardById.get(zone.id)?.name}の効果が発動。自分のデッキをシャッフル。`),
+        };
+      } else if (effect === "destroy-monster" || effect === "return-monster") {
+        const pending = { monsterId: zone.id, effect } as PendingFlipTarget;
+        next = flipTargetChoices(next, pending).length > 0
+          ? {
+              ...next,
+              pendingFlipTarget: pending,
+              log: appendLog(next.log, `${cardById.get(zone.id)?.name}の効果が発動。対象を選んでください。`),
+            }
+          : { ...next, log: appendLog(next.log, `${cardById.get(zone.id)?.name}の効果が発動したが、対象はいなかった。`) };
+      }
     }
     setDuel(next);
     setSelectedAttacker(null);
@@ -2157,7 +2175,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 110</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 111</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2731,7 +2749,7 @@ export function DuelArena({
       {duel.pendingFlipTarget && (
         <div className="card-overlay flip-target-overlay">
           <div className="graveyard-panel spell-target-panel">
-            <p className="section-label">FLIP EFFECT</p>
+            <p className="section-label">MONSTER EFFECT</p>
             <h2>{flipTargetHeading(duel.pendingFlipTarget.effect)}</h2>
             <p>{cardById.get(duel.pendingFlipTarget.monsterId)?.name}の効果対象を選んでください。</p>
             <div className="spell-target-list">
@@ -3322,6 +3340,7 @@ function runCpuTurn(initial: DuelState): DuelState {
   };
   state = applyMatangoStandby(state, "cpu");
   state = applyGermInfectionStandby(state, "cpu");
+  state = applyPatrolRoboStandby(state, "cpu");
   if (state.result) return state;
   state = playCpuNormalSpells(state);
   if (state.result || state.pendingAntiRaigeki || state.pendingMagicJammer || state.pendingSolemnJudgment) return state;
@@ -3494,6 +3513,26 @@ function applyGermInfectionStandby(state: DuelState, side: Side): DuelState {
       ? { ...zone, germStandbys: (zone.germStandbys ?? 0) + 1 }
       : zone),
     log: appendLog(state.log, `${side === "player" ? "プレイヤー" : "CPU"}の装備カードの継続効果を${affected}体に適用。`),
+  };
+}
+
+function applyPatrolRoboStandby(state: DuelState, side: Side): DuelState {
+  const ownField = side === "player" ? state.playerField : state.cpuField;
+  const opponentField = side === "player" ? state.cpuField : state.playerField;
+  const opponentSpellTrap = side === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
+  const activeTraps = side === "player" ? state.cpuActiveTraps : state.playerActiveTraps;
+  const faceUpIds = new Set([...activeTraps, ...opponentField.flatMap((zone) => zone.equipped)]);
+  const setCard = opponentSpellTrap.find((id) => !faceUpIds.has(id));
+  if (!setCard || !patrolRoboCanInspect(ownField.filter((zone) => !zone.faceDown).map((zone) => zone.id), opponentSpellTrap.length)) return state;
+  const cardName = cardById.get(setCard)?.name ?? "カード";
+  return {
+    ...state,
+    log: appendLog(
+      state.log,
+      side === "player"
+        ? `パトロール・ロボの効果で、CPUのセットカード「${cardName}」を確認。`
+        : "CPUのパトロール・ロボが、あなたのセットカード1枚を確認。",
+    ),
   };
 }
 
@@ -3683,6 +3722,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   };
   playerStart = applyMatangoStandby(playerStart, "player");
   playerStart = applyGermInfectionStandby(playerStart, "player");
+  playerStart = applyPatrolRoboStandby(playerStart, "player");
   if (playerStart.result) return playerStart;
   return openBlastJugglerPrompt(playerStart);
 }
@@ -4936,6 +4976,18 @@ function equipGraveCards(zones: ZoneCard[]) {
 
 function applyDeckSearchTriggers(state: DuelState, playerZones: ZoneCard[] = [], cpuZones: ZoneCard[] = []): DuelState {
   let next = state;
+  const playerCockroaches = playerZones.filter((zone) => cockroachKnightReturns(zone.id)).length;
+  const cpuCockroaches = cpuZones.filter((zone) => cockroachKnightReturns(zone.id)).length;
+  if (playerCockroaches > 0 || cpuCockroaches > 0) {
+    next = {
+      ...next,
+      playerDeck: [...Array(playerCockroaches).fill("bo4-cockroach-knight"), ...next.playerDeck],
+      cpuDeck: [...Array(cpuCockroaches).fill("bo4-cockroach-knight"), ...next.cpuDeck],
+      playerGraveyard: removeCardCopies(next.playerGraveyard, "bo4-cockroach-knight", playerCockroaches),
+      cpuGraveyard: removeCardCopies(next.cpuGraveyard, "bo4-cockroach-knight", cpuCockroaches),
+      log: appendLog(next.log, `コカローチ・ナイト${playerCockroaches + cpuCockroaches}体をデッキの一番上へ戻した。`),
+    };
+  }
   const playerSwords = playerZones.flatMap((zone) => zone.equipped).filter((id) => id === "vol7-sword-deep-seated").length;
   const cpuSwords = cpuZones.flatMap((zone) => zone.equipped).filter((id) => id === "vol7-sword-deep-seated").length;
   if (playerSwords > 0 || cpuSwords > 0) {

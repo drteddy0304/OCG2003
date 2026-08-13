@@ -70,6 +70,10 @@ export function battleDefenseValue(defenderId: string, defenderDefense: number, 
 export function mechanicalSpiderDestroys(attackerId: string, defenderAttribute?: string): boolean;
 export function foreignSwordsmanDestroyTurn(attackerId: string, currentTurn: number): number | null;
 export function mysteriousPuppeteerLifeGain(faceUpMonsterIds: string[], summonedCount?: number): number;
+export type PositionChangeEffect = "return-monster" | "destroy-monster" | "shuffle-deck";
+export function positionChangeEffect(id: string, fromPosition: "attack" | "defense", toPosition: "attack" | "defense"): PositionChangeEffect | null;
+export function cockroachKnightReturns(id: string): boolean;
+export function patrolRoboCanInspect(faceUpMonsterIds: string[], opponentSetCount: number): boolean;
 
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];
