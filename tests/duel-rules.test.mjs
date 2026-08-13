@@ -9,6 +9,14 @@ import { justDessertsDamage } from "../app/duel-rules.mjs";
 import { temporaryBattleStatBonus } from "../app/duel-rules.mjs";
 import { canUseUltimateOffering } from "../app/duel-rules.mjs";
 import { reverseAdjustedStat } from "../app/duel-rules.mjs";
+import { phantomWallReturnsAttacker } from "../app/duel-rules.mjs";
+
+test("EXのリバース・戦闘効果を判定する", () => {
+  assert.equal(flipEffect("ex-033"), "inspect-all-set");
+  assert.equal(phantomWallReturnsAttacker("ex-034", false), true);
+  assert.equal(phantomWallReturnsAttacker("ex-034", true), false);
+  assert.equal(phantomWallReturnsAttacker("vol3-hane-hane", false), false);
+});
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {

@@ -75,3 +75,11 @@ test("Boosterの追加魔法・罠に選択と発動確認の導線がある", (
   assert.match(arena, /pendingReverseTrap/);
   assert.match(arena, /reverseTrapDeclinedTurn/);
 });
+
+test("EXの戦闘効果と和睦の使者に操作導線がある", () => {
+  assert.match(arena, /厳格な老魔術師がリバース/);
+  assert.match(arena, /幻影の壁の効果が発動/);
+  assert.match(arena, /和睦の使者を発動しますか/);
+  assert.match(arena, /pendingWabokuResponse/);
+  assert.match(arena, /playerWabokuTurn/);
+});

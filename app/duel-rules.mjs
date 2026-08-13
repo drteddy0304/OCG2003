@@ -404,10 +404,15 @@ const flipEffects = Object.freeze({
   "bo5-needle-ball": "pay-2000-damage-1000",
   "bo6-doppelganger": "destroy-two-set-spell-traps",
   "bo6-penguin-soldier": "return-two-monsters",
+  "ex-033": "inspect-all-set",
 });
 
 export function flipEffect(id) {
   return flipEffects[id] ?? null;
+}
+
+export function phantomWallReturnsAttacker(defenderId, attackerDestroyed) {
+  return defenderId === "ex-034" && !attackerDestroyed;
 }
 
 export function flipLifeAmount(id, opponentSpellTrapCount = 0) {
