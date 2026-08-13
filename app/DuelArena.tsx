@@ -97,6 +97,11 @@ type PendingFlipTarget = {
   monsterId: string;
   effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap";
 };
+type PendingMultiTarget = {
+  monsterId: string;
+  effect: "destroy-dragon" | "return-two-monsters" | "destroy-two-set-spell-traps";
+  selected: string[];
+};
 type PendingDeckReorder = {
   monsterId: string;
   cards: string[];
@@ -188,6 +193,7 @@ type DuelState = {
   pendingFakeTrap: PendingFakeTrap | null;
   pendingTwoPronged: PendingTwoPronged | null;
   pendingFlipTarget: PendingFlipTarget | null;
+  pendingMultiTarget: PendingMultiTarget | null;
   pendingDeckReorder: PendingDeckReorder | null;
   pendingDeckSearch: PendingDeckSearch | null;
   log: string[];
@@ -262,6 +268,7 @@ export function DuelArena({
     && !duel.pendingFakeTrap
     && !duel.pendingTwoPronged
     && !duel.pendingFlipTarget
+    && !duel.pendingMultiTarget
     && !duel.pendingDeckReorder
     && !duel.pendingDeckSearch
     && pendingTributeToDoomed === null
@@ -404,6 +411,7 @@ export function DuelArena({
       pendingFakeTrap: null,
       pendingTwoPronged: null,
       pendingFlipTarget: null,
+      pendingMultiTarget: null,
       pendingDeckReorder: null,
       pendingDeckSearch: null,
       log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
@@ -574,6 +582,11 @@ export function DuelArena({
               log: appendLog(next.log, `${cardById.get(zone.id)?.name}の効果が発動。対象を選んでください。`),
             }
           : { ...next, log: appendLog(next.log, `${cardById.get(zone.id)?.name}の効果が発動したが、対象はいなかった。`) };
+      } else if (effect === "destroy-dragon") {
+        const pending: PendingMultiTarget = { monsterId: zone.id, effect, selected: [] };
+        next = multiTargetChoices(next, pending).length > 0
+          ? { ...next, pendingMultiTarget: pending, log: appendLog(next.log, `${cardById.get(zone.id)?.name}の効果が発動。破壊するドラゴン族を選んでください。`) }
+          : { ...next, log: appendLog(next.log, `${cardById.get(zone.id)?.name}の効果が発動したが、ドラゴン族はいなかった。`) };
       }
     }
     setDuel(next);
@@ -1425,7 +1438,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -1448,7 +1461,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -2112,6 +2125,34 @@ export function DuelArena({
     setDuel(resolved);
   }
 
+  function toggleMultiTarget(key: string) {
+    if (!duel?.pendingMultiTarget) return;
+    const pending = duel.pendingMultiTarget;
+    const limit = pending.effect === "destroy-dragon" ? 1 : 2;
+    const selected = pending.selected.includes(key)
+      ? pending.selected.filter((value) => value !== key)
+      : pending.selected.length < limit ? [...pending.selected, key] : pending.selected;
+    setDuel({ ...duel, pendingMultiTarget: { ...pending, selected } });
+  }
+
+  function confirmMultiTarget() {
+    if (!duel?.pendingMultiTarget) return;
+    const pending = duel.pendingMultiTarget;
+    const valid = pending.effect === "destroy-two-set-spell-traps"
+      ? pending.selected.length === 2
+      : pending.effect === "destroy-dragon" ? pending.selected.length === 1 : pending.selected.length <= 2;
+    if (!valid) return;
+    const resolved = resolvePendingMultiTarget(duel);
+    if (duel.turn === "cpu") {
+      const marker = "複数対象の選択が終了。";
+      const resumed = { ...resolved, log: appendLog(resolved.log, marker) };
+      const finalState = finishCpuTurn(resumed, true);
+      beginCpuPlayback(resumed, finalState, marker);
+      return;
+    }
+    setDuel(resolved);
+  }
+
   function movePendingDeckCard(fromIndex: number, toIndex: number) {
     if (!duel?.pendingDeckReorder) return;
     setDuel({
@@ -2176,7 +2217,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 112</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 113</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2761,6 +2802,35 @@ export function DuelArena({
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+      {duel.pendingMultiTarget && (
+        <div className="card-overlay flip-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">MONSTER EFFECT</p>
+            <h2>{duel.pendingMultiTarget.effect === "destroy-dragon" ? "破壊するドラゴン族を選ぶ" : duel.pendingMultiTarget.effect === "return-two-monsters" ? "手札に戻すモンスターを2体まで選ぶ" : "破壊するセットカードを2枚選ぶ"}</h2>
+            <p>{cardById.get(duel.pendingMultiTarget.monsterId)?.name}の効果対象を選択してください。</p>
+            <div className="spell-target-list">
+              {multiTargetChoices(duel, duel.pendingMultiTarget).map((choice) => (
+                <button
+                  className={duel.pendingMultiTarget!.selected.includes(choice.key) ? "selected" : ""}
+                  key={choice.key}
+                  onClick={() => toggleMultiTarget(choice.key)}
+                >
+                  <span>{choice.zone}</span>
+                  <strong>{choice.name}</strong>
+                </button>
+              ))}
+            </div>
+            <button
+              className="primary"
+              disabled={(duel.pendingMultiTarget.effect === "destroy-two-set-spell-traps" && duel.pendingMultiTarget.selected.length !== 2)
+                || (duel.pendingMultiTarget.effect === "destroy-dragon" && duel.pendingMultiTarget.selected.length !== 1)}
+              onClick={confirmMultiTarget}
+            >
+              {duel.pendingMultiTarget.effect === "return-two-monsters" && duel.pendingMultiTarget.selected.length === 0 ? "戻さず終了" : `選択した${duel.pendingMultiTarget.selected.length}件で決定`}
+            </button>
           </div>
         </div>
       )}
@@ -3630,7 +3700,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerSwordsTurns.length > 0) {
     state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
   } else {
-    for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingKuribohResponse; index -= 1) {
+    for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingMultiTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingKuribohResponse; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(attacker.equipped) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
       if (attackDeclarationCost(attacker.id, state.cpuLp) === null) continue;
@@ -3684,7 +3754,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       }
     }
   }
-  if (state.result || state.pendingFlipTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce || state.pendingKuribohResponse) return state;
+  if (state.result || state.pendingFlipTarget || state.pendingMultiTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce || state.pendingKuribohResponse) return state;
 
   state = resolveIronScorpionEndPhase(state);
   state = returnWormBeastAtEndPhase(state, "cpu");
@@ -4563,6 +4633,89 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
   };
 }
 
+type MultiTargetChoice = { key: string; zone: string; name: string };
+
+function multiTargetChoices(state: DuelState, pending: PendingMultiTarget): MultiTargetChoice[] {
+  if (pending.effect === "destroy-dragon" || pending.effect === "return-two-monsters") {
+    return (["player", "cpu"] as const).flatMap((side) => {
+      const field = side === "player" ? state.playerField : state.cpuField;
+      return field.flatMap((zone, index) => {
+        const card = cardById.get(zone.id);
+        if (pending.effect === "destroy-dragon" && (zone.faceDown || card?.kind !== "ドラゴン族")) return [];
+        return [{
+          key: `${side}-monster-${index}`,
+          zone: `${side === "player" ? "自分" : "CPU"}モンスターゾーン ${index + 1}`,
+          name: side === "cpu" && zone.faceDown ? "裏側モンスター" : card?.name ?? "モンスター",
+        }];
+      });
+    });
+  }
+  return (["player", "cpu"] as const).flatMap((side) => {
+    const spellTrap = side === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
+    const active = new Set(side === "player" ? state.playerActiveTraps : state.cpuActiveTraps);
+    const field = side === "player" ? state.playerField : state.cpuField;
+    const equipped = new Set(field.flatMap((zone) => zone.equipped));
+    return spellTrap.flatMap((id, index) => active.has(id) || equipped.has(id) ? [] : [{
+      key: `${side}-spell-${index}`,
+      zone: `${side === "player" ? "自分" : "CPU"}魔法・罠ゾーン ${index + 1}`,
+      name: side === "player" ? cardById.get(id)?.name ?? "セットカード" : "セットカード",
+    }]);
+  });
+}
+
+function resolvePendingMultiTarget(state: DuelState): DuelState {
+  const pending = state.pendingMultiTarget;
+  if (!pending) return state;
+  const selected = new Set(pending.selected);
+  const base = { ...state, pendingMultiTarget: null };
+  const playerMonsterIndexes = state.playerField.flatMap((_, index) => selected.has(`player-monster-${index}`) ? [index] : []);
+  const cpuMonsterIndexes = state.cpuField.flatMap((_, index) => selected.has(`cpu-monster-${index}`) ? [index] : []);
+  const playerZones = state.playerField.filter((_, index) => playerMonsterIndexes.includes(index));
+  const cpuZones = state.cpuField.filter((_, index) => cpuMonsterIndexes.includes(index));
+
+  if (pending.effect === "return-two-monsters") {
+    return {
+      ...base,
+      playerField: state.playerField.filter((_, index) => !playerMonsterIndexes.includes(index)),
+      cpuField: state.cpuField.filter((_, index) => !cpuMonsterIndexes.includes(index)),
+      playerSpellTrap: discardEquips(state.playerSpellTrap, playerZones),
+      cpuSpellTrap: discardEquips(state.cpuSpellTrap, cpuZones),
+      playerHand: [...state.playerHand, ...playerZones.map((zone) => zone.id)],
+      cpuHand: [...state.cpuHand, ...cpuZones.map((zone) => zone.id)],
+      playerGraveyard: [...state.playerGraveyard, ...equipGraveCards(playerZones)],
+      cpuGraveyard: [...state.cpuGraveyard, ...equipGraveCards(cpuZones)],
+      log: appendLog(state.log, `ペンギン・ソルジャーの効果でモンスター${playerZones.length + cpuZones.length}体を手札に戻した。`),
+    };
+  }
+
+  if (pending.effect === "destroy-dragon") {
+    const resolved = {
+      ...base,
+      playerField: state.playerField.filter((_, index) => !playerMonsterIndexes.includes(index)),
+      cpuField: state.cpuField.filter((_, index) => !cpuMonsterIndexes.includes(index)),
+      playerSpellTrap: discardEquips(state.playerSpellTrap, playerZones),
+      cpuSpellTrap: discardEquips(state.cpuSpellTrap, cpuZones),
+      playerGraveyard: [...state.playerGraveyard, ...graveCards(playerZones)],
+      cpuGraveyard: [...state.cpuGraveyard, ...graveCards(cpuZones)],
+      log: appendLog(state.log, `竜殺者の効果でドラゴン族${playerZones.length + cpuZones.length}体を破壊した。`),
+    } as DuelState;
+    return applyDeckSearchTriggers(resolved, playerZones, cpuZones);
+  }
+
+  const playerSpellIndexes = state.playerSpellTrap.flatMap((_, index) => selected.has(`player-spell-${index}`) ? [index] : []);
+  const cpuSpellIndexes = state.cpuSpellTrap.flatMap((_, index) => selected.has(`cpu-spell-${index}`) ? [index] : []);
+  const playerDestroyed = state.playerSpellTrap.filter((_, index) => playerSpellIndexes.includes(index));
+  const cpuDestroyed = state.cpuSpellTrap.filter((_, index) => cpuSpellIndexes.includes(index));
+  return {
+    ...base,
+    playerSpellTrap: state.playerSpellTrap.filter((_, index) => !playerSpellIndexes.includes(index)),
+    cpuSpellTrap: state.cpuSpellTrap.filter((_, index) => !cpuSpellIndexes.includes(index)),
+    playerGraveyard: [...state.playerGraveyard, ...playerDestroyed],
+    cpuGraveyard: [...state.cpuGraveyard, ...cpuDestroyed],
+    log: appendLog(state.log, `ドッペルゲンガーの効果でセットされた魔法・罠カード${playerDestroyed.length + cpuDestroyed.length}枚を破壊した。`),
+  };
+}
+
 function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
   const ownerName = owner === "player" ? "あなた" : "CPU";
   const effect = flipEffect(monsterId);
@@ -4685,6 +4838,22 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
       cpuHand: cpuDraw,
       log: appendLog(state.log, `${ownerName}のメタモルポットがリバース。お互いに手札を全て捨て、あなたは${playerDraw.length}枚、CPUは${cpuDraw.length}枚ドローした。`),
     };
+  }
+
+  if (effect === "return-two-monsters" || effect === "destroy-two-set-spell-traps") {
+    const pending: PendingMultiTarget = { monsterId, effect, selected: [] };
+    const choices = multiTargetChoices(state, pending);
+    if (choices.length === 0 || (effect === "destroy-two-set-spell-traps" && choices.length < 2)) return state;
+    if (owner === "player") {
+      return {
+        ...state,
+        pendingMultiTarget: pending,
+        log: appendLog(state.log, `${ownerName}の${cardById.get(monsterId)?.name}がリバース。効果対象を選んでください。`),
+      };
+    }
+    const required = effect === "return-two-monsters" ? Math.min(2, choices.length) : choices.length >= 2 ? 2 : 0;
+    if (required === 0) return state;
+    return resolvePendingMultiTarget({ ...state, pendingMultiTarget: { ...pending, selected: choices.slice(0, required).map((choice) => choice.key) } });
   }
 
   const playerChooses = shouldPlayerChooseFlipTarget(owner, state.turn, state.phase);

@@ -225,6 +225,7 @@ export function mysteriousPuppeteerLifeGain(faceUpMonsterIds, summonedCount = 1)
 }
 
 export function positionChangeEffect(id, fromPosition, toPosition) {
+  if (toPosition === "attack" && id === "bo5-dragon-killer") return "destroy-dragon";
   if (fromPosition === "defense" && toPosition === "attack" && id === "bo7-crass-clown") return "return-monster";
   if (fromPosition === "attack" && toPosition === "defense" && id === "bo7-dream-clown") return "destroy-monster";
   if (fromPosition === "attack" && toPosition === "defense" && id === "bo7-wisdom-devil") return "shuffle-deck";
@@ -353,6 +354,8 @@ const flipEffects = Object.freeze({
   "bo5-needle-worm": "mill-five",
   "bo5-morphing-jar": "reload-five",
   "bo5-needle-ball": "pay-2000-damage-1000",
+  "bo6-doppelganger": "destroy-two-set-spell-traps",
+  "bo6-penguin-soldier": "return-two-monsters",
 });
 
 export function flipEffect(id) {

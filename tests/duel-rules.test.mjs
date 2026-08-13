@@ -351,6 +351,9 @@ test("Boosterの表示形式・スタンバイ・墓地効果を判定する", (
   assert.equal(cockroachKnightReturns("bo4-worm-beast"), false);
   assert.equal(patrolRoboCanInspect(["bo3-patrol-robo"], 1), true);
   assert.equal(patrolRoboCanInspect(["bo3-patrol-robo"], 0), false);
+  assert.equal(positionChangeEffect("bo5-dragon-killer", "defense", "attack"), "destroy-dragon");
+  assert.equal(flipEffect("bo6-penguin-soldier"), "return-two-monsters");
+  assert.equal(flipEffect("bo6-doppelganger"), "destroy-two-set-spell-traps");
 });
 
 test("Boosterの時間経過と地雷蜘蛛の効果を判定する", () => {
