@@ -8,6 +8,7 @@ import { boosterSevenCards, boosterSevenPack } from "./booster7-data";
 import { vol5Cards } from "./vol5-data";
 import { vol6Cards } from "./vol6-data";
 import { vol7Cards } from "./vol7-data";
+import { exCards, exPack } from "./ex-data";
 
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
@@ -31,6 +32,7 @@ export type Pack = {
   releaseDate: string;
   category: "official" | "original";
   cardIds: string[];
+  rarityOverrides?: Record<string, Rarity>;
 };
 
 export const cards: Card[] = [
@@ -224,6 +226,7 @@ export const cards: Card[] = [
   ...boosterSixCards,
   ...boosterSevenCards,
   ...earlyProductCards,
+  ...exCards,
 ];
 
 export const packs: Pack[] = [
@@ -283,6 +286,7 @@ export const packs: Pack[] = [
   boosterFivePack,
   boosterSixPack,
   boosterSevenPack,
+  exPack,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));

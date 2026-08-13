@@ -73,6 +73,7 @@ const simpleSpellEffects = Object.freeze({
   "vol7-tremendous-fire": { gain: 0, damage: 1000, selfDamage: 500 },
   "bo2-angel-blood": { gain: 800, damage: 0 },
   "bo2-fire": { gain: 0, damage: 800 },
+  "ex-023": { gain: 1000, damage: 0 },
 });
 
 export function simpleSpellEffect(id) {
@@ -216,7 +217,7 @@ export function mechanicalSpiderDestroys(attackerId, defenderAttribute) {
 }
 
 export function foreignSwordsmanDestroyTurn(attackerId, currentTurn) {
-  return attackerId === "bo4-foreign-swordsman" ? currentTurn + 8 : null;
+  return attackerId === "bo4-foreign-swordsman" || attackerId === "bo4-zone-eater" ? currentTurn + 8 : null;
 }
 
 export function mysteriousPuppeteerLifeGain(faceUpMonsterIds, summonedCount = 1) {

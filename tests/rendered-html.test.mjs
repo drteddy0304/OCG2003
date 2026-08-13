@@ -36,10 +36,11 @@ test("Vol.1・Vol.2を各1日10パック開封できる初期画面を表示す�
   assert.match(html, /Booster 2/);
   assert.match(html, /Booster 3/);
   assert.match(html, /Booster 4/);
-  assert.match(html, /PHASE 2 · BUILD 121/);
+  assert.match(html, /PHASE 2 · BUILD 122/);
   assert.match(html, /Booster 5/);
   assert.match(html, /Booster 6/);
   assert.match(html, /Booster 7/);
+  assert.match(html, />EX</);
   assert.match(html, /SE 2%/);
   assert.match(html, /UR 5%/);
   assert.doesNotMatch(html, /codex-preview/);

@@ -377,6 +377,11 @@ test("鉄のサソリを攻撃した機械族以外は攻撃側の3ターン目�
   assert.equal(isIronScorpionDestructionDue(7, 7), true);
 });
 
+test("ゾーン・イーターと異国の剣士は攻撃を受けた相手を5ターン後に破壊する", () => {
+  assert.equal(foreignSwordsmanDestroyTurn("bo4-zone-eater", 12), 20);
+  assert.equal(foreignSwordsmanDestroyTurn("bo4-foreign-swordsman", 12), 20);
+});
+
 test("Vol.5の戦闘ダメージ発動効果を判定する", () => {
   assert.equal(battleDamageEffect("vol5-white-magical-hat"), "discard-random");
   assert.equal(battleDamageEffect("vol5-masked-sorcerer"), "draw");

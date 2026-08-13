@@ -51,9 +51,19 @@ function randomCard(pool: Card[]) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+function packCards(pack: (typeof packs)[number]) {
+  return pack.cardIds
+    .map((id) => {
+      const card = cardById.get(id);
+      const rarity = pack.rarityOverrides?.[id];
+      return card ? (rarity ? { ...card, rarity } : card) : null;
+    })
+    .filter((card): card is Card => Boolean(card));
+}
+
 function drawPack(packId: string) {
   const pack = packs.find((item) => item.id === packId) ?? packs[0];
-  const pool = pack.cardIds.map((id) => cardById.get(id)).filter((card): card is Card => Boolean(card));
+  const pool = packCards(pack);
   const normalPool = pool.filter((card) => card.rarity === "N");
   const rarityRoll = Math.random();
   const rareRarity: Rarity = rarityRoll < 0.02 ? "SE" : rarityRoll < 0.07 ? "UR" : rarityRoll < 0.22 ? "SR" : "R";
@@ -101,7 +111,8 @@ export function GameHome() {
   );
   const selectedPack = packs.find((pack) => pack.id === selectedPackId) ?? packs[0];
   const selectedRemaining = remainingByPack[selectedPackId] ?? DAILY_PACKS;
-  const selectedPackCards = selectedPack.cardIds.map((id) => cardById.get(id)).filter((card): card is Card => Boolean(card));
+  const selectedPackCards = packCards(selectedPack);
+  const detailCard = selectedPackCards.find((card) => card.id === detailCardId) ?? (detailCardId ? cardById.get(detailCardId) : null);
   const selectedPackOdds = new Map(calculatePackCardOdds(selectedPackCards).map((item) => [item.cardId, item]));
   const selectedRareOdds = calculateRareSlotOdds(selectedPackCards);
 
@@ -260,26 +271,26 @@ export function GameHome() {
           </section>
         </div>
       )}
-      {detailCardId && cardById.get(detailCardId) && (
+      {detailCardId && detailCard && (
         <div className="card-info-overlay" role="dialog" aria-modal="true" aria-label="カード詳細">
-          <section className={`card-info-panel info-${cardById.get(detailCardId)!.rarity.toLowerCase()}`}>
-            <CardTile card={cardById.get(detailCardId)!} />
+          <section className={`card-info-panel info-${detailCard.rarity.toLowerCase()}`}>
+            <CardTile card={detailCard} />
             <div>
               <p className="section-label">CARD TEXT</p>
-              <h2>{cardById.get(detailCardId)!.name}</h2>
-              <span className={`rarity-title title-${cardById.get(detailCardId)!.rarity.toLowerCase()}`}>
-                {cardById.get(detailCardId)!.rarity} · {rarityNames[cardById.get(detailCardId)!.rarity]}
+              <h2>{detailCard.name}</h2>
+              <span className={`rarity-title title-${detailCard.rarity.toLowerCase()}`}>
+                {detailCard.rarity} · {rarityNames[detailCard.rarity]}
               </span>
-              <p className="full-card-text">{cardDescription(cardById.get(detailCardId)!)}</p>
-              {cardById.get(detailCardId)!.cardType === "monster" && (
-                <p className="full-card-stats">{cardById.get(detailCardId)!.attribute}属性　{cardById.get(detailCardId)!.kind}　★{cardById.get(detailCardId)!.level}<br />ATK {cardById.get(detailCardId)!.atk} / DEF {cardById.get(detailCardId)!.def}</p>
+              <p className="full-card-text">{cardDescription(detailCard)}</p>
+              {detailCard.cardType === "monster" && (
+                <p className="full-card-stats">{detailCard.attribute}属性　{detailCard.kind}　★{detailCard.level}<br />ATK {detailCard.atk} / DEF {detailCard.def}</p>
               )}
               <button className="overlay-close" onClick={() => setDetailCardId(null)}>閉じる</button>
             </div>
           </section>
         </div>
       )}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 121</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 122</span></footer>
     </main>
   );
 }
