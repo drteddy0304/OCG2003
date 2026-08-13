@@ -109,6 +109,8 @@ const raceDestructionSpells = Object.freeze({
   "vol4-acid-storm": "機械族",
   "vol4-warrior-elimination": "戦士族",
   "vol4-insecticide": "昆虫族",
+  "bo6-witch-hunt": "魔法使い族",
+  "bo6-exile-wicked": "悪魔族",
 });
 
 export function raceDestructionKind(id) {

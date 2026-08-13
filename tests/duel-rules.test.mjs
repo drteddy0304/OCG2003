@@ -495,6 +495,15 @@ test("Vol.4の種族破壊魔法5枚を判定し、CPUは相手の損失が大�
   assert.equal(shouldCpuUseRaceDestructionSpell("vol4-acid-storm", ["機械族"], ["機械族"]), false);
 });
 
+test("Booster 6の魔女狩りと悪魔払いは対応する種族だけを破壊する", () => {
+  assert.equal(raceDestructionKind("bo6-witch-hunt"), "魔法使い族");
+  assert.equal(raceDestructionKind("bo6-exile-wicked"), "悪魔族");
+  assert.equal(isRaceDestructionTarget("bo6-witch-hunt", "魔法使い族", false), true);
+  assert.equal(isRaceDestructionTarget("bo6-exile-wicked", "悪魔族", false), true);
+  assert.equal(isRaceDestructionTarget("bo6-witch-hunt", "悪魔族", false), false);
+  assert.equal(isRaceDestructionTarget("bo6-exile-wicked", "悪魔族", true), false);
+});
+
 test("クリッターと黒き森のウィッチはそれぞれATK・DEF1500以下を検索する", () => {
   assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "monster", atk: 1500, def: 2000 }), true);
   assert.equal(canDeckSearchTarget("vol6-sangan", { cardType: "monster", atk: 1501, def: 0 }), false);

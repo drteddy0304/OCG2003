@@ -6,7 +6,7 @@ import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, batt
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
-import { bestFusionChoice, fusionChoices, fusionRecipe } from "./fusion-rules.mjs";
+import { bestFusionChoice, canSelectFusionMaterial, fusionChoices, fusionMaterialSelection, fusionRecipe, isValidFusionSelection } from "./fusion-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -801,7 +801,7 @@ export function DuelArena({
     const recipe = fusionRecipe(pendingFusion.fusionId);
     const requiredId = recipe?.[pendingFusion.selected.length];
     const id = source === "hand" ? duel.playerHand[index] : duel.playerField[index]?.id;
-    if (!requiredId || id !== requiredId || (source === "hand" && index === pendingFusion.spellIndex)) return;
+    if (!requiredId || !id || !canSelectFusionMaterial(recipe ?? [], pendingFusion.selected.map((choice) => choice.id), id) || (source === "hand" && index === pendingFusion.spellIndex)) return;
     if (pendingFusion.selected.some((choice) => choice.source === source && choice.index === index)) return;
     setPendingFusion({ ...pendingFusion, selected: [...pendingFusion.selected, { source, index, id }] });
   }
@@ -809,7 +809,7 @@ export function DuelArena({
   function resolveFusion(position: Position) {
     if (!duel || !pendingFusion?.fusionId || duel.playerField.length >= FIELD_LIMIT) return;
     const recipe = fusionRecipe(pendingFusion.fusionId);
-    if (!recipe || pendingFusion.selected.length !== recipe.length || !recipe.every((id, index) => pendingFusion.selected[index]?.id === id)) return;
+    if (!recipe || !isValidFusionSelection(recipe, pendingFusion.selected.map((choice) => choice.id))) return;
     const handIndexes = new Set([pendingFusion.spellIndex, ...pendingFusion.selected.filter((choice) => choice.source === "hand").map((choice) => choice.index)]);
     const fieldIndexes = new Set(pendingFusion.selected.filter((choice) => choice.source === "field").map((choice) => choice.index));
     const fieldMaterials = duel.playerField.filter((_, index) => fieldIndexes.has(index));
@@ -2135,7 +2135,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 107</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 108</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2976,12 +2976,12 @@ export function DuelArena({
                 </div>
                 {pendingFusion.selected.length < (fusionRecipe(pendingFusion.fusionId)?.length ?? 0) && (
                   <div className="target-list">
-                    {duel.playerHand.map((id, index) => id === fusionRecipe(pendingFusion.fusionId!)?.[pendingFusion.selected.length] && index !== pendingFusion.spellIndex ? (
+                    {duel.playerHand.map((id, index) => canSelectFusionMaterial(fusionRecipe(pendingFusion.fusionId!) ?? [], pendingFusion.selected.map((choice) => choice.id), id) && index !== pendingFusion.spellIndex ? (
                       <button key={`fusion-hand-${index}`} onClick={() => chooseFusionMaterial("hand", index)}>
                         <strong>{cardById.get(id)?.name}</strong><small>手札から素材にする</small>
                       </button>
                     ) : null)}
-                    {duel.playerField.map((zone, index) => zone.id === fusionRecipe(pendingFusion.fusionId!)?.[pendingFusion.selected.length] ? (
+                    {duel.playerField.map((zone, index) => canSelectFusionMaterial(fusionRecipe(pendingFusion.fusionId!) ?? [], pendingFusion.selected.map((choice) => choice.id), zone.id) ? (
                       <button key={`fusion-field-${index}`} onClick={() => chooseFusionMaterial("field", index)}>
                         <strong>{cardById.get(zone.id)?.name}</strong><small>フィールドから素材にする</small>
                       </button>
@@ -3677,9 +3677,11 @@ function cpuFusionPlan(state: DuelState) {
   const viableFusionIds = fusionChoices(state.cpuFusionDeck, materialIds).filter((fusionId) => {
     const recipe = fusionRecipe(fusionId);
     if (!recipe) return false;
+    const selectedMaterials = fusionMaterialSelection(recipe, materialIds);
+    if (!selectedMaterials) return false;
     const remainingHand = [...handWithoutSpell];
     let fieldMaterials = 0;
-    for (const materialId of recipe) {
+    for (const materialId of selectedMaterials) {
       const handIndex = remainingHand.indexOf(materialId);
       if (handIndex >= 0) remainingHand.splice(handIndex, 1);
       else fieldMaterials += 1;
@@ -3700,9 +3702,11 @@ function playCpuFusion(initial: DuelState): DuelState {
   if (!recipe) return initial;
   let cpuHand = removeCardCopies(initial.cpuHand, plan.spellId, 1);
   let cpuField = [...initial.cpuField];
+  const selectedMaterials = fusionMaterialSelection(recipe, [...cpuHand, ...cpuField.map((zone) => zone.id)]);
+  if (!selectedMaterials) return initial;
   const fieldMaterials: ZoneCard[] = [];
   const handMaterials: string[] = [];
-  for (const materialId of recipe) {
+  for (const materialId of selectedMaterials) {
     const handIndex = cpuHand.indexOf(materialId);
     if (handIndex >= 0) {
       cpuHand.splice(handIndex, 1);

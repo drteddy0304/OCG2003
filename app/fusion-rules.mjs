@@ -34,23 +34,56 @@ export const FUSION_RECIPES = {
   "bo5-brachio-raidus": ["bo5-two-headed-king-rex", "bo5-crawling-dragon-2"],
   "bo5-golden-elephant": ["bo5-medusa-ghost", "bo5-dragon-zombie"],
   "bo5-marine-beast": ["bo5-water-magician", "bo5-behegon"],
+  "bo6-kaiser-dragon": ["vol4-winged-dragon-fortress", "bo4-fairy-dragon"],
+  "bo6-crimson-sunbird": ["bo4-saint-bird", "vol3-skull-red-bird"],
+  "bo6-sand-witch": ["vol3-giant-soldier-stone", "vol4-ancient-elf"],
+  "bo6-skelgon": ["bo5-medusa-ghost", "vol6-blackland-fire-dragon"],
+  "bo6-amphibious-bugroth": ["vol4-ground-bagroth", "bo6-sea-guardian"],
 };
 
 export function fusionRecipe(fusionId) {
   return FUSION_RECIPES[fusionId] ?? null;
 }
 
+const fusionSubstituteIds = new Set([
+  "bo6-goddess-third-eye",
+  "bo6-swamp-beast-king",
+  "bo6-versago-destroyer",
+  "bo6-illusion-sheep",
+]);
+
+export function isFusionSubstitute(id) {
+  return fusionSubstituteIds.has(id);
+}
+
+export function canSelectFusionMaterial(recipe, selectedIds, candidateId) {
+  const requiredId = recipe?.[selectedIds.length];
+  if (!requiredId) return false;
+  if (candidateId === requiredId) return true;
+  return isFusionSubstitute(candidateId)
+    && !selectedIds.some((id, index) => id !== recipe[index] && isFusionSubstitute(id));
+}
+
+export function isValidFusionSelection(recipe, selectedIds) {
+  return recipe.length === selectedIds.length
+    && selectedIds.every((id, index) => canSelectFusionMaterial(recipe, selectedIds.slice(0, index), id));
+}
+
+export function fusionMaterialSelection(recipe, materialIds, selectedIds = []) {
+  if (selectedIds.length === recipe.length) return selectedIds;
+  for (let index = 0; index < materialIds.length; index += 1) {
+    const id = materialIds[index];
+    if (!canSelectFusionMaterial(recipe, selectedIds, id)) continue;
+    const selection = fusionMaterialSelection(recipe, materialIds.filter((_, materialIndex) => materialIndex !== index), [...selectedIds, id]);
+    if (selection) return selection;
+  }
+  return null;
+}
+
 export function fusionChoices(fusionDeck, materialIds) {
   return [...new Set(fusionDeck)].filter((fusionId) => {
     const recipe = fusionRecipe(fusionId);
-    if (!recipe) return false;
-    const remaining = [...materialIds];
-    return recipe.every((materialId) => {
-      const index = remaining.indexOf(materialId);
-      if (index < 0) return false;
-      remaining.splice(index, 1);
-      return true;
-    });
+    return recipe ? Boolean(fusionMaterialSelection(recipe, materialIds)) : false;
   });
 }
 
