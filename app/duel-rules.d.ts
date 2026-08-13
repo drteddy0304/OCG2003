@@ -86,6 +86,7 @@ export function selectedCards(cards: string[], selectedIndexes: number[]): { rem
 export function justDessertsDamage(monsterCount: number): number;
 export function temporaryBattleStatBonus(effectTurn: number | undefined, currentTurn: number | undefined): number;
 export function canUseUltimateOffering(lifePoints: number, normalSummoned: boolean, fieldCount: number, hasSummonCandidate: boolean, fieldLimit?: number): boolean;
+export function reverseAdjustedStat(base: number, adjusted: number, active: boolean): number;
 
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];

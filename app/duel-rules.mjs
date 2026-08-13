@@ -306,6 +306,11 @@ export function canUseUltimateOffering(lifePoints, normalSummoned, fieldCount, h
   return lifePoints > 500 && normalSummoned === true && fieldCount < fieldLimit && hasSummonCandidate === true;
 }
 
+export function reverseAdjustedStat(base, adjusted, active) {
+  if (!active) return Math.max(0, adjusted);
+  return Math.max(0, base - (adjusted - base));
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, reverseAdjustedStat, robbinGoblinCanTrigger, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -108,6 +108,7 @@ type PendingCardInspection = { kind: "spy" | "telescope"; selected: number | nul
 type PendingSharePain = { spellIndex: number };
 type PendingJustDesserts = { trapIndex: number };
 type PendingBattleStatTrap = { trapIndex: number; trapId: "bo3-reinforcements" | "bo3-castle-walls"; attackerIndex: number; defenderIndex: number };
+type PendingReverseTrap = { trapIndex: number; attackerIndex: number; defenderIndex: number };
 type PendingDeckReorder = {
   monsterId: string;
   cards: string[];
@@ -186,6 +187,8 @@ type DuelState = {
   turnNumber: number;
   phase: Phase;
   normalSummoned: boolean;
+  reverseTrapTurn: number | null;
+  reverseTrapDeclinedTurn: number | null;
   result: Result;
   pendingTrapResponse: PendingTrapResponse | null;
   pendingSevenTools: PendingSevenTools | null;
@@ -198,6 +201,7 @@ type DuelState = {
   pendingRobbinGoblin: PendingRobbinGoblin | null;
   pendingJustDesserts: PendingJustDesserts | null;
   pendingBattleStatTrap: PendingBattleStatTrap | null;
+  pendingReverseTrap: PendingReverseTrap | null;
   playerActiveTraps: string[];
   cpuActiveTraps: string[];
   pendingBlastJuggler: PendingBlastJuggler | null;
@@ -282,6 +286,7 @@ export function DuelArena({
     && !duel.pendingKuribohResponse
     && !duel.pendingRobbinGoblin
     && !duel.pendingBattleStatTrap
+    && !duel.pendingReverseTrap
     && !duel.pendingSevenTools
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
@@ -428,6 +433,8 @@ export function DuelArena({
       turnNumber: 1,
       phase: "main1",
       normalSummoned: false,
+      reverseTrapTurn: null,
+      reverseTrapDeclinedTurn: null,
       result: null,
       pendingTrapResponse: null,
       pendingSevenTools: null,
@@ -440,6 +447,7 @@ export function DuelArena({
       pendingRobbinGoblin: null,
       pendingJustDesserts: null,
       pendingBattleStatTrap: null,
+      pendingReverseTrap: null,
       playerActiveTraps: [],
       cpuActiveTraps: [],
       pendingBlastJuggler: null,
@@ -2292,6 +2300,11 @@ export function DuelArena({
       return;
     }
     resumed = { ...resumed, log: appendLog(resumed.log, "ミラーフォースを発動しませんでした。") };
+    const reverseTrapPrompt = prepareReverseTrap(resumed, pending.attackerIndex, pending.defenderIndex);
+    if (reverseTrapPrompt) {
+      beginCpuPlayback(resumed, reverseTrapPrompt, marker);
+      return;
+    }
     const statTrapPrompt = prepareBattleStatTrap(resumed, pending.attackerIndex, pending.defenderIndex);
     if (statTrapPrompt) {
       beginCpuPlayback(resumed, statTrapPrompt, marker);
@@ -2344,6 +2357,54 @@ export function DuelArena({
       };
     } else {
       resumed = { ...resumed, log: appendLog(resumed.log, `${trapName}を発動しませんでした。`) };
+    }
+    const defender = resumed.playerField[pending.defenderIndex];
+    if (defender && !defender.faceDown && isGuardianMonster(defender.id) && !defender.guardianEffectUsed) {
+      const finalState: DuelState = {
+        ...resumed,
+        pendingGuardianResponse: {
+          attackerIndex: pending.attackerIndex,
+          defenderIndex: pending.defenderIndex,
+          guardianId: defender.id,
+        },
+      };
+      beginCpuPlayback(resumed, finalState, marker);
+      return;
+    }
+    const kuribohPrompt = prepareKuribohResponse(resumed, pending.attackerIndex, pending.defenderIndex);
+    if (kuribohPrompt) {
+      beginCpuPlayback(resumed, kuribohPrompt, marker);
+      return;
+    }
+    resumed = resolveBattle(resumed, "cpu", pending.attackerIndex, pending.defenderIndex);
+    const finalState = finishCpuTurn(resumed, true);
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
+  function respondToReverseTrap(activate: boolean) {
+    if (!duel?.pendingReverseTrap) return;
+    const pending = duel.pendingReverseTrap;
+    const marker = "あまのじゃくの呪いの発動確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingReverseTrap: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (activate && resumed.playerSpellTrap[pending.trapIndex] === "bo3-reverse-trap") {
+      resumed = {
+        ...resumed,
+        reverseTrapTurn: resumed.turnNumber,
+        playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        playerGraveyard: [...resumed.playerGraveyard, "bo3-reverse-trap"],
+        log: appendLog(resumed.log, "あまのじゃくの呪いを発動。このターンのATK・DEFのアップとダウンを反転。"),
+      };
+    } else {
+      resumed = { ...resumed, reverseTrapDeclinedTurn: resumed.turnNumber, log: appendLog(resumed.log, "あまのじゃくの呪いを発動しませんでした。") };
+    }
+    const statTrapPrompt = prepareBattleStatTrap(resumed, pending.attackerIndex, pending.defenderIndex);
+    if (statTrapPrompt) {
+      beginCpuPlayback(resumed, statTrapPrompt, marker);
+      return;
     }
     const defender = resumed.playerField[pending.defenderIndex];
     if (defender && !defender.faceDown && isGuardianMonster(defender.id) && !defender.guardianEffectUsed) {
@@ -2596,7 +2657,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 119</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 120</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2699,6 +2760,8 @@ export function DuelArena({
                       ? "ミラーフォースの発動確認へ"
                     : cpuPlayback.finalState.pendingBattleStatTrap
                       ? `${cardById.get(cpuPlayback.finalState.pendingBattleStatTrap.trapId)?.name}の発動確認へ`
+                    : cpuPlayback.finalState.pendingReverseTrap
+                      ? "あまのじゃくの呪いの発動確認へ"
                     : cpuPlayback.finalState.pendingGuardianResponse
                       ? "三魔神の効果確認へ"
                     : cpuPlayback.finalState.pendingKuribohResponse
@@ -2769,6 +2832,19 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToBattleStatTrap(true)}>発動する</button>
               <button onClick={() => respondToBattleStatTrap(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingReverseTrap && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">DAMAGE STEP</p>
+            <h2>あまのじゃくの呪いを発動しますか？</h2>
+            <p>このターン中、装備・フィールド・モンスター効果などによるATK・DEFのアップとダウンを反転します。</p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToReverseTrap(true)}>発動する</button>
+              <button onClick={() => respondToReverseTrap(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -4273,7 +4349,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerSwordsTurns.length > 0) {
     state = { ...state, log: appendLog(state.log, "光の護封剣によりCPUは攻撃できません。") };
   } else {
-    for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingMultiTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingBattleStatTrap && !state.pendingKuribohResponse; index -= 1) {
+    for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingMultiTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingReverseTrap && !state.pendingBattleStatTrap && !state.pendingKuribohResponse; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(attacker.equipped) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
       if (attackDeclarationCost(attacker.id, state.cpuLp) === null) continue;
@@ -4311,6 +4387,11 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
           };
           continue;
         }
+        const reverseTrapPrompt = prepareReverseTrap(state, index, targetIndex);
+        if (reverseTrapPrompt) {
+          state = reverseTrapPrompt;
+          continue;
+        }
         const statTrapPrompt = prepareBattleStatTrap(state, index, targetIndex);
         if (statTrapPrompt) {
           state = statTrapPrompt;
@@ -4332,7 +4413,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       }
     }
   }
-  if (state.result || state.pendingFlipTarget || state.pendingMultiTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce || state.pendingBattleStatTrap || state.pendingKuribohResponse) return state;
+  if (state.result || state.pendingFlipTarget || state.pendingMultiTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce || state.pendingReverseTrap || state.pendingBattleStatTrap || state.pendingKuribohResponse) return state;
 
   state = resolveIronScorpionEndPhase(state);
   state = returnWormBeastAtEndPhase(state, "cpu");
@@ -4906,6 +4987,38 @@ function prepareBattleStatTrap(state: DuelState, attackerIndex: number, defender
     ...state,
     pendingBattleStatTrap: { trapIndex, trapId, attackerIndex, defenderIndex },
     log: appendLog(state.log, `CPUが${cardById.get(defender.id)?.name ?? "モンスター"}を攻撃。${cardById.get(trapId)?.name}を発動しますか？`),
+  };
+}
+
+function baseBattleStats(zone: ZoneCard, state: DuelState) {
+  const card = cardById.get(zone.id);
+  const original = hourglassOriginalStats(
+    zone.id,
+    card?.atk ?? 0,
+    card?.def ?? 0,
+    zone.faceUpTurn ?? zone.summonedTurn,
+    state.turnNumber,
+  );
+  return swappedMonsterStats(original.atk, original.def, zone.statsSwappedTurn === state.turnNumber);
+}
+
+function prepareReverseTrap(state: DuelState, attackerIndex: number, defenderIndex: number | null): DuelState | null {
+  if (defenderIndex === null || state.reverseTrapTurn === state.turnNumber || state.reverseTrapDeclinedTurn === state.turnNumber) return null;
+  const trapIndex = state.playerSpellTrap.indexOf("bo3-reverse-trap");
+  const attacker = state.cpuField[attackerIndex];
+  const defender = state.playerField[defenderIndex];
+  if (trapIndex < 0 || !attacker || !defender || defender.faceDown) return null;
+  const attackerBase = baseBattleStats(attacker, state);
+  const defenderBase = baseBattleStats(defender, state);
+  const attackerChanged = effectiveAtk(attacker, state, "cpu") !== attackerBase.atk;
+  const defenderChanged = defender.position === "attack"
+    ? effectiveAtk(defender, state, "player") !== defenderBase.atk
+    : effectiveDef(defender, state, "player") !== defenderBase.def;
+  if (!attackerChanged && !defenderChanged) return null;
+  return {
+    ...state,
+    pendingReverseTrap: { trapIndex, attackerIndex, defenderIndex },
+    log: appendLog(state.log, "能力値が変化したモンスター同士の戦闘です。あまのじゃくの呪いを発動しますか？"),
   };
 }
 
@@ -5666,12 +5779,13 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     allyIds: (side === "player" ? state.playerField : state.cpuField).filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
-  return Math.max(0, stats.atk
+  const adjusted = stats.atk
     + timedFieldBonus(zone, state)
     + aileSwordsmanAttackBonus(zone.aileBoostTurn, zone.aileTributeCount, state.turnNumber)
     + temporaryBattleStatBonus(zone.battleAtkBonusTurn, state.turnNumber)
     - germInfectionPenalty(zone.equipped, zone.germStandbys)
-    - dopingPenalty(zone.equipped, zone.germStandbys));
+    - dopingPenalty(zone.equipped, zone.germStandbys);
+  return reverseAdjustedStat(base.atk, adjusted, state.reverseTrapTurn === state.turnNumber);
 }
 
 function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
@@ -5697,7 +5811,8 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
     auraIds: [],
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
-  return Math.max(0, stats.def + timedFieldBonus(zone, state) + temporaryBattleStatBonus(zone.battleDefBonusTurn, state.turnNumber));
+  const adjusted = stats.def + timedFieldBonus(zone, state) + temporaryBattleStatBonus(zone.battleDefBonusTurn, state.turnNumber);
+  return reverseAdjustedStat(base.def, adjusted, state.reverseTrapTurn === state.turnNumber);
 }
 
 function timedFieldBonus(zone: ZoneCard, state: DuelState) {
@@ -6019,11 +6134,12 @@ function trapDescription(id: string) {
   if (id === "bo3-reinforcements") return "ダメージステップ中、自分の表側モンスター1体のATKをターン終了まで500アップ";
   if (id === "bo3-castle-walls") return "ダメージステップ中、自分の表側モンスター1体のDEFをターン終了まで500アップ";
   if (id === "bo3-ultimate-offering") return "500LPを払うことで、通常召喚に加えてモンスター1体を召喚できる";
+  if (id === "bo3-reverse-trap") return "ターン終了までATK・DEFをアップ・ダウンさせる効果を反転する";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap";
 }
 
 function monsterDescription(id: string) {
