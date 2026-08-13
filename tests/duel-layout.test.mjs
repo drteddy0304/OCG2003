@@ -82,4 +82,7 @@ test("EXの戦闘効果と和睦の使者に操作導線がある", () => {
   assert.match(arena, /和睦の使者を発動しますか/);
   assert.match(arena, /pendingWabokuResponse/);
   assert.match(arena, /playerWabokuTurn/);
+  assert.match(arena, /ドラゴンを呼ぶ笛/);
+  assert.match(arena, /pendingDragonFlute/);
+  assert.match(arena, /isEffectTargetProtected/);
 });

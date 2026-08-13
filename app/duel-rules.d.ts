@@ -155,4 +155,5 @@ export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | 
 
 export function flipEffect(id: string): FlipEffect | null;
 export function phantomWallReturnsAttacker(defenderId: string, attackerDestroyed: boolean): boolean;
+export function dragonTargetProtected(targetKind: string, targetFaceDown: boolean, faceUpLordCount: number): boolean;
 export function isDragonCaptureJarLocked(kind: string | undefined, faceDown: boolean, jarActive: boolean): boolean;

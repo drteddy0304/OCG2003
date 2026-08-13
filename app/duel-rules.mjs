@@ -415,6 +415,10 @@ export function phantomWallReturnsAttacker(defenderId, attackerDestroyed) {
   return defenderId === "ex-034" && !attackerDestroyed;
 }
 
+export function dragonTargetProtected(targetKind, targetFaceDown, faceUpLordCount) {
+  return targetKind === "ドラゴン族" && !targetFaceDown && faceUpLordCount > 0;
+}
+
 export function flipLifeAmount(id, opponentSpellTrapCount = 0) {
   if (id === "vol7-thunder-nyan-nyan") return { gain: 3000, damage: 0 };
   if (id === "vol7-sword-queen") return { gain: 0, damage: Math.max(0, opponentSpellTrapCount) * 500 };

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -145,6 +145,7 @@ type PendingFusion = {
   fusionId: string | null;
   selected: FusionMaterialSelection[];
 };
+type PendingDragonFlute = { spellIndex: number; selected: number[] };
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
 type ZoneCard = {
@@ -252,6 +253,7 @@ export function DuelArena({
   const [pendingSoulRelease, setPendingSoulRelease] = useState<PendingSoulRelease | null>(null);
   const [pendingCheerfulCoffin, setPendingCheerfulCoffin] = useState<PendingCheerfulCoffin | null>(null);
   const [pendingFusion, setPendingFusion] = useState<PendingFusion | null>(null);
+  const [pendingDragonFlute, setPendingDragonFlute] = useState<PendingDragonFlute | null>(null);
   const [pendingChangeOfHeart, setPendingChangeOfHeart] = useState<number | null>(null);
   const [pendingCannonSoldier, setPendingCannonSoldier] = useState<number | null>(null);
   const [pendingCatapultTurtle, setPendingCatapultTurtle] = useState<number | null>(null);
@@ -316,6 +318,7 @@ export function DuelArena({
     && pendingSoulRelease === null
     && pendingCheerfulCoffin === null
     && pendingFusion === null
+    && pendingDragonFlute === null
     && pendingChangeOfHeart === null
     && pendingCannonSoldier === null
     && pendingCatapultTurtle === null
@@ -660,7 +663,7 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
     if (FIELD_SPELL_IDS.includes(card.id)) {
@@ -737,7 +740,8 @@ export function DuelArena({
     }
 
     if (card.id === "vol5-change-heart") {
-      if (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT)) return;
+      if (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT)
+        || !duel.cpuField.some((zone) => !isEffectTargetProtected(duel, "cpu", zone))) return;
       setPendingChangeOfHeart(handIndex);
       setSelectedAttacker(null);
       setSelectedEquip(null);
@@ -745,7 +749,7 @@ export function DuelArena({
     }
 
     if (card.id === "vol7-stop-attack") {
-      if (!duel.cpuField.some((zone) => canStopAttackTarget(zone.position, zone.faceDown))) return;
+      if (!duel.cpuField.some((zone) => canStopAttackTarget(zone.position, zone.faceDown) && !isEffectTargetProtected(duel, "cpu", zone))) return;
       setPendingStopAttack(handIndex);
       setSelectedAttacker(null);
       setSelectedEquip(null);
@@ -759,6 +763,16 @@ export function DuelArena({
       );
       if (duel.playerField.length >= FIELD_LIMIT || choices.length === 0) return;
       setPendingFusion({ spellIndex: handIndex, fusionId: null, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "ex-085") {
+      const lordFaceUp = duel.playerField.some((zone) => zone.id === "ex-084" && !zone.faceDown);
+      const dragonInHand = duel.playerHand.some((id, index) => index !== handIndex && cardById.get(id)?.kind === "ドラゴン族");
+      if (!lordFaceUp || !dragonInHand || duel.playerField.length >= FIELD_LIMIT) return;
+      setPendingDragonFlute({ spellIndex: handIndex, selected: [] });
       setSelectedAttacker(null);
       setSelectedEquip(null);
       return;
@@ -1082,6 +1096,65 @@ export function DuelArena({
     setPendingFusion(null);
   }
 
+  function toggleDragonFluteCard(handIndex: number) {
+    if (!duel || !pendingDragonFlute || handIndex === pendingDragonFlute.spellIndex) return;
+    if (cardById.get(duel.playerHand[handIndex])?.kind !== "ドラゴン族") return;
+    const limit = Math.min(2, FIELD_LIMIT - duel.playerField.length);
+    setPendingDragonFlute((current) => {
+      if (!current) return null;
+      if (current.selected.includes(handIndex)) {
+        return { ...current, selected: current.selected.filter((index) => index !== handIndex) };
+      }
+      if (current.selected.length >= limit) return current;
+      return { ...current, selected: [...current.selected, handIndex].sort((a, b) => a - b) };
+    });
+  }
+
+  function resolveDragonFlute(position: Position) {
+    if (!duel || !pendingDragonFlute || pendingDragonFlute.selected.length === 0) return;
+    if (duel.playerHand[pendingDragonFlute.spellIndex] !== "ex-085") return;
+    if (!duel.playerField.some((zone) => zone.id === "ex-084" && !zone.faceDown)) return;
+    const selectedIndexes = new Set(pendingDragonFlute.selected);
+    const playerDragons = duel.playerHand.filter((id, index) => selectedIndexes.has(index) && cardById.get(id)?.kind === "ドラゴン族").slice(0, 2);
+    if (playerDragons.length === 0 || playerDragons.length > FIELD_LIMIT - duel.playerField.length) return;
+    const cpuDragonIndexes = duel.cpuHand
+      .flatMap((id, index) => cardById.get(id)?.kind === "ドラゴン族" ? [{ id, index, atk: cardById.get(id)?.atk ?? 0 }] : [])
+      .sort((a, b) => b.atk - a.atk)
+      .slice(0, Math.min(2, FIELD_LIMIT - duel.cpuField.length));
+    const cpuIndexSet = new Set(cpuDragonIndexes.map(({ index }) => index));
+    const dragonJarActive = isDragonCaptureJarActive(duel);
+    const playerZones: ZoneCard[] = playerDragons.map((id) => ({
+      id,
+      position: dragonJarActive ? "defense" : position,
+      faceDown: false,
+      attacked: false,
+      equipped: [],
+      summonedTurn: duel.turnNumber,
+      faceUpTurn: duel.turnNumber,
+      positionChanged: false,
+    }));
+    const cpuZones: ZoneCard[] = cpuDragonIndexes.map(({ id }) => ({
+      id,
+      position: dragonJarActive ? "defense" : "attack",
+      faceDown: false,
+      attacked: false,
+      equipped: [],
+      summonedTurn: duel.turnNumber,
+      faceUpTurn: duel.turnNumber,
+      positionChanged: false,
+    }));
+    setDuel({
+      ...duel,
+      playerHand: duel.playerHand.filter((_, index) => index !== pendingDragonFlute.spellIndex && !selectedIndexes.has(index)),
+      cpuHand: duel.cpuHand.filter((_, index) => !cpuIndexSet.has(index)),
+      playerField: [...duel.playerField, ...playerZones],
+      cpuField: [...duel.cpuField, ...cpuZones],
+      playerGraveyard: [...duel.playerGraveyard, "ex-085"],
+      log: appendLog(duel.log, `ドラゴンを呼ぶ笛を発動。あなたは${playerZones.length}体、CPUは${cpuZones.length}体のドラゴン族を手札から特殊召喚。`),
+    });
+    setPendingDragonFlute(null);
+  }
+
   function summonHarpie(source: "hand" | "deck", cardId: string, position: Position) {
     if (!duel || pendingEgotist === null || !isElegantEgotistTarget(cardId)) return;
     if (duel.playerHand[pendingEgotist] !== "vol4-elegant-egotist" || duel.playerField.length >= FIELD_LIMIT) return;
@@ -1232,7 +1305,7 @@ export function DuelArena({
     const discardedId = duel.playerHand[discardIndex];
     const targetField = targetSide === "player" ? duel.playerField : duel.cpuField;
     const target = targetField[targetIndex];
-    if (!discardedId || !target) return;
+    if (!discardedId || !target || isEffectTargetProtected(duel, targetSide, target)) return;
     const targetName = cardById.get(target.id)?.name ?? "モンスター";
     let next: DuelState = {
       ...duel,
@@ -1320,7 +1393,7 @@ export function DuelArena({
     if (duel.playerHand[pendingChangeOfHeart] !== "vol5-change-heart") return;
     if (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT)) return;
     const target = duel.cpuField[targetIndex];
-    if (!target) return;
+    if (!target || isEffectTargetProtected(duel, "cpu", target)) return;
     const targetName = cardById.get(target.id)?.name ?? "モンスター";
     setDuel({
       ...removeHandCard(duel, pendingChangeOfHeart),
@@ -1338,7 +1411,7 @@ export function DuelArena({
   function resolveStopAttack(targetIndex: number) {
     if (!duel || pendingStopAttack === null || duel.playerHand[pendingStopAttack] !== "vol7-stop-attack") return;
     const target = duel.cpuField[targetIndex];
-    if (!target || !canStopAttackTarget(target.position, target.faceDown)) return;
+    if (!target || !canStopAttackTarget(target.position, target.faceDown) || isEffectTargetProtected(duel, "cpu", target)) return;
     const targetName = cardById.get(target.id)?.name ?? "モンスター";
     const next = removeHandCard(duel, pendingStopAttack);
     setDuel({
@@ -1442,7 +1515,7 @@ export function DuelArena({
     if (!duel || pendingBarrelDragon === null || duel.turn !== "player" || (duel.phase !== "main1" && duel.phase !== "main2")) return;
     const source = duel.playerField[pendingBarrelDragon];
     const target = duel.cpuField[targetIndex];
-    if (!source || source.id !== "vol7-barrel-dragon" || source.faceDown || source.barrelUsedTurn === duel.turnNumber || !target) return;
+    if (!source || source.id !== "vol7-barrel-dragon" || source.faceDown || source.barrelUsedTurn === duel.turnNumber || !target || isEffectTargetProtected(duel, "cpu", target)) return;
     const tosses = Array.from({ length: 3 }, () => Math.random() < 0.5);
     const result = barrelDragonCoinResult(tosses);
     const targetName = target.faceDown ? "裏側モンスター" : cardById.get(target.id)?.name ?? "モンスター";
@@ -2771,7 +2844,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7・EX 強化CPU · BUILD 123</strong>
+          <strong>VOL.1〜Vol.7・EX 強化CPU · BUILD 124</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3324,7 +3397,7 @@ export function DuelArena({
                     </button>
                   ))
                 : (["player", "cpu"] as const).flatMap((side) =>
-                    (side === "player" ? duel.playerField : duel.cpuField).map((zone, index) => (
+                    (side === "player" ? duel.playerField : duel.cpuField).map((zone, index) => isEffectTargetProtected(duel, side, zone) ? null : (
                       <button key={`${side}-${zone.id}-${index}`} onClick={() => resolveTributeToDoomed(side, index)}>
                         <span>{side === "player" ? "自分フィールド" : "CPUフィールド"}</span>
                         <strong>{zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name ?? "モンスター"}</strong>
@@ -3392,7 +3465,7 @@ export function DuelArena({
             <h2>コントロールするモンスターを選ぶ</h2>
             <p>選んだCPUモンスターは、このターン終了時まで自分のフィールドで使用できます。</p>
             <div className="spell-target-list">
-              {duel.cpuField.map((zone, index) => (
+              {duel.cpuField.map((zone, index) => isEffectTargetProtected(duel, "cpu", zone) ? null : (
                 <button key={`${zone.id}-${index}`} onClick={() => resolveChangeOfHeart(index)}>
                   <span>CPUフィールド</span>
                   <strong>{zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name ?? "モンスター"}</strong>
@@ -3410,7 +3483,7 @@ export function DuelArena({
             <h2>守備表示にするモンスターを選ぶ</h2>
             <p>CPUの表側攻撃表示モンスター1体を表側守備表示に変更します。</p>
             <div className="spell-target-list">
-              {duel.cpuField.map((zone, index) => canStopAttackTarget(zone.position, zone.faceDown) ? (
+              {duel.cpuField.map((zone, index) => canStopAttackTarget(zone.position, zone.faceDown) && !isEffectTargetProtected(duel, "cpu", zone) ? (
                 <button key={`${zone.id}-${index}`} onClick={() => resolveStopAttack(index)}>
                   <span>表側攻撃表示</span>
                   <strong>{cardById.get(zone.id)?.name ?? "モンスター"}</strong>
@@ -3694,7 +3767,7 @@ export function DuelArena({
             <h2>リボルバー・ドラゴン</h2>
             <p>破壊する相手モンスターを選んでください。コインを3回投げ、表が2回以上なら破壊します。</p>
             <div className="target-list cannon-target-list">
-              {duel.cpuField.map((zone, index) => (
+              {duel.cpuField.map((zone, index) => isEffectTargetProtected(duel, "cpu", zone) ? null : (
                 <button key={`${zone.id}-${index}`} onClick={() => activateBarrelDragon(index)}>
                   <strong>{zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name}</strong>
                   <small>{zone.faceDown ? "表示形式：裏側" : `ATK ${effectiveAtk(zone, duel, "cpu")} ／ DEF ${effectiveDef(zone, duel, "cpu")}`}</small>
@@ -3898,6 +3971,32 @@ export function DuelArena({
           </article>
         </div>
       )}
+      {pendingDragonFlute && (
+        <div className="card-overlay">
+          <article>
+            <p className="section-label">SPECIAL SUMMON</p>
+            <h2>ドラゴンを呼ぶ笛</h2>
+            <p>手札から特殊召喚するドラゴン族を最大2体選んでください。CPUも手札にいれば最大2体を特殊召喚します。</p>
+            <div className="target-list">
+              {duel.playerHand.map((id, index) => index !== pendingDragonFlute.spellIndex && cardById.get(id)?.kind === "ドラゴン族" ? (
+                <button
+                  key={`flute-${index}`}
+                  className={pendingDragonFlute.selected.includes(index) ? "selected" : ""}
+                  onClick={() => toggleDragonFluteCard(index)}
+                >
+                  <strong>{cardById.get(id)?.name}</strong>
+                  <small>★{cardById.get(id)?.level}　ATK {cardById.get(id)?.atk} / DEF {cardById.get(id)?.def}</small>
+                </button>
+              ) : null)}
+            </div>
+            <div className="overlay-actions">
+              <button disabled={pendingDragonFlute.selected.length === 0} onClick={() => resolveDragonFlute("attack")}>攻撃表示で特殊召喚</button>
+              <button disabled={pendingDragonFlute.selected.length === 0} onClick={() => resolveDragonFlute("defense")}>守備表示で特殊召喚</button>
+            </div>
+            <button onClick={() => setPendingDragonFlute(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
 
       <div className="duel-controls">
         <div className="duel-hand">
@@ -3972,6 +4071,7 @@ export function DuelArena({
                         || pendingSoulRelease !== null
                         || pendingCheerfulCoffin !== null
                         || pendingFusion !== null
+                        || pendingDragonFlute !== null
                         || pendingChangeOfHeart !== null
                         || pendingStopAttack !== null
                         || (card.id === "vol2-swords-revealing-light" && duel.playerSpellTrap.length >= FIELD_LIMIT)
@@ -3985,19 +4085,24 @@ export function DuelArena({
                         || (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell)
                         || (card.id === "vol3-pot-of-greed" && duel.playerDeck.length < 2)
                         || (card.id === "vol3-stop-defense" && !duel.cpuField.some((zone) => zone.position === "defense"))
-                        || (card.id === "vol7-stop-attack" && !duel.cpuField.some((zone) => canStopAttackTarget(zone.position, zone.faceDown)))
+                        || (card.id === "vol7-stop-attack" && !duel.cpuField.some((zone) => canStopAttackTarget(zone.position, zone.faceDown) && !isEffectTargetProtected(duel, "cpu", zone)))
                         || (card.id === "vol3-gravedigger-ghoul" && !duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "monster"))
                         || (card.id === "vol4-elegant-egotist" && !canActivateElegantEgotist(duel, index))
                         || (card.id === "vol5-tribute-doomed" && !canActivateTributeToDoomed(duel.playerHand.length, duel.playerField.length + duel.cpuField.length))
                         || (card.id === "vol5-soul-release" && duel.playerGraveyard.length + duel.cpuGraveyard.length === 0)
                         || (card.id === "vol5-cheerful-coffin" && !canActivateCheerfulCoffin(duel.playerHand.flatMap((id, handIndex) => handIndex === index ? [] : [cardById.get(id)?.cardType ?? ""])))
-                        || (card.id === "vol5-change-heart" && !canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT))
+                        || (card.id === "vol5-change-heart" && (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT) || !duel.cpuField.some((zone) => !isEffectTargetProtected(duel, "cpu", zone))))
                         || ((card.id === "stb-polymerization" || card.id === "vol6-polymerization") && (
                           duel.playerField.length >= FIELD_LIMIT
                           || fusionChoices(
                             duel.playerFusionDeck,
                             [...duel.playerHand.filter((_, handIndex) => handIndex !== index), ...duel.playerField.map((zone) => zone.id)],
                           ).length === 0
+                        ))
+                        || (card.id === "ex-085" && (
+                          duel.playerField.length >= FIELD_LIMIT
+                          || !duel.playerField.some((zone) => zone.id === "ex-084" && !zone.faceDown)
+                          || !duel.playerHand.some((id, handIndex) => handIndex !== index && cardById.get(id)?.kind === "ドラゴン族")
                         ))
                         || (Boolean(EQUIP_RULES[card.id]) && !canActivateEquip(duel, card.id))
                       }
@@ -5412,6 +5517,12 @@ function areTrapEffectsNegated(state: DuelState): boolean {
   return royalDecreeNegatesTraps(state.playerActiveTraps, state.cpuActiveTraps);
 }
 
+function isEffectTargetProtected(state: DuelState, side: Side, zone: ZoneCard): boolean {
+  const faceUpLordCount = [...state.playerField, ...state.cpuField]
+    .filter((candidate) => candidate.id === "ex-084" && !candidate.faceDown).length;
+  return dragonTargetProtected(cardById.get(zone.id)?.kind ?? "", zone.faceDown, faceUpLordCount);
+}
+
 function discardRandomHandCard(state: DuelState, side: Side, sourceName: string): DuelState {
   const hand = side === "player" ? state.playerHand : state.cpuHand;
   if (hand.length === 0) return state;
@@ -5444,12 +5555,12 @@ type FlipTargetChoice = {
 
 function flipTargetChoices(state: DuelState, pending: PendingFlipTarget): FlipTargetChoice[] {
   if (pending.effect === "destroy-monster" || pending.effect === "return-monster") {
-    return state.cpuField.map((zone, index) => ({
+    return state.cpuField.flatMap((zone, index) => isEffectTargetProtected(state, "cpu", zone) ? [] : [{
       id: zone.id,
       index,
       zone: `相手モンスターゾーン ${index + 1}`,
       name: zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name ?? "モンスター",
-    }));
+    }]);
   }
   if (pending.effect === "destroy-spell" || pending.effect === "destroy-trap") {
     return state.cpuSpellTrap.map((id, index) => {
@@ -5487,7 +5598,7 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
 
   if (pending.effect === "destroy-monster" || pending.effect === "return-monster") {
     const target = state.cpuField[targetIndex];
-    if (!target) return base;
+    if (!target || isEffectTargetProtected(state, "cpu", target)) return base;
     const targetName = cardById.get(target.id)?.name ?? "モンスター";
     const remainingField = state.cpuField.filter((_, index) => index !== targetIndex);
     const remainingSpellTrap = discardEquips(state.cpuSpellTrap, [target]);
@@ -5551,6 +5662,7 @@ function multiTargetChoices(state: DuelState, pending: PendingMultiTarget): Mult
       return field.flatMap((zone, index) => {
         const card = cardById.get(zone.id);
         if (pending.effect === "destroy-dragon" && (zone.faceDown || card?.kind !== "ドラゴン族")) return [];
+        if (isEffectTargetProtected(state, side, zone)) return [];
         return [{
           key: `${side}-monster-${index}`,
           zone: `${side === "player" ? "自分" : "CPU"}モンスターゾーン ${index + 1}`,
@@ -6302,6 +6414,7 @@ function spellDescription(id: string) {
   if (id === "bo6-revolution") return "相手の手札1枚につき200ダメージを与える";
   if (id === "bo6-fusion-sage") return "デッキから「融合」1枚を手札に加える";
   if (id === "bo7-share-pain") return "自分のモンスター1体を生け贄にし、相手にもモンスター1体を生け贄にさせる";
+  if (id === "ex-085") return "ロード・オブ・ドラゴンが表側表示の時、双方は手札からドラゴン族を最大2体ずつ特殊召喚できる";
   if (id === "stb-polymerization" || id === "vol6-polymerization") return "手札・フィールドの決められた素材を墓地へ送り、融合デッキから融合召喚する";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
@@ -6337,6 +6450,7 @@ function isSpellImplemented(id: string) {
       "stb-remove-trap",
       "stb-polymerization",
       "vol6-polymerization",
+      "ex-085",
       ...FIELD_SPELL_IDS,
     ].includes(id);
 }
@@ -6387,6 +6501,9 @@ function monsterDescription(id: string) {
   if (id === "vol6-witch-black-forest") return "フィールドから墓地へ送られた時、デッキからDEF1500以下のモンスター1体を手札に加える";
   if (id === "vol6-cannon-soldier") return "自分フィールドのモンスター1体を生け贄にするたび、相手に500ダメージを与える";
   if (id === "vol6-dragon-piper") return "リバース：ドラゴン族・封印の壺を破壊し、表側のドラゴン族を全て攻撃表示にする";
+  if (id === "ex-033") return "リバース：相手フィールドのセットカードをすべて確認する";
+  if (id === "ex-034") return "このカードを攻撃したモンスターが戦闘後もフィールドに残る場合、持ち主の手札へ戻す";
+  if (id === "ex-084") return "表側表示で存在する限り、フィールドのドラゴン族はカード効果の対象にできない";
   return "";
 }
 
