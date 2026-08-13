@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -103,6 +103,7 @@ type PendingMultiTarget = {
   selected: string[];
 };
 type PendingCyberStein = { sourceIndex: number; fusionId: string | null };
+type PendingYadoKaru = { sourceIndex: number; selected: number[] };
 type PendingDeckReorder = {
   monsterId: string;
   cards: string[];
@@ -151,6 +152,8 @@ type ZoneCard = {
   barrelUsedTurn?: number;
   matangoOfferedTurn?: number;
   statsSwappedTurn?: number;
+  aileBoostTurn?: number;
+  aileTributeCount?: number;
   germStandbys?: number;
 };
 
@@ -229,6 +232,8 @@ export function DuelArena({
   const [pendingBarrelDragon, setPendingBarrelDragon] = useState<number | null>(null);
   const [pendingGaleDogra, setPendingGaleDogra] = useState<number | null>(null);
   const [pendingCyberStein, setPendingCyberStein] = useState<PendingCyberStein | null>(null);
+  const [pendingAileSwordsman, setPendingAileSwordsman] = useState<number | null>(null);
+  const [pendingYadoKaru, setPendingYadoKaru] = useState<PendingYadoKaru | null>(null);
   const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
   const [pendingStopAttack, setPendingStopAttack] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
@@ -284,6 +289,8 @@ export function DuelArena({
     && pendingBarrelDragon === null
     && pendingGaleDogra === null
     && pendingCyberStein === null
+    && pendingAileSwordsman === null
+    && pendingYadoKaru === null
     && pendingMatangoTransfer === null
     && pendingStopAttack === null
     && pendingEgotist === null
@@ -373,6 +380,8 @@ export function DuelArena({
     setPendingBarrelDragon(null);
     setPendingGaleDogra(null);
     setPendingCyberStein(null);
+    setPendingAileSwordsman(null);
+    setPendingYadoKaru(null);
     setPendingMatangoTransfer(null);
     setPendingStopAttack(null);
     setCpuPlayback(null);
@@ -597,6 +606,9 @@ export function DuelArena({
       }
     }
     setDuel(next);
+    if (zone.id === "bo7-yado-karu" && !zone.faceDown && zone.position === "attack" && nextPosition === "defense" && duel.playerHand.length > 0) {
+      setPendingYadoKaru({ sourceIndex: index, selected: [] });
+    }
     setSelectedAttacker(null);
   }
 
@@ -1293,8 +1305,66 @@ export function DuelArena({
     });
   }
 
+  function activateAileSwordsman(targetIndex: number) {
+    if (!duel || pendingAileSwordsman === null || duel.turn !== "player" || (duel.phase !== "main1" && duel.phase !== "main2")) return;
+    const source = duel.playerField[pendingAileSwordsman];
+    const target = duel.playerField[targetIndex];
+    if (!source || source.id !== "bo7-aile-swordsman" || source.faceDown || !target) return;
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    const isCpuOwned = target.controlReturn === "cpu";
+    let resolved: DuelState = {
+      ...duel,
+      playerField: duel.playerField
+        .map((zone, index) => index === pendingAileSwordsman
+          ? {
+              ...zone,
+              aileBoostTurn: duel.turnNumber,
+              aileTributeCount: zone.aileBoostTurn === duel.turnNumber ? (zone.aileTributeCount ?? 0) + 1 : 1,
+            }
+          : zone)
+        .filter((_, index) => index !== targetIndex),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, [target]),
+      playerGraveyard: isCpuOwned ? [...duel.playerGraveyard, ...target.equipped] : [...duel.playerGraveyard, ...graveCards([target])],
+      cpuGraveyard: isCpuOwned ? [...duel.cpuGraveyard, target.id] : duel.cpuGraveyard,
+      log: appendLog(duel.log, `アイルの小剣士の効果で${targetName}を生け贄にし、ターン終了までATKを700アップ。`),
+    };
+    resolved = applyDeckSearchTriggers(resolved, isCpuOwned ? [] : [target], isCpuOwned ? [target] : []);
+    setPendingAileSwordsman(null);
+    setDuel(resolved);
+  }
+
+  function toggleYadoKaruCard(handIndex: number) {
+    setPendingYadoKaru((current) => current
+      ? {
+          ...current,
+          selected: current.selected.includes(handIndex)
+            ? current.selected.filter((index) => index !== handIndex)
+            : [...current.selected, handIndex].sort((a, b) => a - b),
+        }
+      : null);
+  }
+
+  function resolveYadoKaru() {
+    if (!duel || !pendingYadoKaru) return;
+    const source = duel.playerField[pendingYadoKaru.sourceIndex];
+    if (!source || source.id !== "bo7-yado-karu" || source.faceDown || source.position !== "defense") {
+      setPendingYadoKaru(null);
+      return;
+    }
+    const moved = bottomDeckSelection(duel.playerHand, pendingYadoKaru.selected);
+    setDuel({
+      ...duel,
+      playerHand: moved.remaining,
+      playerDeck: [...duel.playerDeck, ...moved.bottom],
+      log: appendLog(duel.log, moved.bottom.length > 0
+        ? `ヤドカリューの効果で手札${moved.bottom.length}枚をデッキの一番下へ戻した。`
+        : "ヤドカリューの効果を使わずに終了。"),
+    });
+    setPendingYadoKaru(null);
+  }
+
   function activateGaleDogra(fusionIndex: number) {
-    if (!duel || pendingGaleDogra === null || !isPlayerMainPhase || !canPayMonsterEffect(duel.playerLp, 3000)) return;
+    if (!duel || pendingGaleDogra === null || duel.turn !== "player" || (duel.phase !== "main1" && duel.phase !== "main2") || !canPayMonsterEffect(duel.playerLp, 3000)) return;
     const source = duel.playerField[pendingGaleDogra];
     const fusionId = duel.playerFusionDeck[fusionIndex];
     if (!source || source.id !== "bo6-gale-dogra" || source.faceDown || !fusionId) return;
@@ -1314,7 +1384,7 @@ export function DuelArena({
   }
 
   function activateCyberStein(position: Position) {
-    if (!duel || !pendingCyberStein?.fusionId || !isPlayerMainPhase || !canPayMonsterEffect(duel.playerLp, 5000) || duel.playerField.length >= FIELD_LIMIT) return;
+    if (!duel || !pendingCyberStein?.fusionId || duel.turn !== "player" || (duel.phase !== "main1" && duel.phase !== "main2") || !canPayMonsterEffect(duel.playerLp, 5000) || duel.playerField.length >= FIELD_LIMIT) return;
     const source = duel.playerField[pendingCyberStein.sourceIndex];
     const fusionIndex = duel.playerFusionDeck.indexOf(pendingCyberStein.fusionId);
     const fusion = cardById.get(pendingCyberStein.fusionId);
@@ -1506,7 +1576,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -1529,7 +1599,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -2285,7 +2355,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 114</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 115</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3042,6 +3112,9 @@ export function DuelArena({
         {isPlayerMainPhase && canPayMonsterEffect(duel.playerLp, 5000) && duel.playerFusionDeck.length > 0 && duel.playerField.length < FIELD_LIMIT && duel.playerField.some((zone) => zone.id === "bo6-cyber-stein" && !zone.faceDown) && (
           <button className="effect-action-button" onClick={() => setPendingCyberStein({ sourceIndex: duel.playerField.findIndex((zone) => zone.id === "bo6-cyber-stein" && !zone.faceDown), fusionId: null })}>デビル・フランケンの効果を使う（5000LP）</button>
         )}
+        {isPlayerMainPhase && duel.playerField.some((zone) => zone.id === "bo7-aile-swordsman" && !zone.faceDown) && (
+          <button className="effect-action-button" onClick={() => setPendingAileSwordsman(duel.playerField.findIndex((zone) => zone.id === "bo7-aile-swordsman" && !zone.faceDown))}>アイルの小剣士の効果を使う</button>
+        )}
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
             <div className={duel.playerSpellTrap[index] ? "set-card" : "empty-zone"} key={index}>
@@ -3175,6 +3248,42 @@ export function DuelArena({
               </>
             )}
             <button className="overlay-close" onClick={() => setPendingCyberStein(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
+      {pendingAileSwordsman !== null && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">MONSTER EFFECT</p>
+            <h2>アイルの小剣士</h2>
+            <p>生け贄にする自分フィールドのモンスターを選んでください。ターン終了までATKが700アップします。</p>
+            <div className="target-list cannon-target-list">
+              {duel.playerField.map((zone, index) => (
+                <button key={`${zone.id}-${index}`} onClick={() => activateAileSwordsman(index)}>
+                  <strong>{cardById.get(zone.id)?.name}</strong>
+                  <small>{index === pendingAileSwordsman ? "自身も選択できます" : `ATK ${effectiveAtk(zone, duel, "player")}`}</small>
+                </button>
+              ))}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingAileSwordsman(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
+      {pendingYadoKaru && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">MONSTER EFFECT</p>
+            <h2>ヤドカリュー</h2>
+            <p>デッキの一番下へ戻す手札を好きな枚数選んでください。</p>
+            <div className="target-list cannon-target-list">
+              {duel.playerHand.map((id, index) => (
+                <button className={pendingYadoKaru.selected.includes(index) ? "selected" : ""} key={`${id}-${index}`} onClick={() => toggleYadoKaruCard(index)}>
+                  <strong>{cardById.get(id)?.name}</strong>
+                  <small>{pendingYadoKaru.selected.includes(index) ? "選択中" : "タップして選択"}</small>
+                </button>
+              ))}
+            </div>
+            <button onClick={resolveYadoKaru}>{pendingYadoKaru.selected.length > 0 ? `選択した${pendingYadoKaru.selected.length}枚を戻す` : "戻さずに終了"}</button>
           </article>
         </div>
       )}
@@ -5197,7 +5306,11 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     allyIds: (side === "player" ? state.playerField : state.cpuField).filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
-  return Math.max(0, stats.atk + timedFieldBonus(zone, state) - germInfectionPenalty(zone.equipped, zone.germStandbys) - dopingPenalty(zone.equipped, zone.germStandbys));
+  return Math.max(0, stats.atk
+    + timedFieldBonus(zone, state)
+    + aileSwordsmanAttackBonus(zone.aileBoostTurn, zone.aileTributeCount, state.turnNumber)
+    - germInfectionPenalty(zone.equipped, zone.germStandbys)
+    - dopingPenalty(zone.equipped, zone.germStandbys));
 }
 
 function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {

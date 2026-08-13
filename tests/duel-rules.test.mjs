@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
+import { aileSwordsmanAttackBonus, bottomDeckSelection } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -10,6 +11,16 @@ test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破�
     defenderDestroyed: true,
     attackerDamage: 0,
     defenderDamage: 400,
+  });
+});
+
+test("アイルの小剣士とヤドカリューの手動効果を計算する", () => {
+  assert.equal(aileSwordsmanAttackBonus(5, 2, 5), 1400);
+  assert.equal(aileSwordsmanAttackBonus(5, 2, 6), 0);
+  assert.equal(aileSwordsmanAttackBonus(5, 0, 5), 0);
+  assert.deepEqual(bottomDeckSelection(["a", "b", "c", "d"], [1, 3]), {
+    remaining: ["a", "c"],
+    bottom: ["b", "d"],
   });
 });
 

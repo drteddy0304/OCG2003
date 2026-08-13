@@ -79,6 +79,8 @@ export function darkCastleUndeadBoost(faceUpTurns: number[], currentTurn: number
 export function pumpkingTimedBonus(id: string, castlePresent: boolean, faceUpTurn: number | undefined, currentTurn: number): number;
 export function giantSpiderAttackLife(id: string, lifePoints: number, coinMatched: boolean): number;
 export function canPayMonsterEffect(lifePoints: number, cost: number): boolean;
+export function aileSwordsmanAttackBonus(boostTurn: number | undefined, tributeCount: number | undefined, currentTurn: number | undefined): number;
+export function bottomDeckSelection(cards: string[], selectedIndexes: number[]): { remaining: string[]; bottom: string[] };
 
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];

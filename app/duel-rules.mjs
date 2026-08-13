@@ -268,6 +268,19 @@ export function canPayMonsterEffect(lifePoints, cost) {
   return Number.isFinite(lifePoints) && Number.isFinite(cost) && cost >= 0 && lifePoints > cost;
 }
 
+export function aileSwordsmanAttackBonus(boostTurn, tributeCount, currentTurn) {
+  if (boostTurn !== currentTurn || !Number.isInteger(tributeCount) || tributeCount < 1) return 0;
+  return tributeCount * 700;
+}
+
+export function bottomDeckSelection(cards, selectedIndexes) {
+  const selected = new Set(selectedIndexes);
+  return {
+    remaining: cards.filter((_, index) => !selected.has(index)),
+    bottom: cards.filter((_, index) => selected.has(index)),
+  };
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };
