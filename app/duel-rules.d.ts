@@ -81,6 +81,8 @@ export function giantSpiderAttackLife(id: string, lifePoints: number, coinMatche
 export function canPayMonsterEffect(lifePoints: number, cost: number): boolean;
 export function aileSwordsmanAttackBonus(boostTurn: number | undefined, tributeCount: number | undefined, currentTurn: number | undefined): number;
 export function bottomDeckSelection(cards: string[], selectedIndexes: number[]): { remaining: string[]; bottom: string[] };
+export function gracefulCharityDraw(hand: string[], deck: string[]): { hand: string[]; deck: string[] } | null;
+export function selectedCards(cards: string[], selectedIndexes: number[]): { remaining: string[]; chosen: string[] };
 
 export function advanceSwordsTurns(turns: number[]): {
   remaining: number[];

@@ -4,6 +4,7 @@ import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, batt
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { aileSwordsmanAttackBonus, bottomDeckSelection } from "../app/duel-rules.mjs";
+import { gracefulCharityDraw, selectedCards } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -21,6 +22,18 @@ test("アイルの小剣士とヤドカリューの手動効果を計算する",
   assert.deepEqual(bottomDeckSelection(["a", "b", "c", "d"], [1, 3]), {
     remaining: ["a", "c"],
     bottom: ["b", "d"],
+  });
+});
+
+test("天使の施しは3枚引いて選択した2枚を捨てる", () => {
+  assert.deepEqual(gracefulCharityDraw(["h1"], ["d1", "d2", "d3", "d4"]), {
+    hand: ["h1", "d1", "d2", "d3"],
+    deck: ["d4"],
+  });
+  assert.equal(gracefulCharityDraw([], ["d1", "d2"]), null);
+  assert.deepEqual(selectedCards(["a", "b", "c", "d"], [0, 2]), {
+    remaining: ["b", "d"],
+    chosen: ["a", "c"],
   });
 });
 

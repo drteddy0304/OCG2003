@@ -281,6 +281,19 @@ export function bottomDeckSelection(cards, selectedIndexes) {
   };
 }
 
+export function gracefulCharityDraw(hand, deck) {
+  if (deck.length < 3) return null;
+  return { hand: [...hand, ...deck.slice(0, 3)], deck: deck.slice(3) };
+}
+
+export function selectedCards(cards, selectedIndexes) {
+  const selected = new Set(selectedIndexes);
+  return {
+    remaining: cards.filter((_, index) => !selected.has(index)),
+    chosen: cards.filter((_, index) => selected.has(index)),
+  };
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };

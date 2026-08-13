@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -104,6 +104,7 @@ type PendingMultiTarget = {
 };
 type PendingCyberStein = { sourceIndex: number; fusionId: string | null };
 type PendingYadoKaru = { sourceIndex: number; selected: number[] };
+type PendingCardInspection = { kind: "spy" | "telescope"; selected: number | null };
 type PendingDeckReorder = {
   monsterId: string;
   cards: string[];
@@ -234,6 +235,8 @@ export function DuelArena({
   const [pendingCyberStein, setPendingCyberStein] = useState<PendingCyberStein | null>(null);
   const [pendingAileSwordsman, setPendingAileSwordsman] = useState<number | null>(null);
   const [pendingYadoKaru, setPendingYadoKaru] = useState<PendingYadoKaru | null>(null);
+  const [pendingGracefulCharity, setPendingGracefulCharity] = useState<number[] | null>(null);
+  const [pendingCardInspection, setPendingCardInspection] = useState<PendingCardInspection | null>(null);
   const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
   const [pendingStopAttack, setPendingStopAttack] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
@@ -291,6 +294,8 @@ export function DuelArena({
     && pendingCyberStein === null
     && pendingAileSwordsman === null
     && pendingYadoKaru === null
+    && pendingGracefulCharity === null
+    && pendingCardInspection === null
     && pendingMatangoTransfer === null
     && pendingStopAttack === null
     && pendingEgotist === null
@@ -382,6 +387,8 @@ export function DuelArena({
     setPendingCyberStein(null);
     setPendingAileSwordsman(null);
     setPendingYadoKaru(null);
+    setPendingGracefulCharity(null);
+    setPendingCardInspection(null);
     setPendingMatangoTransfer(null);
     setPendingStopAttack(null);
     setCpuPlayback(null);
@@ -734,6 +741,77 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "bo2-light-reveal") {
+      const next = removeHandCard(duel, handIndex);
+      setDuel({
+        ...next,
+        cpuField: next.cpuField.map((zone) => ({ ...zone, faceDown: false, faceUpTurn: zone.faceDown ? next.turnNumber : zone.faceUpTurn })),
+        playerGraveyard: [...next.playerGraveyard, card.id],
+        log: appendLog(next.log, `闇をかき消す光を発動。相手の裏側表示モンスター${next.cpuField.filter((zone) => zone.faceDown).length}体を確認。`),
+      });
+      return;
+    }
+
+    if (card.id === "bo2-amateur-spy") {
+      if (duel.cpuHand.length === 0) return;
+      const next = removeHandCard(duel, handIndex);
+      setDuel({ ...next, playerGraveyard: [...next.playerGraveyard, card.id], log: appendLog(next.log, "未熟な密偵を発動。確認する相手の手札を選んでください。") });
+      setPendingCardInspection({ kind: "spy", selected: null });
+      return;
+    }
+
+    if (card.id === "bo3-ancient-telescope") {
+      if (duel.cpuDeck.length === 0) return;
+      const next = removeHandCard(duel, handIndex);
+      setDuel({ ...next, playerGraveyard: [...next.playerGraveyard, card.id], log: appendLog(next.log, "古代の遠眼鏡を発動。相手デッキの上から5枚を確認。") });
+      setPendingCardInspection({ kind: "telescope", selected: null });
+      return;
+    }
+
+    if (card.id === "bo4-graceful-charity") {
+      const handWithoutSpell = duel.playerHand.filter((_, index) => index !== handIndex);
+      const drawn = gracefulCharityDraw(handWithoutSpell, duel.playerDeck);
+      if (!drawn) return;
+      setDuel({
+        ...duel,
+        playerHand: drawn.hand,
+        playerDeck: drawn.deck,
+        playerGraveyard: [...duel.playerGraveyard, card.id],
+        log: appendLog(duel.log, "天使の施しを発動。3枚ドローし、捨てる2枚を選んでください。"),
+      });
+      setPendingGracefulCharity([]);
+      return;
+    }
+
+    if (card.id === "bo6-fusion-sage") {
+      const fusionIndex = duel.playerDeck.findIndex((id) => id === "stb-polymerization" || id === "vol6-polymerization");
+      if (fusionIndex < 0) return;
+      const fusionId = duel.playerDeck[fusionIndex];
+      const next = removeHandCard(duel, handIndex);
+      setDuel({
+        ...next,
+        playerDeck: next.playerDeck.filter((_, index) => index !== fusionIndex),
+        playerHand: [...next.playerHand, fusionId],
+        playerGraveyard: [...next.playerGraveyard, card.id],
+        log: appendLog(next.log, "融合賢者を発動。デッキから「融合」を手札に加えた。"),
+      });
+      return;
+    }
+
+    if (card.id === "bo6-revolution") {
+      const damage = duel.cpuHand.length * 200;
+      const next = removeHandCard(duel, handIndex);
+      const cpuLp = Math.max(0, next.cpuLp - damage);
+      setDuel({
+        ...next,
+        cpuLp,
+        playerGraveyard: [...next.playerGraveyard, card.id],
+        result: cpuLp === 0 ? "win" : next.result,
+        log: appendLog(next.log, `革命を発動。相手の手札${duel.cpuHand.length}枚につき200、合計${damage}ダメージ。`),
+      });
+      return;
+    }
+
     let next = {
       ...removeHandCard(duel, handIndex),
       playerGraveyard: [...duel.playerGraveyard, card.id],
@@ -857,6 +935,27 @@ export function DuelArena({
         : `${card.name}を発動。`,
     );
     setDuel(next);
+  }
+
+  function toggleGracefulCharityCard(handIndex: number) {
+    setPendingGracefulCharity((current) => {
+      if (current === null) return null;
+      if (current.includes(handIndex)) return current.filter((index) => index !== handIndex);
+      if (current.length >= 2) return current;
+      return [...current, handIndex].sort((a, b) => a - b);
+    });
+  }
+
+  function resolveGracefulCharity() {
+    if (!duel || pendingGracefulCharity?.length !== 2) return;
+    const discarded = selectedCards(duel.playerHand, pendingGracefulCharity);
+    setDuel({
+      ...duel,
+      playerHand: discarded.remaining,
+      playerGraveyard: [...duel.playerGraveyard, ...discarded.chosen],
+      log: appendLog(duel.log, `天使の施しの効果で${discarded.chosen.map((id) => cardById.get(id)?.name).join("、")}を捨てた。`),
+    });
+    setPendingGracefulCharity(null);
   }
 
   function chooseFusionMonster(fusionId: string) {
@@ -1576,7 +1675,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -1599,7 +1698,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -2355,7 +2454,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 115</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 116</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3284,6 +3383,42 @@ export function DuelArena({
               ))}
             </div>
             <button onClick={resolveYadoKaru}>{pendingYadoKaru.selected.length > 0 ? `選択した${pendingYadoKaru.selected.length}枚を戻す` : "戻さずに終了"}</button>
+          </article>
+        </div>
+      )}
+      {pendingGracefulCharity !== null && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">SPELL EFFECT</p>
+            <h2>天使の施し</h2>
+            <p>墓地へ捨てる手札を2枚選んでください。</p>
+            <div className="target-list cannon-target-list">
+              {duel.playerHand.map((id, index) => (
+                <button className={pendingGracefulCharity.includes(index) ? "selected" : ""} key={`${id}-${index}`} onClick={() => toggleGracefulCharityCard(index)}>
+                  <strong>{cardById.get(id)?.name}</strong>
+                  <small>{pendingGracefulCharity.includes(index) ? "選択中" : "タップして選択"}</small>
+                </button>
+              ))}
+            </div>
+            <button disabled={pendingGracefulCharity.length !== 2} onClick={resolveGracefulCharity}>選択した2枚を捨てる</button>
+          </article>
+        </div>
+      )}
+      {pendingCardInspection && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">CARD INSPECTION</p>
+            <h2>{pendingCardInspection.kind === "spy" ? "未熟な密偵" : "古代の遠眼鏡"}</h2>
+            <p>{pendingCardInspection.kind === "spy" ? "確認する相手の手札を1枚選んでください。" : "相手デッキの上から5枚です。順番は変更されません。"}</p>
+            <div className="target-list cannon-target-list">
+              {(pendingCardInspection.kind === "spy" ? duel.cpuHand : duel.cpuDeck.slice(0, 5)).map((id, index) => (
+                <button key={`${id}-${index}`} onClick={() => pendingCardInspection.kind === "spy" && setPendingCardInspection({ ...pendingCardInspection, selected: index })}>
+                  <strong>{pendingCardInspection.kind === "telescope" || pendingCardInspection.selected === index ? cardById.get(id)?.name : `相手の手札 ${index + 1}`}</strong>
+                  <small>{pendingCardInspection.kind === "telescope" ? `${index + 1}枚目` : pendingCardInspection.selected === index ? "確認したカード" : "タップして確認"}</small>
+                </button>
+              ))}
+            </div>
+            <button disabled={pendingCardInspection.kind === "spy" && pendingCardInspection.selected === null} onClick={() => setPendingCardInspection(null)}>確認を終える</button>
           </article>
         </div>
       )}
