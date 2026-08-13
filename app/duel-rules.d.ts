@@ -92,7 +92,7 @@ export function bottomDeckSelection(cards: string[], selectedIndexes: number[]):
 export function gracefulCharityDraw(hand: string[], deck: string[]): { hand: string[]; deck: string[] } | null;
 export function selectedCards(cards: string[], selectedIndexes: number[]): { remaining: string[]; chosen: string[] };
 export function justDessertsDamage(monsterCount: number): number;
-export function temporaryBattleStatBonus(effectTurn: number | undefined, currentTurn: number | undefined): number;
+export function temporaryBattleStatBonus(effectTurn: number | undefined, currentTurn: number | undefined, amount?: number): number;
 export function canUseUltimateOffering(lifePoints: number, normalSummoned: boolean, fieldCount: number, hasSummonCandidate: boolean, fieldLimit?: number): boolean;
 export function reverseAdjustedStat(base: number, adjusted: number, active: boolean): number;
 
@@ -161,7 +161,7 @@ export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set" | "opponent-draw-three-discard-spells";
 
 export function flipEffect(id: string): FlipEffect | null;
 export function phantomWallReturnsAttacker(defenderId: string, attackerDestroyed: boolean): boolean;

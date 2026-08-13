@@ -63,8 +63,14 @@ test("自業自得は相手モンスター1体につき500ダメージを与え�
 
 test("援軍と城壁の500アップは発動したターンだけ適用する", () => {
   assert.equal(temporaryBattleStatBonus(8, 8), 500);
+  assert.equal(temporaryBattleStatBonus(8, 8, 700), 700);
+  assert.equal(temporaryBattleStatBonus(8, 8, -500), -500);
   assert.equal(temporaryBattleStatBonus(8, 9), 0);
   assert.equal(temporaryBattleStatBonus(undefined, 8), 0);
+});
+
+test("悪魔の偵察者は専用のリバース効果として扱う", () => {
+  assert.equal(flipEffect("mr-hiros-shadow-scout"), "opponent-draw-three-discard-spells");
 });
 
 test("血の代償は通常召喚後に500LPを残して追加召喚できる", () => {

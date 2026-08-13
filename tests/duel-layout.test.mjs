@@ -102,3 +102,12 @@ test("Magic Rulerの手札妨害と最終戦争はプレイヤーが対象・コ
   assert.match(arena, /mr-gravekeepers-servant/);
   assert.match(arena, /duelAttackPayment/);
 });
+
+test("Magic Rulerの能力変化カードは表側モンスターを自分で選べる", () => {
+  assert.match(arena, /pendingTemporaryStat/);
+  assert.match(arena, /resolveTemporaryStat/);
+  assert.match(arena, /mr-rush-recklessly/);
+  assert.match(arena, /mr-reliable-guardian/);
+  assert.match(arena, /毒蛇の牙を発動する/);
+  assert.match(arena, /mr-hiros-shadow-scout/);
+});

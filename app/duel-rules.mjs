@@ -346,8 +346,8 @@ export function justDessertsDamage(monsterCount) {
   return Number.isInteger(monsterCount) && monsterCount > 0 ? monsterCount * 500 : 0;
 }
 
-export function temporaryBattleStatBonus(effectTurn, currentTurn) {
-  return effectTurn === currentTurn ? 500 : 0;
+export function temporaryBattleStatBonus(effectTurn, currentTurn, amount = 500) {
+  return effectTurn === currentTurn ? amount : 0;
 }
 
 export function canUseUltimateOffering(lifePoints, normalSummoned, fieldCount, hasSummonCandidate, fieldLimit = 5) {
@@ -434,6 +434,7 @@ export function firstFaceUpTrapIndex(ids) {
 }
 
 const flipEffects = Object.freeze({
+  "mr-hiros-shadow-scout": "opponent-draw-three-discard-spells",
   "vol6-dragon-piper": "destroy-dragon-jar",
   "vol3-reaper-cards": "destroy-trap",
   "vol3-armed-ninja": "destroy-spell",
