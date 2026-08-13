@@ -12,6 +12,10 @@ export function battleOutcome(
 ): BattleOutcome;
 
 export const equipRules: Readonly<Record<string, string>>;
+export function equippedMonsterStats(atk: number, defense: number, equippedIds: string[]): { atk: number; def: number };
+export function germInfectionPenalty(equippedIds: string[], standbyCount?: number): number;
+export function dopingPenalty(equippedIds: string[], standbyCount?: number): number;
+export function paralyzingPotionPreventsAttack(equippedIds: string[]): boolean;
 export const competitiveCpuDeckLatestPackId: "vol-7";
 export const competitiveCpuDeck: readonly string[];
 
@@ -40,6 +44,7 @@ export function shouldCpuActivateSwords(
 export function raceDestructionKind(id: string): string | null;
 export function isRaceDestructionTarget(id: string, kind: string, faceDown: boolean): boolean;
 export function shouldCpuUseRaceDestructionSpell(id: string, cpuKinds: string[], opponentKinds: string[]): boolean;
+export function shouldCpuUseHeavyStorm(cpuSpellTrapCount: number, opponentSpellTrapCount: number, cpuFieldSpell?: boolean, opponentFieldSpell?: boolean): boolean;
 
 export function strongestAttackIndex(attacks: number[]): number | null;
 

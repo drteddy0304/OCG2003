@@ -51,6 +51,8 @@ export const equipRules = Object.freeze({
   "vol7-germ-infection": "機械族以外",
   "vol7-paralyzing-potion": "機械族以外",
   "vol7-sword-deep-seated": "全モンスター",
+  "bo7-magnetic-ring": "全モンスター",
+  "bo7-doping": "全モンスター",
   "bo2-dark-piercing-sword": "闇属性",
   "bo2-elf-light": "光属性",
   "bo2-steel-shell": "水属性",
@@ -127,6 +129,12 @@ export function shouldCpuUseRaceDestructionSpell(id, cpuKinds, opponentKinds) {
   const cpuTargets = cpuKinds.filter((value) => value === kind).length;
   const opponentTargets = opponentKinds.filter((value) => value === kind).length;
   return opponentTargets > cpuTargets;
+}
+
+export function shouldCpuUseHeavyStorm(cpuSpellTrapCount, opponentSpellTrapCount, cpuFieldSpell = false, opponentFieldSpell = false) {
+  const ownLoss = Math.max(0, cpuSpellTrapCount) + (cpuFieldSpell ? 1 : 0);
+  const opponentLoss = Math.max(0, opponentSpellTrapCount) + (opponentFieldSpell ? 1 : 0);
+  return opponentLoss > ownLoss;
 }
 
 export function strongestAttackIndex(attacks) {
@@ -392,6 +400,8 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
   const modifiers = equippedIds.reduce((result, id) => {
     if (id === "vol4-cocoon-evolution" || id === "vol7-germ-infection" || id === "vol7-paralyzing-potion") return result;
     if (id === "vol7-sword-deep-seated") return { atk: result.atk + 500, def: result.def + 500 };
+    if (id === "bo7-magnetic-ring") return { atk: result.atk - 500, def: result.def - 500 };
+    if (id === "bo7-doping") return { atk: result.atk + 700, def: result.def };
     if (id.startsWith("bo2-")) return { atk: result.atk + 400, def: result.def - 200 };
     return { atk: result.atk + 300, def: result.def + 300 };
   }, { atk: 0, def: 0 });
@@ -403,6 +413,10 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
 
 export function germInfectionPenalty(equippedIds, standbyCount = 0) {
   return equippedIds.includes("vol7-germ-infection") ? Math.max(0, standbyCount) * 300 : 0;
+}
+
+export function dopingPenalty(equippedIds, standbyCount = 0) {
+  return equippedIds.includes("bo7-doping") ? Math.max(0, standbyCount) * 200 : 0;
 }
 
 export function paralyzingPotionPreventsAttack(equippedIds) {

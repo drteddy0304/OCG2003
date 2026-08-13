@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, deSpellDestroys, dimensionalWarriorBanishes, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 
@@ -106,6 +106,13 @@ test("Vol.7の装備魔法3枚の能力補正と攻撃制限を計算する", ()
   assert.equal(germInfectionPenalty([], 3), 0);
   assert.equal(paralyzingPotionPreventsAttack(["vol7-paralyzing-potion"]), true);
   assert.equal(paralyzingPotionPreventsAttack([]), false);
+});
+
+test("Booster 7の磁力の指輪とドーピングの能力補正を計算する", () => {
+  assert.deepEqual(equippedMonsterStats(1500, 1200, ["bo7-magnetic-ring"]), { atk: 1000, def: 700 });
+  assert.deepEqual(equippedMonsterStats(1500, 1200, ["bo7-doping"]), { atk: 2200, def: 1200 });
+  assert.equal(dopingPenalty(["bo7-doping"], 3), 600);
+  assert.equal(dopingPenalty([], 3), 0);
 });
 
 test("ダーク・エルフは1000LPを残せる時だけ攻撃コストを払える", () => {
@@ -502,6 +509,13 @@ test("Booster 6の魔女狩りと悪魔払いは対応する種族だけを破�
   assert.equal(isRaceDestructionTarget("bo6-exile-wicked", "悪魔族", false), true);
   assert.equal(isRaceDestructionTarget("bo6-witch-hunt", "悪魔族", false), false);
   assert.equal(isRaceDestructionTarget("bo6-exile-wicked", "悪魔族", true), false);
+});
+
+test("CPUは相手の損失が自分より大きい時だけ大嵐を使う", () => {
+  assert.equal(shouldCpuUseHeavyStorm(1, 3), true);
+  assert.equal(shouldCpuUseHeavyStorm(2, 2), false);
+  assert.equal(shouldCpuUseHeavyStorm(1, 1, false, true), true);
+  assert.equal(shouldCpuUseHeavyStorm(1, 1, true, false), false);
 });
 
 test("クリッターと黒き森のウィッチはそれぞれATK・DEF1500以下を検索する", () => {

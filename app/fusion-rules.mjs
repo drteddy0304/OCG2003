@@ -39,6 +39,8 @@ export const FUSION_RECIPES = {
   "bo6-sand-witch": ["vol3-giant-soldier-stone", "vol4-ancient-elf"],
   "bo6-skelgon": ["bo5-medusa-ghost", "vol6-blackland-fire-dragon"],
   "bo6-amphibious-bugroth": ["vol4-ground-bagroth", "bo6-sea-guardian"],
+  "bo7-fiend-box": ["bo7-crass-clown", "bo7-dream-clown"],
+  "bo7-skull-bishop": ["bo7-wisdom-devil", "bo7-makenro"],
 };
 
 export function fusionRecipe(fusionId) {

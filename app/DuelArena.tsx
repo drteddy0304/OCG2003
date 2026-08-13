@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -696,6 +696,23 @@ export function DuelArena({
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField), ...graveCards(returnedMonsters)],
       };
       next = applyDeckSearchTriggers(next, playerMonsters, [...cpuMonsters, ...returnedMonsters]);
+    } else if (card.id === "bo7-heavy-storm") {
+      const playerCards = [...next.playerSpellTrap, ...(next.playerFieldSpell ? [next.playerFieldSpell] : [])];
+      const cpuCards = [...next.cpuSpellTrap, ...(next.cpuFieldSpell ? [next.cpuFieldSpell] : [])];
+      next = {
+        ...next,
+        playerField: next.playerField.map((zone) => ({ ...zone, equipped: [] })),
+        cpuField: next.cpuField.map((zone) => ({ ...zone, equipped: [] })),
+        playerSpellTrap: [],
+        cpuSpellTrap: [],
+        playerFieldSpell: null,
+        cpuFieldSpell: null,
+        playerSwordsTurns: [],
+        cpuSwordsTurns: [],
+        playerGraveyard: [...next.playerGraveyard, ...playerCards],
+        cpuGraveyard: [...next.cpuGraveyard, ...cpuCards],
+        log: appendLog(next.log, `大嵐を発動。フィールドの魔法・罠カード${playerCards.length + cpuCards.length}枚をすべて破壊。`),
+      };
     } else if (card.id === "stb-raigeki") {
       const destroyedCpu = next.cpuField;
       next = {
@@ -2135,7 +2152,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 108</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 109</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3459,14 +3476,14 @@ function applyMatangoStandby(state: DuelState, side: Side): DuelState {
 
 function applyGermInfectionStandby(state: DuelState, side: Side): DuelState {
   const fieldKey = side === "player" ? "playerField" : "cpuField";
-  const affected = state[fieldKey].filter((zone) => zone.equipped.includes("vol7-germ-infection")).length;
+  const affected = state[fieldKey].filter((zone) => zone.equipped.includes("vol7-germ-infection") || zone.equipped.includes("bo7-doping")).length;
   if (affected === 0) return state;
   return {
     ...state,
-    [fieldKey]: state[fieldKey].map((zone) => zone.equipped.includes("vol7-germ-infection")
+    [fieldKey]: state[fieldKey].map((zone) => zone.equipped.includes("vol7-germ-infection") || zone.equipped.includes("bo7-doping")
       ? { ...zone, germStandbys: (zone.germStandbys ?? 0) + 1 }
       : zone),
-    log: appendLog(state.log, `細菌感染の効果で${side === "player" ? "プレイヤー" : "CPU"}のモンスター${affected}体のATKが300ダウン。`),
+    log: appendLog(state.log, `${side === "player" ? "プレイヤー" : "CPU"}の装備カードの継続効果を${affected}体に適用。`),
   };
 }
 
@@ -3748,6 +3765,9 @@ function firstCpuPlayableSpell(state: DuelState): string | null {
   if (state.cpuHand.includes("vol1-dark-hole")
     && state.playerField.length > 0
     && fieldPower(state.playerField, state, "player") > fieldPower(state.cpuField, state, "cpu")) return "vol1-dark-hole";
+  if (state.cpuHand.includes("bo7-heavy-storm") && shouldCpuUseHeavyStorm(
+    state.cpuSpellTrap.length, state.playerSpellTrap.length, Boolean(state.cpuFieldSpell), Boolean(state.playerFieldSpell),
+  )) return "bo7-heavy-storm";
   if (state.cpuHand.includes("vol1-fissure") && lowestFaceUpAttackIndex(state.playerField, state, "player") !== null) return "vol1-fissure";
   if (state.cpuHand.includes("vol2-swords-revealing-light")
     && shouldCpuActivateSwords(state.playerField.length, state.cpuSwordsTurns.length, state.cpuSpellTrap.length, FIELD_LIMIT)) return "vol2-swords-revealing-light";
@@ -3877,6 +3897,27 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       log: appendLog(state.log, "CPUがブラック・ホールを発動。すべてのモンスターを破壊。"),
     };
     state = applyDeckSearchTriggers(state, destroyedPlayer, destroyedCpu);
+  }
+
+  if (state.cpuHand.includes("bo7-heavy-storm") && shouldCpuUseHeavyStorm(
+    state.cpuSpellTrap.length, state.playerSpellTrap.length, Boolean(state.cpuFieldSpell), Boolean(state.playerFieldSpell),
+  )) {
+    const playerCards = [...state.playerSpellTrap, ...(state.playerFieldSpell ? [state.playerFieldSpell] : [])];
+    const cpuCards = [...state.cpuSpellTrap, ...(state.cpuFieldSpell ? [state.cpuFieldSpell] : [])];
+    state = {
+      ...removeCpuHandCard(state, "bo7-heavy-storm"),
+      playerField: state.playerField.map((zone) => ({ ...zone, equipped: [] })),
+      cpuField: state.cpuField.map((zone) => ({ ...zone, equipped: [] })),
+      playerSpellTrap: [],
+      cpuSpellTrap: [],
+      playerFieldSpell: null,
+      cpuFieldSpell: null,
+      playerSwordsTurns: [],
+      cpuSwordsTurns: [],
+      playerGraveyard: [...state.playerGraveyard, ...playerCards],
+      cpuGraveyard: [...state.cpuGraveyard, "bo7-heavy-storm", ...cpuCards],
+      log: appendLog(state.log, `CPUが大嵐を発動。フィールドの魔法・罠カード${playerCards.length + cpuCards.length}枚をすべて破壊。`),
+    };
   }
 
   const raceDestructionSpell = state.cpuHand.find((id) => shouldCpuUseRaceDestructionSpell(
@@ -4723,7 +4764,7 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     allyIds: (side === "player" ? state.playerField : state.cpuField).filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
-  return Math.max(0, stats.atk - germInfectionPenalty(zone.equipped, zone.germStandbys));
+  return Math.max(0, stats.atk - germInfectionPenalty(zone.equipped, zone.germStandbys) - dopingPenalty(zone.equipped, zone.germStandbys));
 }
 
 function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
@@ -4748,6 +4789,7 @@ function canEquip(spellId: string, monster: Card) {
   if (spellId === "vol4-cocoon-evolution") return monster.id === "vol4-petit-moth";
   if (spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion") return monster.cardType === "monster" && monster.kind !== "機械族";
   if (spellId === "vol7-sword-deep-seated") return monster.cardType === "monster";
+  if (spellId === "bo7-magnetic-ring" || spellId === "bo7-doping") return monster.cardType === "monster";
   if (EQUIP_RULES[spellId]?.endsWith("属性")) return monster.cardType === "monster" && `${monster.attribute}属性` === EQUIP_RULES[spellId];
   return monster.cardType === "monster" && EQUIP_RULES[spellId] === monster.kind;
 }
@@ -4944,6 +4986,8 @@ function spellDescription(id: string) {
   if (id === "vol7-germ-infection") return "機械族以外に装備し、装備モンスターのATKをスタンバイフェイズ毎に300ダウン";
   if (id === "vol7-paralyzing-potion") return "機械族以外に装備し、装備モンスターの攻撃を封じる";
   if (id === "vol7-sword-deep-seated") return "ATK・DEFを500アップし、墓地へ送られた時デッキの一番上へ戻る";
+  if (id === "bo7-magnetic-ring") return "モンスター1体のATK・DEFを500ダウンし、攻撃対象をそのモンスターに限定";
+  if (id === "bo7-doping") return "モンスター1体のATKを700アップ。スタンバイフェイズごとに200ダウン";
   if (EQUIP_RULES[id]) return id.startsWith("bo2-")
     ? `${EQUIP_RULES[id]}モンスター1体のATKを400アップし、DEFを200ダウン`
     : `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;

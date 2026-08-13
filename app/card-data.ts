@@ -4,6 +4,7 @@ import { boosterThreeCards, boosterThreePack } from "./booster3-data";
 import { boosterFourCards, boosterFourPack } from "./booster4-data";
 import { boosterFiveCards, boosterFivePack } from "./booster5-data";
 import { boosterSixCards, boosterSixPack } from "./booster6-data";
+import { boosterSevenCards, boosterSevenPack } from "./booster7-data";
 import { vol5Cards } from "./vol5-data";
 import { vol6Cards } from "./vol6-data";
 import { vol7Cards } from "./vol7-data";
@@ -221,6 +222,7 @@ export const cards: Card[] = [
   ...boosterFourCards,
   ...boosterFiveCards,
   ...boosterSixCards,
+  ...boosterSevenCards,
   ...earlyProductCards,
 ];
 
@@ -280,6 +282,7 @@ export const packs: Pack[] = [
   boosterFourPack,
   boosterFivePack,
   boosterSixPack,
+  boosterSevenPack,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));
