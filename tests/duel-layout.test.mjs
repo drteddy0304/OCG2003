@@ -56,3 +56,13 @@ test("フィールドのカードに攻撃表示・守備表示を明記する",
   assert.match(arena, /攻撃表示・縦/);
   assert.match(arena, /守備表示・横/);
 });
+
+test("Boosterの追加魔法・罠に選択と発動確認の導線がある", () => {
+  assert.match(arena, /天使の施し/);
+  assert.match(arena, /pendingGracefulCharity/);
+  assert.match(arena, /痛み分け/);
+  assert.match(arena, /pendingSharePain/);
+  assert.match(arena, /自業自得を発動しますか/);
+  assert.match(arena, /pendingJustDesserts/);
+  assert.match(arena, /"bo6-fusion-sage"/);
+});

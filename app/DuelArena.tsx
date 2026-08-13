@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -105,6 +105,8 @@ type PendingMultiTarget = {
 type PendingCyberStein = { sourceIndex: number; fusionId: string | null };
 type PendingYadoKaru = { sourceIndex: number; selected: number[] };
 type PendingCardInspection = { kind: "spy" | "telescope"; selected: number | null };
+type PendingSharePain = { spellIndex: number };
+type PendingJustDesserts = { trapIndex: number };
 type PendingDeckReorder = {
   monsterId: string;
   cards: string[];
@@ -191,6 +193,7 @@ type DuelState = {
   pendingMirrorForce: PendingMirrorForce | null;
   pendingKuribohResponse: PendingKuribohResponse | null;
   pendingRobbinGoblin: PendingRobbinGoblin | null;
+  pendingJustDesserts: PendingJustDesserts | null;
   playerActiveTraps: string[];
   cpuActiveTraps: string[];
   pendingBlastJuggler: PendingBlastJuggler | null;
@@ -237,6 +240,7 @@ export function DuelArena({
   const [pendingYadoKaru, setPendingYadoKaru] = useState<PendingYadoKaru | null>(null);
   const [pendingGracefulCharity, setPendingGracefulCharity] = useState<number[] | null>(null);
   const [pendingCardInspection, setPendingCardInspection] = useState<PendingCardInspection | null>(null);
+  const [pendingSharePain, setPendingSharePain] = useState<PendingSharePain | null>(null);
   const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
   const [pendingStopAttack, setPendingStopAttack] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
@@ -296,6 +300,7 @@ export function DuelArena({
     && pendingYadoKaru === null
     && pendingGracefulCharity === null
     && pendingCardInspection === null
+    && pendingSharePain === null
     && pendingMatangoTransfer === null
     && pendingStopAttack === null
     && pendingEgotist === null
@@ -389,6 +394,7 @@ export function DuelArena({
     setPendingYadoKaru(null);
     setPendingGracefulCharity(null);
     setPendingCardInspection(null);
+    setPendingSharePain(null);
     setPendingMatangoTransfer(null);
     setPendingStopAttack(null);
     setCpuPlayback(null);
@@ -427,6 +433,7 @@ export function DuelArena({
       pendingMirrorForce: null,
       pendingKuribohResponse: null,
       pendingRobbinGoblin: null,
+      pendingJustDesserts: null,
       playerActiveTraps: [],
       cpuActiveTraps: [],
       pendingBlastJuggler: null,
@@ -812,6 +819,14 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "bo7-share-pain") {
+      if (duel.playerField.length === 0 || duel.cpuField.length === 0) return;
+      setPendingSharePain({ spellIndex: handIndex });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
     let next = {
       ...removeHandCard(duel, handIndex),
       playerGraveyard: [...duel.playerGraveyard, card.id],
@@ -956,6 +971,32 @@ export function DuelArena({
       log: appendLog(duel.log, `天使の施しの効果で${discarded.chosen.map((id) => cardById.get(id)?.name).join("、")}を捨てた。`),
     });
     setPendingGracefulCharity(null);
+  }
+
+  function resolveSharePain(playerIndex: number) {
+    if (!duel || !pendingSharePain || duel.playerHand[pendingSharePain.spellIndex] !== "bo7-share-pain") return;
+    const playerTarget = duel.playerField[playerIndex];
+    const cpuIndex = lowestAttackIndexes(duel.cpuField, 1)[0];
+    const cpuTarget = cpuIndex === undefined ? null : duel.cpuField[cpuIndex];
+    if (!playerTarget || !cpuTarget) return;
+    const playerName = cardById.get(playerTarget.id)?.name ?? "モンスター";
+    const cpuName = cardById.get(cpuTarget.id)?.name ?? "モンスター";
+    const returnedCpu = playerTarget.controlReturn === "cpu" ? [playerTarget] : [];
+    const ownTribute = playerTarget.controlReturn === "cpu" ? [] : [playerTarget];
+    let resolved: DuelState = {
+      ...duel,
+      playerHand: duel.playerHand.filter((_, index) => index !== pendingSharePain.spellIndex),
+      playerField: duel.playerField.filter((_, index) => index !== playerIndex),
+      cpuField: duel.cpuField.filter((_, index) => index !== cpuIndex),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, ownTribute),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, [cpuTarget, ...returnedCpu]),
+      playerGraveyard: [...duel.playerGraveyard, "bo7-share-pain", ...graveCards(ownTribute), ...returnedCpu.flatMap((zone) => zone.equipped)],
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards([cpuTarget]), ...returnedCpu.map((zone) => zone.id)],
+      log: appendLog(duel.log, `痛み分けを発動。自分は${playerName}、CPUは${cpuName}を生け贄にした。`),
+    };
+    resolved = applyDeckSearchTriggers(resolved, ownTribute, [cpuTarget, ...returnedCpu]);
+    setPendingSharePain(null);
+    setDuel(resolved);
   }
 
   function chooseFusionMonster(fusionId: string) {
@@ -1675,7 +1716,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -1698,7 +1739,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -2043,6 +2084,27 @@ export function DuelArena({
     }
     const finalState = finishCpuTurn(resumed);
     beginCpuPlayback(resumed, finalState, marker);
+  }
+
+  function respondToJustDesserts(activate: boolean) {
+    if (!duel?.pendingJustDesserts) return;
+    const pending = duel.pendingJustDesserts;
+    let resumed: DuelState = { ...duel, pendingJustDesserts: null };
+    if (activate && resumed.playerSpellTrap[pending.trapIndex] === "bo5-just-desserts") {
+      const damage = justDessertsDamage(resumed.cpuField.length);
+      const cpuLp = Math.max(0, resumed.cpuLp - damage);
+      resumed = {
+        ...resumed,
+        playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        playerGraveyard: [...resumed.playerGraveyard, "bo5-just-desserts"],
+        cpuLp,
+        result: cpuLp === 0 ? "win" : resumed.result,
+        log: appendLog(resumed.log, `自業自得を発動。CPUのモンスター${resumed.cpuField.length}体につき500、合計${damage}ダメージ。`),
+      };
+    } else {
+      resumed = { ...resumed, log: appendLog(resumed.log, "自業自得を発動しませんでした。") };
+    }
+    setDuel(resumed.result ? resumed : finishCpuTurn(resumed, true));
   }
 
   function toggleTwoProngedPlayer(index: number) {
@@ -2454,7 +2516,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 116</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 117</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2541,6 +2603,8 @@ export function DuelArena({
             <button className="cpu-next" onClick={advanceCpuPlayback}>
               {cpuPlayback.finalState.pendingTrapResponse
                     ? "落とし穴の発動確認へ"
+                    : cpuPlayback.finalState.pendingJustDesserts
+                      ? "自業自得の発動確認へ"
                     : cpuPlayback.finalState.pendingTwoPronged
                       ? "はさみ撃ちの発動確認へ"
                     : cpuPlayback.finalState.pendingMagicJammer
@@ -2579,6 +2643,19 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToTrap(true)}>発動する</button>
               <button onClick={() => respondToTrap(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingJustDesserts && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">TRAP RESPONSE</p>
+            <h2>自業自得を発動しますか？</h2>
+            <p>CPUのモンスターは{duel.cpuField.length}体。発動すると{justDessertsDamage(duel.cpuField.length)}ダメージを与えます。</p>
+            <div>
+              <button className="activate-trap" onClick={() => respondToJustDesserts(true)}>発動する</button>
+              <button onClick={() => respondToJustDesserts(false)}>発動しない</button>
             </div>
           </div>
         </div>
@@ -3422,6 +3499,24 @@ export function DuelArena({
           </article>
         </div>
       )}
+      {pendingSharePain && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">SPELL EFFECT</p>
+            <h2>痛み分け</h2>
+            <p>生け贄にする自分フィールドのモンスターを選んでください。CPUも攻撃力が最も低いモンスター1体を生け贄にします。</p>
+            <div className="target-list cannon-target-list">
+              {duel.playerField.map((zone, index) => (
+                <button key={`${zone.id}-${index}`} onClick={() => resolveSharePain(index)}>
+                  <strong>{cardById.get(zone.id)?.name}</strong>
+                  <small>ATK {effectiveAtk(zone, duel, "player")}</small>
+                </button>
+              ))}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingSharePain(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
       {pendingFusion && (
         <div className="card-overlay">
           <article>
@@ -4051,6 +4146,14 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       ...state,
       cpuField: state.cpuField.map((zone) => ({ ...zone, attacked: false })),
     };
+    const justDessertsIndex = state.playerSpellTrap.indexOf("bo5-just-desserts");
+    if (justDessertsIndex >= 0 && state.cpuField.length > 0) {
+      return {
+        ...state,
+        pendingJustDesserts: { trapIndex: justDessertsIndex },
+        log: appendLog(state.log, `CPUのバトル前。自業自得で${justDessertsDamage(state.cpuField.length)}ダメージを与えられます。`),
+      };
+    }
     if (canActivateTwoProngedAttack(state.playerField.length, state.cpuField.length, state.playerSpellTrap)) {
       return {
         ...state,
@@ -5730,6 +5833,13 @@ function spellDescription(id: string) {
   if (id === "vol5-change-heart") return "相手モンスター1体のコントロールをターン終了時まで得る";
   if (id === "vol7-stop-attack") return "相手の表側攻撃表示モンスター1体を表側守備表示に変更";
   if (id === "vol7-shield-sword") return "現在表側表示の全モンスターの元々のATKとDEFをターン終了時まで入れ替える";
+  if (id === "bo2-light-reveal") return "相手の裏側表示モンスターをすべて表側にして確認する。リバース効果は発動しない";
+  if (id === "bo2-amateur-spy") return "相手の手札を1枚選んで確認する";
+  if (id === "bo3-ancient-telescope") return "相手のデッキの上から5枚を確認する";
+  if (id === "bo4-graceful-charity") return "3枚ドローし、その後手札から2枚捨てる";
+  if (id === "bo6-revolution") return "相手の手札1枚につき200ダメージを与える";
+  if (id === "bo6-fusion-sage") return "デッキから「融合」1枚を手札に加える";
+  if (id === "bo7-share-pain") return "自分のモンスター1体を生け贄にし、相手にもモンスター1体を生け贄にさせる";
   if (id === "stb-polymerization" || id === "vol6-polymerization") return "手札・フィールドの決められた素材を墓地へ送り、融合デッキから融合召喚する";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
   return "";
@@ -5755,6 +5865,13 @@ function isSpellImplemented(id: string) {
       "vol5-change-heart",
       "vol7-stop-attack",
       "vol7-shield-sword",
+      "bo2-light-reveal",
+      "bo2-amateur-spy",
+      "bo3-ancient-telescope",
+      "bo4-graceful-charity",
+      "bo6-revolution",
+      "bo6-fusion-sage",
+      "bo7-share-pain",
       "stb-remove-trap",
       "stb-polymerization",
       "vol6-polymerization",
@@ -5775,11 +5892,12 @@ function trapDescription(id: string) {
   if (id === "vol6-magic-jammer") return "手札を1枚捨て、魔法カードの発動を無効にして破壊する";
   if (id === "vol6-horn-heaven") return "自分のモンスター1体を生け贄にし、モンスターの召喚を無効にして破壊する";
   if (id === "vol6-solemn-judgment") return "LPを半分払い、魔法・罠の発動またはモンスターの召喚を無効にして破壊する";
+  if (id === "bo5-just-desserts") return "相手フィールドのモンスター1体につき、相手に500ダメージを与える";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts";
 }
 
 function monsterDescription(id: string) {
