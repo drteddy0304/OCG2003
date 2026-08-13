@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, royalDecreeNegatesTraps, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, robbinGoblinCanTrigger, royalDecreeNegatesTraps, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { aileSwordsmanAttackBonus, bottomDeckSelection } from "../app/duel-rules.mjs";
@@ -673,19 +673,35 @@ test("強化CPUは40枚デッキを使い、2003年10月の制限枚数を守る
   assert.equal(counts["stb-polymerization"], 1);
   assert.equal(counts["vol1-gaia"], 1);
   assert.equal(counts["vol7-barrel-dragon"], 1);
-  assert.equal(counts["stb-mountain"], 1);
-  assert.equal(counts["vol4-acid-storm"], 1);
-  assert.equal(counts["stb-remove-trap"], 1);
+  assert.equal(counts["mr-axe-despair"], 1);
+  assert.equal(counts["mr-mystical-space-typhoon"], 1);
+  assert.equal(counts["mr-upstart-goblin"], 1);
 });
 
-test("強化CPUは現在の最新パックVol.7までの戦力をデッキに採用する", () => {
-  assert.equal(competitiveCpuDeckLatestPackId, "vol-7");
+test("強化CPUは現在の最新パックMagic Rulerまでの戦力をデッキに採用する", () => {
+  assert.equal(competitiveCpuDeckLatestPackId, "magic-ruler");
+  assert.equal(competitiveCpuDeck.filter((id) => id === "mr-maha-vailo").length, 1);
   assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-rainbow-fish").length, 3);
   assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-dark-elf").length, 2);
   assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-prevent-rat").length, 2);
   assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-tremendous-fire").length, 1);
   assert.ok(competitiveCpuDeck.some((id) => id.startsWith("vol5-")));
   assert.ok(competitiveCpuDeck.some((id) => id.startsWith("vol6-")));
+});
+
+test("Magic Rulerの装備魔法とマハー・ヴァイロの強化値を計算する", () => {
+  assert.deepEqual(equippedMonsterStats(1000, 1000, ["mr-axe-despair"]), { atk: 2000, def: 1000 });
+  assert.deepEqual(equippedMonsterStats(1000, 1000, ["mr-black-pendant", "mr-horn-light", "mr-malevolent-nuzzler"]), { atk: 2200, def: 1800 });
+  assert.deepEqual(continuousMonsterStats({ id: "mr-maha-vailo", attribute: "光", kind: "魔法使い族", atk: 1550, def: 1400, equipCount: 2 }), { atk: 2550, def: 1400 });
+});
+
+test("成金ゴブリンは1枚ドローして相手を1000LP回復する", () => {
+  assert.deepEqual(resolveUpstartGoblin(["hand"], ["draw", "next"], 8000), {
+    hand: ["hand", "draw"],
+    deck: ["next"],
+    opponentLp: 9000,
+  });
+  assert.equal(resolveUpstartGoblin([], [], 8000), null);
 });
 
 test("CPUは勝てる相手を攻撃し、表側の強敵へ自滅攻撃しない", () => {

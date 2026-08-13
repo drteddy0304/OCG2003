@@ -53,6 +53,10 @@ export const equipRules = Object.freeze({
   "vol7-sword-deep-seated": "全モンスター",
   "bo7-magnetic-ring": "全モンスター",
   "bo7-doping": "全モンスター",
+  "mr-axe-despair": "全モンスター",
+  "mr-black-pendant": "全モンスター",
+  "mr-horn-light": "全モンスター",
+  "mr-malevolent-nuzzler": "全モンスター",
   "bo2-dark-piercing-sword": "闇属性",
   "bo2-elf-light": "光属性",
   "bo2-steel-shell": "水属性",
@@ -100,6 +104,15 @@ export function resolveSimpleSpellLife(id, ownLp, opponentLp) {
         ? "own-lose"
         : null;
   return { ownLp: nextOwnLp, opponentLp: nextOpponentLp, outcome };
+}
+
+export function resolveUpstartGoblin(hand, deck, opponentLp) {
+  if (deck.length === 0) return null;
+  return {
+    hand: [...hand, deck[0]],
+    deck: deck.slice(1),
+    opponentLp: Math.max(0, opponentLp) + 1000,
+  };
 }
 
 export function shouldCpuActivateSwords(opponentMonsterCount, activeSwordsCount, spellTrapCount, fieldLimit = 5) {
@@ -545,6 +558,10 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
     if (id === "vol7-sword-deep-seated") return { atk: result.atk + 500, def: result.def + 500 };
     if (id === "bo7-magnetic-ring") return { atk: result.atk - 500, def: result.def - 500 };
     if (id === "bo7-doping") return { atk: result.atk + 700, def: result.def };
+    if (id === "mr-axe-despair") return { atk: result.atk + 1000, def: result.def };
+    if (id === "mr-black-pendant") return { atk: result.atk + 500, def: result.def };
+    if (id === "mr-horn-light") return { atk: result.atk, def: result.def + 800 };
+    if (id === "mr-malevolent-nuzzler") return { atk: result.atk + 700, def: result.def };
     if (id.startsWith("bo2-")) return { atk: result.atk + 400, def: result.def - 200 };
     return { atk: result.atk + 300, def: result.def + 300 };
   }, { atk: 0, def: 0 });
@@ -612,7 +629,7 @@ export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds) {
     .sort((a, b) => b.score - a.score)[0]?.id ?? null;
 }
 
-export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
+export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, equipCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;
   if (id === "vol6-shadow-ghoul") nextAtk += graveyardMonsterCount * 100;
@@ -624,6 +641,7 @@ export function continuousMonsterStats({ id, attribute, kind = "", atk, def: def
   }
   if (id === "vol7-barbarian-1") nextAtk += allyIds.filter((allyId) => allyId === "vol7-barbarian-2").length * 500;
   if (id === "vol7-barbarian-2") nextAtk += allyIds.filter((allyId) => allyId === "vol7-barbarian-1").length * 500;
+  if (id === "mr-maha-vailo") nextAtk += Math.max(0, equipCount) * 500;
   auraIds.forEach((auraId) => {
     const aura = attributeAuraEffects[auraId];
     if (aura?.boost === attribute) nextAtk += 500;
@@ -642,10 +660,10 @@ export function canDeckSearchTarget(sourceId, target) {
   return false;
 }
 
-export const competitiveCpuDeckLatestPackId = "vol-7";
+export const competitiveCpuDeckLatestPackId = "magic-ruler";
 
 export const competitiveCpuDeck = Object.freeze([
-  "vol3-rogue-doll",
+  "mr-maha-vailo",
   "vol7-robbin-goblin",
   "vol5-white-magical-hat",
   ...Array(3).fill("vol3-skull-red-bird"),
@@ -653,7 +671,7 @@ export const competitiveCpuDeck = Object.freeze([
   "vol1-gaia",
   "vol7-barrel-dragon",
   ...Array(2).fill("vol7-prevent-rat"),
-  "stb-mountain",
+  "mr-axe-despair",
   ...Array(3).fill("vol3-giant-soldier-stone"),
   ...Array(3).fill("vol3-man-eater-bug"),
   "vol3-hane-hane",
@@ -666,10 +684,10 @@ export const competitiveCpuDeck = Object.freeze([
   "vol1-dark-hole",
   "vol1-fissure",
   "vol7-tremendous-fire",
-  "vol4-acid-storm",
+  "mr-mystical-space-typhoon",
   "vol1-trap-hole",
   "vol7-mirror-force",
-  "stb-remove-trap",
+  "mr-upstart-goblin",
   "vol2-swords-revealing-light",
   "vol2-monster-reborn",
   "vol3-pot-of-greed",

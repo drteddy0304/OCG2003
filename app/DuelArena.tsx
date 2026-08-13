@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -698,10 +698,10 @@ export function DuelArena({
       return;
     }
 
-    if (card.id === "vol2-de-spell" || card.id === "stb-remove-trap") {
+    if (card.id === "vol2-de-spell" || card.id === "stb-remove-trap" || card.id === "mr-mystical-space-typhoon") {
       const hasRemoveTrapTarget = [...duel.playerSpellTrap, ...duel.cpuSpellTrap].some(isFaceUpTrapTarget);
       if (card.id === "stb-remove-trap" && !hasRemoveTrapTarget) return;
-      if (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell) return;
+      if ((card.id === "vol2-de-spell" || card.id === "mr-mystical-space-typhoon") && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell) return;
       setPendingDeSpell(handIndex);
       setSelectedAttacker(null);
       setSelectedEquip(null);
@@ -794,6 +794,21 @@ export function DuelArena({
       };
       revealed = resolveFlipSequence(revealed, "cpu", next.cpuField.filter((item) => item.faceDown).map((zone) => zone.id));
       setDuel(revealed);
+      return;
+    }
+
+    if (card.id === "mr-upstart-goblin") {
+      const handWithoutSpell = duel.playerHand.filter((_, index) => index !== handIndex);
+      const resolved = resolveUpstartGoblin(handWithoutSpell, duel.playerDeck, duel.cpuLp);
+      if (!resolved) return;
+      setDuel({
+        ...duel,
+        playerHand: resolved.hand,
+        playerDeck: resolved.deck,
+        cpuLp: resolved.opponentLp,
+        playerGraveyard: [...duel.playerGraveyard, card.id],
+        log: appendLog(duel.log, "成金ゴブリンを発動。1枚ドローし、CPUは1000LP回復。"),
+      });
       return;
     }
 
@@ -910,6 +925,24 @@ export function DuelArena({
         playerGraveyard: [...next.playerGraveyard, ...playerCards],
         cpuGraveyard: [...next.cpuGraveyard, ...cpuCards],
         log: appendLog(next.log, `大嵐を発動。フィールドの魔法・罠カード${playerCards.length + cpuCards.length}枚をすべて破壊。`),
+      };
+    } else if (card.id === "mr-giant-trunade") {
+      const playerCards = [...next.playerSpellTrap, ...(next.playerFieldSpell ? [next.playerFieldSpell] : [])];
+      const cpuCards = [...next.cpuSpellTrap, ...(next.cpuFieldSpell ? [next.cpuFieldSpell] : [])];
+      next = {
+        ...next,
+        playerField: next.playerField.map((zone) => ({ ...zone, equipped: [] })),
+        cpuField: next.cpuField.map((zone) => ({ ...zone, equipped: [] })),
+        playerHand: [...next.playerHand, ...playerCards],
+        cpuHand: [...next.cpuHand, ...cpuCards],
+        playerSpellTrap: [],
+        cpuSpellTrap: [],
+        playerFieldSpell: null,
+        cpuFieldSpell: null,
+        playerSwordsTurns: [],
+        cpuSwordsTurns: [],
+        playerActiveTraps: [],
+        cpuActiveTraps: [],
       };
     } else if (card.id === "stb-raigeki") {
       const destroyedCpu = next.cpuField;
@@ -1231,7 +1264,7 @@ export function DuelArena({
   function resolveDeSpell(targetSide: Side, targetIndex: number, fieldSpell = false) {
     if (!duel || pendingDeSpell === null) return;
     const spellId = duel.playerHand[pendingDeSpell];
-    if (spellId !== "vol2-de-spell" && spellId !== "stb-remove-trap") return;
+    if (spellId !== "vol2-de-spell" && spellId !== "stb-remove-trap" && spellId !== "mr-mystical-space-typhoon") return;
     const targetZones = targetSide === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap;
     const targetId = fieldSpell
       ? targetSide === "player" ? duel.playerFieldSpell : duel.cpuFieldSpell
@@ -1248,11 +1281,13 @@ export function DuelArena({
         ? {
           ...next,
           playerSpellTrap: next.playerSpellTrap.filter((_, index) => index !== targetIndex),
+          playerActiveTraps: next.playerActiveTraps.filter((id) => id !== targetId),
           playerGraveyard: [...next.playerGraveyard, targetId],
         }
         : {
           ...next,
           cpuSpellTrap: next.cpuSpellTrap.filter((_, index) => index !== targetIndex),
+          cpuActiveTraps: next.cpuActiveTraps.filter((id) => id !== targetId),
           cpuGraveyard: [...next.cpuGraveyard, targetId],
         };
       next.log = appendLog(next.log, `罠はずしを発動。${target.name}を破壊。`);
@@ -1260,7 +1295,7 @@ export function DuelArena({
       setPendingDeSpell(null);
       return;
     }
-    if (deSpellDestroys(target.cardType, target.id)) {
+    if (spellId === "mr-mystical-space-typhoon" || deSpellDestroys(target.cardType, target.id)) {
       if (fieldSpell) {
         next = targetSide === "player"
           ? { ...next, playerFieldSpell: null, playerGraveyard: [...next.playerGraveyard, targetId] }
@@ -1292,7 +1327,7 @@ export function DuelArena({
           cpuGraveyard: [...next.cpuGraveyard, targetId],
         };
       }
-      next.log = appendLog(next.log, `魔法除去を発動。${target.name}を破壊。`);
+      next.log = appendLog(next.log, `${spellId === "mr-mystical-space-typhoon" ? "サイクロン" : "魔法除去"}を発動。${target.name}を破壊。`);
     } else {
       next.log = appendLog(next.log, `魔法除去で伏せカードを確認。${target.name}は罠カードのため元に戻します。`);
     }
@@ -1686,8 +1721,16 @@ export function DuelArena({
             ? `細菌感染を${monster.name}に装備。スタンバイフェイズ毎にATKが300ダウン。`
             : spell.id === "vol7-paralyzing-potion"
               ? `しびれ薬を${monster.name}に装備。攻撃を封じた。`
-              : spell.id === "vol7-sword-deep-seated"
-                ? `執念の剣を${monster.name}に装備。ATK・DEFが500アップ。`
+            : spell.id === "vol7-sword-deep-seated"
+              ? `執念の剣を${monster.name}に装備。ATK・DEFが500アップ。`
+              : spell.id === "mr-axe-despair"
+                ? `デーモンの斧を${monster.name}に装備。ATKが1000アップ。`
+                : spell.id === "mr-black-pendant"
+                  ? `黒いペンダントを${monster.name}に装備。ATKが500アップ。`
+                  : spell.id === "mr-horn-light"
+                    ? `光の角を${monster.name}に装備。DEFが800アップ。`
+                    : spell.id === "mr-malevolent-nuzzler"
+                      ? `悪魔のくちづけを${monster.name}に装備。ATKが700アップ。`
                 : spell.id.startsWith("bo2-")
                   ? `${spell.name}を${monster.name}に装備。ATKが400アップし、DEFが200ダウン。`
                   : `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`,
@@ -2851,8 +2894,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7・EX 強化CPU · BUILD 125</strong>
-          <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
+          <strong>Magic Ruler対応 強化CPU · BUILD 126</strong>
+          <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -3331,11 +3374,13 @@ export function DuelArena({
       {pendingDeSpell !== null && (
         <div className="card-overlay spell-target-overlay">
           <div className="graveyard-panel spell-target-panel">
-            <p className="section-label">{duel.playerHand[pendingDeSpell] === "stb-remove-trap" ? "REMOVE TRAP" : "DE-SPELL"}</p>
-            <h2>{duel.playerHand[pendingDeSpell] === "stb-remove-trap" ? "破壊する表側罠を選択" : "確認するカードを選択"}</h2>
+            <p className="section-label">{duel.playerHand[pendingDeSpell] === "stb-remove-trap" ? "REMOVE TRAP" : duel.playerHand[pendingDeSpell] === "mr-mystical-space-typhoon" ? "MYSTICAL SPACE TYPHOON" : "DE-SPELL"}</p>
+            <h2>{duel.playerHand[pendingDeSpell] === "stb-remove-trap" ? "破壊する表側罠を選択" : duel.playerHand[pendingDeSpell] === "mr-mystical-space-typhoon" ? "破壊する魔法・罠を選択" : "確認するカードを選択"}</h2>
             <p>{duel.playerHand[pendingDeSpell] === "stb-remove-trap"
               ? "発動後もフィールドに残っている表側表示の罠だけを破壊できます。"
-              : "魔法カードなら破壊し、罠カードなら確認後に元へ戻します。"}</p>
+              : duel.playerHand[pendingDeSpell] === "mr-mystical-space-typhoon"
+                ? "表側・セットを問わず、フィールドの魔法・罠カード1枚を破壊します。"
+                : "魔法カードなら破壊し、罠カードなら確認後に元へ戻します。"}</p>
             <div className="spell-target-list">
               {(["player", "cpu"] as const).flatMap((side) =>
                 (side === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap).map((id, index) => {
@@ -3352,7 +3397,7 @@ export function DuelArena({
                   );
                 }),
               )}
-              {duel.playerHand[pendingDeSpell] === "vol2-de-spell" && (["player", "cpu"] as const).map((side) => {
+              {(duel.playerHand[pendingDeSpell] === "vol2-de-spell" || duel.playerHand[pendingDeSpell] === "mr-mystical-space-typhoon") && (["player", "cpu"] as const).map((side) => {
                 const id = side === "player" ? duel.playerFieldSpell : duel.cpuFieldSpell;
                 if (!id) return null;
                 return (
@@ -4818,6 +4863,7 @@ function playCpuFusion(initial: DuelState): DuelState {
 }
 
 function firstCpuPlayableSpell(state: DuelState): string | null {
+  if (state.cpuHand.includes("mr-mystical-space-typhoon") && (state.playerSpellTrap.length > 0 || state.playerFieldSpell)) return "mr-mystical-space-typhoon";
   if (state.cpuHand.includes("stb-remove-trap") && firstFaceUpTrapIndex(state.playerSpellTrap) !== null) return "stb-remove-trap";
   if (state.cpuHand.includes("vol2-de-spell") && (firstSpellTargetIndex(state.playerSpellTrap.map(fieldCardType)) !== null || state.playerFieldSpell)) return "vol2-de-spell";
   if (state.cpuHand.includes("stb-raigeki") && state.playerField.length > 0) return "stb-raigeki";
@@ -4835,6 +4881,7 @@ function firstCpuPlayableSpell(state: DuelState): string | null {
     && !isMonsterRebornBlocked(state.playerSpellTrap, state.cpuSpellTrap)
     && [...state.cpuGraveyard, ...state.playerGraveyard].some((id) => cardById.get(id)?.cardType === "monster" && !cardById.get(id)?.fusion)) return "vol2-monster-reborn";
   if (state.cpuHand.includes("vol3-pot-of-greed") && state.cpuDeck.length >= 2) return "vol3-pot-of-greed";
+  if (state.cpuHand.includes("mr-upstart-goblin") && state.cpuDeck.length >= 1) return "mr-upstart-goblin";
   if (state.cpuHand.includes("vol3-stop-defense") && state.playerField.some((zone) => zone.position === "defense"
     && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)))) return "vol3-stop-defense";
   if (state.cpuHand.includes("vol3-gravedigger-ghoul") && state.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster")) return "vol3-gravedigger-ghoul";
@@ -4906,6 +4953,34 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
     };
   }
 
+  if (state.cpuHand.includes("mr-mystical-space-typhoon") && (state.playerSpellTrap.length > 0 || state.playerFieldSpell)) {
+    if (state.playerSpellTrap.length > 0) {
+      const targetIndex = state.playerSpellTrap.length - 1;
+      const targetId = state.playerSpellTrap[targetIndex];
+      const swordsIndex = targetId === "vol2-swords-revealing-light"
+        ? state.playerSpellTrap.slice(0, targetIndex + 1).filter((id) => id === targetId).length - 1
+        : -1;
+      state = {
+        ...removeCpuHandCard(state, "mr-mystical-space-typhoon"),
+        playerField: removeEquippedCard(state.playerField, targetId),
+        playerSpellTrap: state.playerSpellTrap.filter((_, index) => index !== targetIndex),
+        playerActiveTraps: state.playerActiveTraps.filter((id) => id !== targetId),
+        playerSwordsTurns: swordsIndex >= 0 ? state.playerSwordsTurns.filter((_, index) => index !== swordsIndex) : state.playerSwordsTurns,
+        playerGraveyard: [...state.playerGraveyard, targetId],
+        cpuGraveyard: [...state.cpuGraveyard, "mr-mystical-space-typhoon"],
+        log: appendLog(state.log, `CPUがサイクロンを発動。${cardById.get(targetId)?.name ?? "魔法・罠カード"}を破壊。`),
+      };
+    } else if (state.playerFieldSpell) {
+      const targetId = state.playerFieldSpell;
+      state = {
+        ...removeCpuHandCard(state, "mr-mystical-space-typhoon"),
+        playerFieldSpell: null,
+        playerGraveyard: [...state.playerGraveyard, targetId],
+        cpuGraveyard: [...state.cpuGraveyard, "mr-mystical-space-typhoon"],
+        log: appendLog(state.log, `CPUがサイクロンを発動。${cardById.get(targetId)?.name ?? "フィールド魔法"}を破壊。`),
+      };
+    }
+  }
   const deSpellTarget = firstSpellTargetIndex(
     state.playerSpellTrap.map(fieldCardType),
   );
@@ -5105,6 +5180,20 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       cpuDeck: state.cpuDeck.slice(2),
       cpuGraveyard: [...state.cpuGraveyard, "vol3-pot-of-greed"],
       log: appendLog(state.log, "CPUが強欲な壺を発動。カードを2枚ドロー。"),
+    };
+  }
+
+  while (state.cpuHand.includes("mr-upstart-goblin") && state.cpuDeck.length >= 1) {
+    const handWithoutSpell = removeCpuHandCard(state, "mr-upstart-goblin").cpuHand;
+    const resolved = resolveUpstartGoblin(handWithoutSpell, state.cpuDeck, state.playerLp);
+    if (!resolved) break;
+    state = {
+      ...state,
+      cpuHand: resolved.hand,
+      cpuDeck: resolved.deck,
+      playerLp: resolved.opponentLp,
+      cpuGraveyard: [...state.cpuGraveyard, "mr-upstart-goblin"],
+      log: appendLog(state.log, "CPUが成金ゴブリンを発動。1枚ドローし、プレイヤーは1000LP回復。"),
     };
   }
 
@@ -6160,6 +6249,7 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
       .filter((fieldZone) => !fieldZone.faceDown && cardById.get(fieldZone.id)?.kind === "植物族").length,
     faceUpMachineCount: [...state.playerField, ...state.cpuField]
       .filter((fieldZone) => !fieldZone.faceDown && cardById.get(fieldZone.id)?.kind === "機械族").length,
+    equipCount: zone.equipped.length,
     auraIds: [...state.playerField, ...state.cpuField].filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     allyIds: (side === "player" ? state.playerField : state.cpuField).filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
@@ -6193,6 +6283,7 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
     def: equipped.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
     graveyardMonsterCount: 0,
+    equipCount: zone.equipped.length,
     auraIds: [],
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
@@ -6223,6 +6314,7 @@ function canEquip(spellId: string, monster: Card) {
   if (spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion") return monster.cardType === "monster" && monster.kind !== "機械族";
   if (spellId === "vol7-sword-deep-seated") return monster.cardType === "monster";
   if (spellId === "bo7-magnetic-ring" || spellId === "bo7-doping") return monster.cardType === "monster";
+  if (["mr-axe-despair", "mr-black-pendant", "mr-horn-light", "mr-malevolent-nuzzler"].includes(spellId)) return monster.cardType === "monster";
   if (EQUIP_RULES[spellId]?.endsWith("属性")) return monster.cardType === "monster" && `${monster.attribute}属性` === EQUIP_RULES[spellId];
   return monster.cardType === "monster" && EQUIP_RULES[spellId] === monster.kind;
 }
@@ -6422,6 +6514,10 @@ function useCpuBarrelDragon(state: DuelState): DuelState {
 }
 
 function spellDescription(id: string) {
+  if (id === "mr-axe-despair") return "モンスター1体のATKを1000アップ";
+  if (id === "mr-black-pendant") return "モンスター1体のATKを500アップ";
+  if (id === "mr-horn-light") return "モンスター1体のDEFを800アップ";
+  if (id === "mr-malevolent-nuzzler") return "モンスター1体のATKを700アップ";
   if (id === "stb-forest") return "表側の昆虫・獣・植物・獣戦士族のATK・DEFを200アップ";
   if (id === "stb-wasteland") return "表側の恐竜・アンデット・岩石族のATK・DEFを200アップ";
   if (id === "stb-mountain") return "表側のドラゴン・鳥獣・雷族のATK・DEFを200アップ";
@@ -6447,6 +6543,9 @@ function spellDescription(id: string) {
   if (id === "stb-remove-trap") return "表側表示でフィールドに残っている罠カード1枚を破壊";
   if (id === "vol1-fissure") return "相手の表側モンスターのうちATKが一番低い1体を破壊";
   if (id === "vol3-pot-of-greed") return "デッキからカードを2枚ドロー";
+  if (id === "mr-upstart-goblin") return "1枚ドローし、相手は1000LP回復";
+  if (id === "mr-mystical-space-typhoon") return "フィールドの魔法・罠カード1枚を破壊";
+  if (id === "mr-giant-trunade") return "フィールドの魔法・罠カードをすべて持ち主の手札へ戻す";
   if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
   if (id === "vol3-gravedigger-ghoul") return "相手の墓地のモンスターを2体まで除外";
   if (id === "vol4-elegant-egotist") return "ハーピィ・レディがいる時、手札・デッキからハーピィ1体を特殊召喚";
@@ -6480,6 +6579,9 @@ function isSpellImplemented(id: string) {
       "vol2-monster-reborn",
       "vol2-de-spell",
       "vol3-pot-of-greed",
+      "mr-upstart-goblin",
+      "mr-mystical-space-typhoon",
+      "mr-giant-trunade",
       "vol3-stop-defense",
       "vol3-gravedigger-ghoul",
       "vol4-elegant-egotist",

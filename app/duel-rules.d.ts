@@ -16,7 +16,7 @@ export function equippedMonsterStats(atk: number, defense: number, equippedIds: 
 export function germInfectionPenalty(equippedIds: string[], standbyCount?: number): number;
 export function dopingPenalty(equippedIds: string[], standbyCount?: number): number;
 export function paralyzingPotionPreventsAttack(equippedIds: string[]): boolean;
-export const competitiveCpuDeckLatestPackId: "vol-7";
+export const competitiveCpuDeckLatestPackId: "magic-ruler";
 export const competitiveCpuDeck: readonly string[];
 
 export type SimpleSpellEffect = {
@@ -32,6 +32,11 @@ export function resolveSimpleSpellLife(id: string, ownLp: number, opponentLp: nu
   ownLp: number;
   opponentLp: number;
   outcome: "own-win" | "own-lose" | "draw" | null;
+} | null;
+export function resolveUpstartGoblin(hand: string[], deck: string[], opponentLp: number): {
+  hand: string[];
+  deck: string[];
+  opponentLp: number;
 } | null;
 
 export function shouldCpuActivateSwords(
@@ -132,6 +137,7 @@ export function continuousMonsterStats(input: {
   graveyardMonsterCount?: number;
   faceUpPlantCount?: number;
   faceUpMachineCount?: number;
+  equipCount?: number;
   auraIds?: string[];
   allyIds?: string[];
   fieldSpellIds?: string[];
