@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleDamageEffect, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, deSpellDestroys, dimensionalWarriorBanishes, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, moveDeckCard, paralyzingPotionPreventsAttack, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
+import { wormBeastReturns } from "../app/duel-rules.mjs";
 
 test("攻撃表示の弱いプレイヤーモンスターがCPUの攻撃で破壊される", () => {
   assert.deepEqual(battleOutcome(1200, 800, "attack"), {
@@ -430,6 +431,12 @@ test("シャドウ・グールは自分の墓地のモンスター1体につきA
 
 test("森の住人 ウダンは表側表示の植物族1体につきATK100アップする", () => {
   assert.deepEqual(continuousMonsterStats({ id: "bo3-udan", attribute: "地", atk: 900, def: 1200, faceUpPlantCount: 3 }), { atk: 1200, def: 1200 });
+});
+
+test("邪悪なるワーム・ビーストは召喚したターンのエンドフェイズに手札へ戻る", () => {
+  assert.equal(wormBeastReturns("bo4-worm-beast", false, 7, 7), true);
+  assert.equal(wormBeastReturns("bo4-worm-beast", true, 7, 7), false);
+  assert.equal(wormBeastReturns("bo4-worm-beast", false, 6, 7), false);
 });
 
 test("ムカムカは自分の手札1枚につきATK・DEF300アップする", () => {

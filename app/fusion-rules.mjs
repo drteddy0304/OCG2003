@@ -28,6 +28,8 @@ export const FUSION_RECIPES = {
   "bo3-death-bird": ["bo3-takuhee", "bo3-skull-temple"],
   "bo3-kwagar-hercules": ["bo3-kuwagata-alpha", "bo3-hercules-beetle"],
   "bo3-warrior-elimination": ["bo3-otome", "bo3-headless-beauty"],
+  "bo4-aqua-dragon": ["bo4-fairy-dragon", "bo4-warrior-of-tradition", "bo4-zone-eater"],
+  "bo4-black-shark": ["bo4-sea-kamen", "bo4-killer-blob", "bo4-warrior-of-tradition"],
 };
 
 export function fusionRecipe(fusionId) {

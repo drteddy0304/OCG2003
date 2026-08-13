@@ -408,6 +408,10 @@ export function robbinGoblinCanTrigger(spellTrapIds, opponentHandSize) {
   return opponentHandSize > 0 && spellTrapIds.includes("vol7-robbin-goblin");
 }
 
+export function wormBeastReturns(id, faceDown, summonedTurn, currentTurn) {
+  return id === "bo4-worm-beast" && !faceDown && summonedTurn === currentTurn;
+}
+
 const attributeAuraEffects = Object.freeze({
   "vol6-hoshiningen": { boost: "光", weaken: "闇" },
   "vol6-star-boy": { boost: "水", weaken: "炎" },
