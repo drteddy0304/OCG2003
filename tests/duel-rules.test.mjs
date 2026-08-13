@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, robbinGoblinCanTrigger, royalDecreeNegatesTraps, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption } from "../app/duel-rules.mjs";
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { aileSwordsmanAttackBonus, bottomDeckSelection } from "../app/duel-rules.mjs";
@@ -676,6 +677,8 @@ test("強化CPUは40枚デッキを使い、2003年10月の制限枚数を守る
   assert.equal(counts["mr-axe-despair"], 1);
   assert.equal(counts["mr-mystical-space-typhoon"], 1);
   assert.equal(counts["mr-upstart-goblin"], 1);
+  assert.equal(counts["mr-confiscation"], 1);
+  assert.equal(counts["mr-forceful-sentry"], 1);
 });
 
 test("強化CPUは現在の最新パックMagic Rulerまでの戦力をデッキに採用する", () => {
@@ -702,6 +705,28 @@ test("成金ゴブリンは1枚ドローして相手を1000LP回復する", () =
     opponentLp: 9000,
   });
   assert.equal(resolveUpstartGoblin([], [], 8000), null);
+});
+
+test("通行税と墓守の使い魔は攻撃宣言のコストを重ねて適用する", () => {
+  assert.deepEqual(attackDeclarationPayment("monster", 8000, 20, ["mr-toll", "mr-toll"], ["mr-gravekeepers-servant"]), { lifeCost: 1000, millCount: 1 });
+  assert.deepEqual(attackDeclarationPayment("vol7-dark-elf", 8000, 20, ["mr-toll"], []), { lifeCost: 1500, millCount: 0 });
+  assert.equal(attackDeclarationPayment("monster", 500, 20, ["mr-toll"], []), null);
+  assert.equal(attackDeclarationPayment("monster", 8000, 0, [], ["mr-gravekeepers-servant"]), null);
+});
+
+test("押収と強引な番兵は選択した手札だけを移動する", () => {
+  assert.deepEqual(resolveHandDisruption("discard", ["a", "b", "c"], ["deck"], 1), { hand: ["a", "c"], deck: ["deck"], affected: "b" });
+  assert.deepEqual(resolveHandDisruption("return-deck", ["a", "b", "c"], ["deck"], 2), { hand: ["a", "b"], deck: ["deck", "c"], affected: "c" });
+});
+
+test("いたずら好きな双子悪魔は手札を最大2枚捨てる", () => {
+  assert.deepEqual(resolveDelinquentDuo(["a", "b", "c"], 1, 1), { hand: ["a"], discarded: ["b", "c"] });
+  assert.deepEqual(resolveDelinquentDuo(["a"], 0, 0), { hand: [], discarded: ["a"] });
+});
+
+test("聖域の歌声は表側守備表示モンスターだけを500強化する", () => {
+  assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "光", kind: "天使族", position: "defense", atk: 1000, def: 1200, fieldSpellIds: ["mr-chorus-sanctuary"] }), { atk: 1000, def: 1700 });
+  assert.deepEqual(continuousMonsterStats({ id: "target", attribute: "光", kind: "天使族", position: "attack", atk: 1000, def: 1200, fieldSpellIds: ["mr-chorus-sanctuary"] }), { atk: 1000, def: 1200 });
 });
 
 test("CPUは勝てる相手を攻撃し、表側の強敵へ自滅攻撃しない", () => {

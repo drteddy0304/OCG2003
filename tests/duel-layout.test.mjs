@@ -93,3 +93,12 @@ test("光の護封剣で表になった人喰い虫も対象を選んで処理�
   assert.match(arena, /pendingFlipQueue/);
   assert.match(arena, /選べる相手モンスターはいなかった/);
 });
+
+test("Magic Rulerの手札妨害と最終戦争はプレイヤーが対象・コストを選べる", () => {
+  assert.match(arena, /pendingHandDisruption/);
+  assert.match(arena, /resolveHandDisruptionSpell/);
+  assert.match(arena, /pendingFinalDestiny/);
+  assert.match(arena, /墓地へ捨てる手札を5枚選んでください/);
+  assert.match(arena, /mr-gravekeepers-servant/);
+  assert.match(arena, /duelAttackPayment/);
+});

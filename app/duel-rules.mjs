@@ -188,6 +188,40 @@ export function attackDeclarationCost(id, lifePoints) {
   return lifePoints > 1000 ? 1000 : null;
 }
 
+export function attackDeclarationPayment(id, lifePoints, deckSize, allSpellTrapIds = [], opponentSpellTrapIds = []) {
+  const monsterCost = attackDeclarationCost(id, lifePoints);
+  if (monsterCost === null) return null;
+  const tollCost = allSpellTrapIds.filter((cardId) => cardId === "mr-toll").length * 500;
+  const millCount = opponentSpellTrapIds.filter((cardId) => cardId === "mr-gravekeepers-servant").length;
+  const lifeCost = monsterCost + tollCost;
+  if (lifeCost > 0 && lifePoints <= lifeCost) return null;
+  if (deckSize < millCount) return null;
+  return { lifeCost, millCount };
+}
+
+export function resolveHandDisruption(kind, hand, deck, selectedIndex = 0) {
+  if (!hand.length || selectedIndex < 0 || selectedIndex >= hand.length) return null;
+  const selected = hand[selectedIndex];
+  const remaining = hand.filter((_, index) => index !== selectedIndex);
+  if (kind === "discard") return { hand: remaining, deck, affected: selected };
+  if (kind === "return-deck") return { hand: remaining, deck: [...deck, selected], affected: selected };
+  return null;
+}
+
+export function resolveDelinquentDuo(hand, firstIndex = 0, secondIndex = 0) {
+  if (!hand.length) return { hand, discarded: [] };
+  const first = Math.max(0, Math.min(firstIndex, hand.length - 1));
+  const firstCard = hand[first];
+  const remaining = hand.filter((_, index) => index !== first);
+  if (!remaining.length) return { hand: [], discarded: [firstCard] };
+  const second = Math.max(0, Math.min(secondIndex, remaining.length - 1));
+  const secondCard = remaining[second];
+  return {
+    hand: remaining.filter((_, index) => index !== second),
+    discarded: [firstCard, secondCard],
+  };
+}
+
 export function endsBattlePhaseOnBattleDestruction(id, destroyed) {
   return id === "vol7-unhappy-maiden" && destroyed;
 }
@@ -629,7 +663,7 @@ export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds) {
     .sort((a, b) => b.score - a.score)[0]?.id ?? null;
 }
 
-export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, equipCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
+export function continuousMonsterStats({ id, attribute, kind = "", position = "attack", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, equipCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;
   if (id === "vol6-shadow-ghoul") nextAtk += graveyardMonsterCount * 100;
@@ -650,6 +684,7 @@ export function continuousMonsterStats({ id, attribute, kind = "", atk, def: def
   const fieldModifier = fieldSpellStatModifier(kind, fieldSpellIds);
   nextAtk += fieldModifier;
   nextDef += fieldModifier;
+  if (position === "defense" && fieldSpellIds.includes("mr-chorus-sanctuary")) nextDef += 500;
   return { atk: Math.max(0, nextAtk), def: Math.max(0, nextDef) };
 }
 
@@ -672,14 +707,14 @@ export const competitiveCpuDeck = Object.freeze([
   "vol7-barrel-dragon",
   ...Array(2).fill("vol7-prevent-rat"),
   "mr-axe-despair",
-  ...Array(3).fill("vol3-giant-soldier-stone"),
+  ...Array(2).fill("vol3-giant-soldier-stone"),
   ...Array(3).fill("vol3-man-eater-bug"),
   "vol3-hane-hane",
   "vol6-sangan",
   "vol6-witch-black-forest",
   ...Array(2).fill("vol7-rainbow-fish"),
   "vol3-reaper-cards",
-  ...Array(2).fill("vol2-curse-of-dragon"),
+  "vol2-curse-of-dragon",
   ...Array(2).fill("vol7-dark-elf"),
   "vol1-dark-hole",
   "vol1-fissure",
@@ -688,6 +723,8 @@ export const competitiveCpuDeck = Object.freeze([
   "vol1-trap-hole",
   "vol7-mirror-force",
   "mr-upstart-goblin",
+  "mr-confiscation",
+  "mr-forceful-sentry",
   "vol2-swords-revealing-light",
   "vol2-monster-reborn",
   "vol3-pot-of-greed",

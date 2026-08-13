@@ -7,6 +7,7 @@ import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, canSelectFusionMaterial, fusionChoices, fusionMaterialSelection, fusionRecipe, isValidFusionSelection } from "./fusion-rules.mjs";
+import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -118,6 +119,7 @@ type PendingMultiTarget = {
 type PendingCyberStein = { sourceIndex: number; fusionId: string | null };
 type PendingYadoKaru = { sourceIndex: number; selected: number[] };
 type PendingCardInspection = { kind: "spy" | "telescope"; selected: number | null };
+type PendingHandDisruption = { kind: "confiscation" | "forceful-sentry"; spellIndex: number };
 type PendingSharePain = { spellIndex: number };
 type PendingJustDesserts = { trapIndex: number };
 type PendingBattleStatTrap = { trapIndex: number; trapId: "bo3-reinforcements" | "bo3-castle-walls"; attackerIndex: number; defenderIndex: number };
@@ -236,7 +238,7 @@ type DuelState = {
 const CPU_DECK = [...competitiveCpuDeck];
 const CPU_FUSION_DECK = ["vol3-gaia-dragon-champion", "vol3-gaia-dragon-champion", "vol3-gaia-dragon-champion"];
 const EQUIP_RULES = equipRules;
-const FIELD_SPELL_IDS = ["stb-forest", "stb-wasteland", "stb-mountain", "stb-sogen", "stb-umi", "stb-yami"];
+const FIELD_SPELL_IDS = ["stb-forest", "stb-wasteland", "stb-mountain", "stb-sogen", "stb-umi", "stb-yami", "mr-chorus-sanctuary"];
 
 export function DuelArena({
   collection,
@@ -267,6 +269,8 @@ export function DuelArena({
   const [pendingYadoKaru, setPendingYadoKaru] = useState<PendingYadoKaru | null>(null);
   const [pendingGracefulCharity, setPendingGracefulCharity] = useState<number[] | null>(null);
   const [pendingCardInspection, setPendingCardInspection] = useState<PendingCardInspection | null>(null);
+  const [pendingHandDisruption, setPendingHandDisruption] = useState<PendingHandDisruption | null>(null);
+  const [pendingFinalDestiny, setPendingFinalDestiny] = useState<{ spellIndex: number; selected: number[] } | null>(null);
   const [pendingSharePain, setPendingSharePain] = useState<PendingSharePain | null>(null);
   const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
   const [pendingStopAttack, setPendingStopAttack] = useState<number | null>(null);
@@ -332,6 +336,8 @@ export function DuelArena({
     && pendingYadoKaru === null
     && pendingGracefulCharity === null
     && pendingCardInspection === null
+    && pendingHandDisruption === null
+    && pendingFinalDestiny === null
     && pendingSharePain === null
     && pendingMatangoTransfer === null
     && pendingStopAttack === null
@@ -426,6 +432,8 @@ export function DuelArena({
     setPendingYadoKaru(null);
     setPendingGracefulCharity(null);
     setPendingCardInspection(null);
+    setPendingHandDisruption(null);
+    setPendingFinalDestiny(null);
     setPendingSharePain(null);
     setPendingMatangoTransfer(null);
     setPendingStopAttack(null);
@@ -812,6 +820,52 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "mr-gravekeepers-servant" || card.id === "mr-toll") {
+      if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+      const next = removeHandCard(duel, handIndex);
+      setDuel({
+        ...next,
+        playerSpellTrap: [...next.playerSpellTrap, card.id],
+        log: appendLog(next.log, `${card.name}を発動。攻撃宣言に必要なコストを適用します。`),
+      });
+      return;
+    }
+
+    if (card.id === "mr-confiscation" || card.id === "mr-forceful-sentry") {
+      if (duel.cpuHand.length === 0 || (card.id === "mr-confiscation" && duel.playerLp <= 1000)) return;
+      setPendingHandDisruption({
+        kind: card.id === "mr-confiscation" ? "confiscation" : "forceful-sentry",
+        spellIndex: handIndex,
+      });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "mr-delinquent-duo") {
+      if (duel.cpuHand.length === 0 || duel.playerLp <= 1000) return;
+      const result = resolveDelinquentDuo(duel.cpuHand, Math.floor(Math.random() * duel.cpuHand.length), 0);
+      const next = removeHandCard(duel, handIndex);
+      const resolved: DuelState = {
+        ...next,
+        playerLp: next.playerLp - 1000,
+        cpuHand: result.hand,
+        playerGraveyard: [...next.playerGraveyard, card.id],
+        cpuGraveyard: [...next.cpuGraveyard, ...result.discarded],
+        log: appendLog(next.log, `いたずら好きな双子悪魔を発動。1000LPを払い、CPUは手札を${result.discarded.length}枚捨てた。`),
+      };
+      setDuel(applyOpponentDiscardTriggers(resolved, "cpu", result.discarded));
+      return;
+    }
+
+    if (card.id === "mr-final-destiny") {
+      if (duel.playerHand.length < 6) return;
+      setPendingFinalDestiny({ spellIndex: handIndex, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
     if (card.id === "bo2-light-reveal") {
       const next = removeHandCard(duel, handIndex);
       setDuel({
@@ -1053,6 +1107,86 @@ export function DuelArena({
       log: appendLog(duel.log, `天使の施しの効果で${discarded.chosen.map((id) => cardById.get(id)?.name).join("、")}を捨てた。`),
     });
     setPendingGracefulCharity(null);
+  }
+
+  function resolveHandDisruptionSpell(targetIndex: number) {
+    if (!duel || !pendingHandDisruption) return;
+    const spellId = pendingHandDisruption.kind === "confiscation" ? "mr-confiscation" : "mr-forceful-sentry";
+    if (duel.playerHand[pendingHandDisruption.spellIndex] !== spellId) return;
+    const result = resolveHandDisruption(
+      pendingHandDisruption.kind === "confiscation" ? "discard" : "return-deck",
+      duel.cpuHand,
+      duel.cpuDeck,
+      targetIndex,
+    );
+    if (!result || (pendingHandDisruption.kind === "confiscation" && duel.playerLp <= 1000)) return;
+    const next = removeHandCard(duel, pendingHandDisruption.spellIndex);
+    const targetName = cardById.get(result.affected)?.name ?? "カード";
+    const resolved: DuelState = {
+      ...next,
+      playerLp: pendingHandDisruption.kind === "confiscation" ? next.playerLp - 1000 : next.playerLp,
+      cpuHand: result.hand,
+      cpuDeck: result.deck,
+      playerGraveyard: [...next.playerGraveyard, spellId],
+      cpuGraveyard: pendingHandDisruption.kind === "confiscation" ? [...next.cpuGraveyard, result.affected] : next.cpuGraveyard,
+      log: appendLog(next.log, pendingHandDisruption.kind === "confiscation"
+        ? `押収を発動。1000LPを払い、CPUの${targetName}を墓地へ捨てた。`
+        : `強引な番兵を発動。CPUの${targetName}をデッキに戻した。`),
+    };
+    setDuel(pendingHandDisruption.kind === "confiscation"
+      ? applyOpponentDiscardTriggers(resolved, "cpu", [result.affected])
+      : resolved);
+    setPendingHandDisruption(null);
+  }
+
+  function toggleFinalDestinyCard(handIndex: number) {
+    setPendingFinalDestiny((current) => {
+      if (!current || handIndex === current.spellIndex) return current;
+      if (current.selected.includes(handIndex)) return { ...current, selected: current.selected.filter((index) => index !== handIndex) };
+      if (current.selected.length >= 5) return current;
+      return { ...current, selected: [...current.selected, handIndex].sort((a, b) => a - b) };
+    });
+  }
+
+  function resolveFinalDestiny() {
+    if (!duel || !pendingFinalDestiny || pendingFinalDestiny.selected.length !== 5 || duel.playerHand[pendingFinalDestiny.spellIndex] !== "mr-final-destiny") return;
+    const discarded = selectedCards(duel.playerHand, pendingFinalDestiny.selected);
+    const playerOwned = duel.playerField.filter((zone) => zone.controlReturn !== "cpu");
+    const cpuOwnedOnPlayerField = duel.playerField.filter((zone) => zone.controlReturn === "cpu");
+    const remainingHand = duel.playerHand.filter((_, index) => index !== pendingFinalDestiny.spellIndex && !pendingFinalDestiny.selected.includes(index));
+    let next: DuelState = {
+      ...duel,
+      playerHand: remainingHand,
+      playerField: [],
+      cpuField: [],
+      playerSpellTrap: [],
+      cpuSpellTrap: [],
+      playerFieldSpell: null,
+      cpuFieldSpell: null,
+      playerSwordsTurns: [],
+      cpuSwordsTurns: [],
+      playerActiveTraps: [],
+      cpuActiveTraps: [],
+      playerGraveyard: [
+        ...duel.playerGraveyard,
+        "mr-final-destiny",
+        ...discarded.chosen,
+        ...playerOwned.map((zone) => zone.id),
+        ...duel.playerSpellTrap,
+        ...(duel.playerFieldSpell ? [duel.playerFieldSpell] : []),
+      ],
+      cpuGraveyard: [
+        ...duel.cpuGraveyard,
+        ...duel.cpuField.map((zone) => zone.id),
+        ...cpuOwnedOnPlayerField.map((zone) => zone.id),
+        ...duel.cpuSpellTrap,
+        ...(duel.cpuFieldSpell ? [duel.cpuFieldSpell] : []),
+      ],
+      log: appendLog(duel.log, "最終戦争を発動。手札を5枚捨て、フィールドのカードを全て破壊した。"),
+    };
+    next = applyDeckSearchTriggers(next, playerOwned, [...duel.cpuField, ...cpuOwnedOnPlayerField]);
+    setDuel(next);
+    setPendingFinalDestiny(null);
   }
 
   function resolveSharePain(playerIndex: number) {
@@ -1841,7 +1975,7 @@ export function DuelArena({
   function chooseAttacker(index: number) {
     if (!duel || duel.turn !== "player" || duel.phase !== "battle" || duel.turnNumber === 1 || duel.result || duel.cpuSwordsTurns.length > 0) return;
     const zone = duel.playerField[index];
-    if (!zone || zone.position !== "attack" || zone.attacked || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || attackDeclarationCost(zone.id, duel.playerLp) === null) return;
+    if (!zone || zone.position !== "attack" || zone.attacked || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || duelAttackPayment(duel, "player", zone.id) === null) return;
     if (duel.cpuField.length === 0) {
       resolvePlayerAttack(index, null);
       setSelectedAttacker(null);
@@ -1861,21 +1995,23 @@ export function DuelArena({
     const returnedCpu = destroyedOnPlayerField.filter((zone) => zone.controlReturn === "cpu");
     const destroyedPlayer = destroyedOnPlayerField.filter((zone) => zone.controlReturn !== "cpu");
     const attacker = duel.playerField[attackerIndex];
-    const attackCost = attacker ? attackDeclarationCost(attacker.id, duel.playerLp) : 0;
-    if (attackCost === null) return;
-    const costLog = attackCost > 0
-      ? appendLog(duel.log, `${cardById.get(attacker?.id ?? "")?.name ?? "モンスター"}の攻撃コストとして1000LPを支払った。`)
+    const payment = attacker ? duelAttackPayment(duel, "player", attacker.id) : { lifeCost: 0, millCount: 0 };
+    if (!payment) return;
+    const milled = duel.playerDeck.slice(0, payment.millCount);
+    const costLog = payment.lifeCost > 0 || payment.millCount > 0
+      ? appendLog(duel.log, `攻撃宣言のコストとして${payment.lifeCost > 0 ? `${payment.lifeCost}LP` : ""}${payment.lifeCost > 0 && payment.millCount > 0 ? "と" : ""}${payment.millCount > 0 ? `デッキ上${payment.millCount}枚` : ""}を支払った。`)
       : duel.log;
     let resolved: DuelState = {
       ...duel,
-      playerLp: duel.playerLp - attackCost,
+      playerLp: duel.playerLp - payment.lifeCost,
+      playerDeck: duel.playerDeck.slice(payment.millCount),
       playerField: duel.playerField.filter((zone) => !isMirrorForceDestructionTarget(zone.position)),
       playerSpellTrap: discardEquips(duel.playerSpellTrap, destroyedPlayer),
       cpuSpellTrap: discardEquips(
         duel.cpuSpellTrap.filter((_, index) => index !== mirrorForceIndex),
         returnedCpu,
       ),
-      playerGraveyard: [...duel.playerGraveyard, ...graveCards(destroyedPlayer)],
+      playerGraveyard: [...duel.playerGraveyard, ...milled, ...graveCards(destroyedPlayer)],
       cpuGraveyard: [...duel.cpuGraveyard, "vol7-mirror-force", ...graveCards(returnedCpu)],
       log: appendLog(costLog, `CPUが聖なるバリア －ミラーフォース－を発動。攻撃表示モンスター${destroyedOnPlayerField.length}体を破壊。`),
     };
@@ -1898,7 +2034,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -2894,7 +3030,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 126</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 127</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3950,6 +4086,43 @@ export function DuelArena({
           </article>
         </div>
       )}
+      {pendingHandDisruption && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">SPELL EFFECT</p>
+            <h2>{pendingHandDisruption.kind === "confiscation" ? "押収" : "強引な番兵"}</h2>
+            <p>CPUの手札を確認し、効果を適用するカードを1枚選んでください。</p>
+            <div className="target-list cannon-target-list">
+              {duel.cpuHand.map((id, index) => (
+                <button key={`${id}-${index}`} onClick={() => resolveHandDisruptionSpell(index)}>
+                  <strong>{cardById.get(id)?.name}</strong>
+                  <small>{pendingHandDisruption.kind === "confiscation" ? "墓地へ捨てる" : "デッキへ戻す"}</small>
+                </button>
+              ))}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingHandDisruption(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
+      {pendingFinalDestiny && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">SPELL EFFECT</p>
+            <h2>最終戦争</h2>
+            <p>墓地へ捨てる手札を5枚選んでください。</p>
+            <div className="target-list cannon-target-list">
+              {duel.playerHand.map((id, index) => index === pendingFinalDestiny.spellIndex ? null : (
+                <button className={pendingFinalDestiny.selected.includes(index) ? "selected" : ""} key={`${id}-${index}`} onClick={() => toggleFinalDestinyCard(index)}>
+                  <strong>{cardById.get(id)?.name}</strong>
+                  <small>{pendingFinalDestiny.selected.includes(index) ? "選択中" : "タップして選択"}</small>
+                </button>
+              ))}
+            </div>
+            <button disabled={pendingFinalDestiny.selected.length !== 5} onClick={resolveFinalDestiny}>5枚捨てて発動</button>
+            <button className="overlay-close" onClick={() => setPendingFinalDestiny(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
       {pendingSharePain && (
         <div className="card-overlay cannon-soldier-overlay">
           <article className="cannon-soldier-panel">
@@ -4302,7 +4475,7 @@ function FieldRow({
         if (!card) return null;
         const hidden = owner === "cpu" && zone.faceDown;
         const attackLocked = !canDeclareAttackOnTurn(zone.attackLockedTurn, state.turnNumber);
-        const cannotPayAttackCost = owner === "player" && attackDeclarationCost(zone.id, state.playerLp) === null;
+        const cannotPayAttackCost = owner === "player" && duelAttackPayment(state, "player", zone.id) === null;
         const paralyzed = paralyzingPotionPreventsAttack(zone.equipped);
         const scorpionTurns = zone.ironScorpionDestroyTurn === undefined
           ? null
@@ -4656,7 +4829,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingMultiTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingReverseTrap && !state.pendingBattleStatTrap && !state.pendingKuribohResponse && !state.pendingWabokuResponse; index -= 1) {
       const attacker = state.cpuField[index];
       if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(attacker.equipped) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
-      if (attackDeclarationCost(attacker.id, state.cpuLp) === null) continue;
+      if (duelAttackPayment(state, "cpu", attacker.id) === null) continue;
       if (state.playerField.length === 0) {
         const mirrorForceIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol7-mirror-force");
         if (mirrorForceIndex >= 0) {
@@ -4882,6 +5055,8 @@ function firstCpuPlayableSpell(state: DuelState): string | null {
     && [...state.cpuGraveyard, ...state.playerGraveyard].some((id) => cardById.get(id)?.cardType === "monster" && !cardById.get(id)?.fusion)) return "vol2-monster-reborn";
   if (state.cpuHand.includes("vol3-pot-of-greed") && state.cpuDeck.length >= 2) return "vol3-pot-of-greed";
   if (state.cpuHand.includes("mr-upstart-goblin") && state.cpuDeck.length >= 1) return "mr-upstart-goblin";
+  if (state.cpuHand.includes("mr-confiscation") && state.cpuLp > 1000 && state.playerHand.length > 0) return "mr-confiscation";
+  if (state.cpuHand.includes("mr-forceful-sentry") && state.playerHand.length > 0) return "mr-forceful-sentry";
   if (state.cpuHand.includes("vol3-stop-defense") && state.playerField.some((zone) => zone.position === "defense"
     && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)))) return "vol3-stop-defense";
   if (state.cpuHand.includes("vol3-gravedigger-ghoul") && state.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster")) return "vol3-gravedigger-ghoul";
@@ -5196,6 +5371,34 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       log: appendLog(state.log, "CPUが成金ゴブリンを発動。1枚ドローし、プレイヤーは1000LP回復。"),
     };
   }
+  if (state.cpuHand.includes("mr-confiscation") && state.cpuLp > 1000 && state.playerHand.length > 0) {
+    const targetIndex = strongestHandCardIndex(state.playerHand);
+    const result = resolveHandDisruption("discard", state.playerHand, state.playerDeck, targetIndex);
+    if (result) {
+      state = {
+        ...removeCpuHandCard(state, "mr-confiscation"),
+        cpuLp: state.cpuLp - 1000,
+        playerHand: result.hand,
+        playerGraveyard: [...state.playerGraveyard, result.affected],
+        cpuGraveyard: [...state.cpuGraveyard, "mr-confiscation"],
+        log: appendLog(state.log, `CPUが押収を発動。1000LPを払い、${cardById.get(result.affected)?.name ?? "カード"}を捨てた。`),
+      };
+      state = applyOpponentDiscardTriggers(state, "player", [result.affected]);
+    }
+  }
+  if (state.cpuHand.includes("mr-forceful-sentry") && state.playerHand.length > 0) {
+    const targetIndex = strongestHandCardIndex(state.playerHand);
+    const result = resolveHandDisruption("return-deck", state.playerHand, state.playerDeck, targetIndex);
+    if (result) {
+      state = {
+        ...removeCpuHandCard(state, "mr-forceful-sentry"),
+        playerHand: result.hand,
+        playerDeck: result.deck,
+        cpuGraveyard: [...state.cpuGraveyard, "mr-forceful-sentry"],
+        log: appendLog(state.log, `CPUが強引な番兵を発動。${cardById.get(result.affected)?.name ?? "カード"}をデッキに戻した。`),
+      };
+    }
+  }
 
   if (state.cpuHand.includes("vol3-stop-defense")) {
     const targetIndex = state.playerField.findIndex((zone) => zone.position === "defense"
@@ -5399,6 +5602,19 @@ function prepareReverseTrap(state: DuelState, attackerIndex: number, defenderInd
   };
 }
 
+function duelAttackPayment(state: DuelState, side: Side, monsterId: string) {
+  const ownLp = side === "player" ? state.playerLp : state.cpuLp;
+  const ownDeck = side === "player" ? state.playerDeck : state.cpuDeck;
+  const opponentSpellTraps = side === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
+  return attackDeclarationPayment(
+    monsterId,
+    ownLp,
+    ownDeck.length,
+    [...state.playerSpellTrap, ...state.cpuSpellTrap],
+    opponentSpellTraps,
+  );
+}
+
 function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: number, defenderIndex: number | null, guardianEffect = false, preventPlayerBattleDamage = false): DuelState {
   const attackerFieldKey = attackerSide === "player" ? "playerField" : "cpuField";
   const defenderFieldKey = attackerSide === "player" ? "cpuField" : "playerField";
@@ -5409,12 +5625,20 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   const attackerZone = attackerField[attackerIndex];
   const attacker = cardById.get(attackerZone.id);
   if (!attacker) return state;
-  const attackCost = attackDeclarationCost(attacker.id, state[attackerLpKey]);
-  if (attackCost === null) return state;
-  let attackerLpAfterCost = state[attackerLpKey] - attackCost;
-  let attackLog = attackCost > 0
-    ? appendLog(state.log, `${attacker.name}の攻撃コストとして1000LPを支払った。`)
+  const payment = duelAttackPayment(state, attackerSide, attacker.id);
+  if (!payment) return state;
+  let attackerLpAfterCost = state[attackerLpKey] - payment.lifeCost;
+  const attackerDeckKey = attackerSide === "player" ? "playerDeck" : "cpuDeck";
+  const attackerGraveyardKey = attackerSide === "player" ? "playerGraveyard" : "cpuGraveyard";
+  const milled = state[attackerDeckKey].slice(0, payment.millCount);
+  let attackLog = payment.lifeCost > 0 || payment.millCount > 0
+    ? appendLog(state.log, `攻撃宣言のコストとして${payment.lifeCost > 0 ? `${payment.lifeCost}LP` : ""}${payment.lifeCost > 0 && payment.millCount > 0 ? "と" : ""}${payment.millCount > 0 ? `デッキ上${payment.millCount}枚` : ""}を支払った。`)
     : state.log;
+  state = {
+    ...state,
+    [attackerDeckKey]: state[attackerDeckKey].slice(payment.millCount),
+    [attackerGraveyardKey]: [...state[attackerGraveyardKey], ...milled],
+  };
   if (attacker.id === "bo7-giant-spider") {
     const matched = Math.random() < 0.5;
     const lifeAfterCoin = giantSpiderAttackLife(attacker.id, attackerLpAfterCost, matched);
@@ -6216,6 +6440,42 @@ function lowestAttackIndexes(field: ZoneCard[], count: number) {
     .map((item) => item.index);
 }
 
+function strongestHandCardIndex(hand: string[]) {
+  let bestIndex = 0;
+  let bestScore = -1;
+  hand.forEach((id, index) => {
+    const card = cardById.get(id);
+    const score = card?.cardType === "monster" ? (card.atk ?? 0) : card?.rarity === "UR" ? 2600 : card?.rarity === "SR" ? 2300 : 1800;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}
+
+function applyOpponentDiscardTriggers(state: DuelState, owner: Side, discardedIds: string[]) {
+  const snakeCount = discardedIds.filter((id) => id === "mr-electric-snake").length;
+  const minarCount = discardedIds.filter((id) => id === "mr-minar").length;
+  if (snakeCount === 0 && minarCount === 0) return state;
+  const deckKey = owner === "player" ? "playerDeck" : "cpuDeck";
+  const handKey = owner === "player" ? "playerHand" : "cpuHand";
+  const opponentLpKey = owner === "player" ? "cpuLp" : "playerLp";
+  const drawCount = Math.min(state[deckKey].length, snakeCount * 2);
+  const damage = minarCount * 1000;
+  const next = {
+    ...state,
+    [deckKey]: state[deckKey].slice(drawCount),
+    [handKey]: [...state[handKey], ...state[deckKey].slice(0, drawCount)],
+    [opponentLpKey]: Math.max(0, state[opponentLpKey] - damage),
+  } as DuelState;
+  return {
+    ...next,
+    result: next.playerLp === 0 ? "lose" : next.cpuLp === 0 ? "win" : next.result,
+    log: appendLog(next.log, `${snakeCount > 0 ? `エレクトリック・スネークの効果で${drawCount}枚ドロー。` : ""}${minarCount > 0 ? `イビーの効果で相手に${damage}ダメージ。` : ""}`),
+  };
+}
+
 function lowestFaceUpAttackIndex(field: ZoneCard[], state?: DuelState, side?: Side) {
   const candidates = field
     .map((zone, index) => ({ zone, index }))
@@ -6240,6 +6500,7 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     id: zone.id,
     attribute: card.attribute,
     kind: card.kind,
+    position: zone.position,
     atk: equipped.atk,
     def: equipped.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
@@ -6279,6 +6540,7 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
     id: zone.id,
     attribute: card.attribute,
     kind: card.kind,
+    position: zone.position,
     atk: equipped.atk,
     def: equipped.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
@@ -6546,6 +6808,12 @@ function spellDescription(id: string) {
   if (id === "mr-upstart-goblin") return "1枚ドローし、相手は1000LP回復";
   if (id === "mr-mystical-space-typhoon") return "フィールドの魔法・罠カード1枚を破壊";
   if (id === "mr-giant-trunade") return "フィールドの魔法・罠カードをすべて持ち主の手札へ戻す";
+  if (id === "mr-gravekeepers-servant") return "相手はデッキの一番上を墓地へ送らなければ攻撃できない";
+  if (id === "mr-toll") return "お互いは500LPを払わなければ攻撃できない";
+  if (id === "mr-final-destiny") return "手札を5枚捨て、フィールドのカードをすべて破壊";
+  if (id === "mr-confiscation") return "1000LPを払い、相手の手札を1枚選んで捨てる";
+  if (id === "mr-delinquent-duo") return "1000LPを払い、相手の手札を2枚捨てる";
+  if (id === "mr-forceful-sentry") return "相手の手札を1枚選んでデッキに戻す";
   if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
   if (id === "vol3-gravedigger-ghoul") return "相手の墓地のモンスターを2体まで除外";
   if (id === "vol4-elegant-egotist") return "ハーピィ・レディがいる時、手札・デッキからハーピィ1体を特殊召喚";
@@ -6582,6 +6850,12 @@ function isSpellImplemented(id: string) {
       "mr-upstart-goblin",
       "mr-mystical-space-typhoon",
       "mr-giant-trunade",
+      "mr-gravekeepers-servant",
+      "mr-toll",
+      "mr-final-destiny",
+      "mr-confiscation",
+      "mr-delinquent-duo",
+      "mr-forceful-sentry",
       "vol3-stop-defense",
       "vol3-gravedigger-ghoul",
       "vol4-elegant-egotist",

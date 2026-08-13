@@ -290,7 +290,7 @@ export function GameHome() {
           </section>
         </div>
       )}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 126</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 127</span></footer>
     </main>
   );
 }

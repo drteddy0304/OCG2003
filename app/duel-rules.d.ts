@@ -63,6 +63,9 @@ export function canMonsterAttackDirectly(id: string): boolean;
 export function electricLizardAttackLockTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
 export function canDeclareAttackOnTurn(attackLockedTurn: number | undefined, currentTurn: number): boolean;
 export function attackDeclarationCost(id: string, lifePoints: number): number | null;
+export function attackDeclarationPayment(id: string, lifePoints: number, deckSize: number, allSpellTrapIds?: string[], opponentSpellTrapIds?: string[]): { lifeCost: number; millCount: number } | null;
+export function resolveHandDisruption(kind: "discard" | "return-deck", hand: string[], deck: string[], selectedIndex?: number): { hand: string[]; deck: string[]; affected: string } | null;
+export function resolveDelinquentDuo(hand: string[], firstIndex?: number, secondIndex?: number): { hand: string[]; discarded: string[] };
 export function endsBattlePhaseOnBattleDestruction(id: string, destroyed: boolean): boolean;
 export function isMirrorForceDestructionTarget(position: "attack" | "defense"): boolean;
 export function ironScorpionDestroyTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
@@ -131,6 +134,7 @@ export function continuousMonsterStats(input: {
   id: string;
   attribute?: string;
   kind?: string;
+  position?: "attack" | "defense";
   atk: number;
   def: number;
   handSize?: number;
