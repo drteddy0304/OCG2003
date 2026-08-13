@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuDeckLatestPackId, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 
@@ -351,6 +351,19 @@ test("Boosterの表示形式・スタンバイ・墓地効果を判定する", (
   assert.equal(cockroachKnightReturns("bo4-worm-beast"), false);
   assert.equal(patrolRoboCanInspect(["bo3-patrol-robo"], 1), true);
   assert.equal(patrolRoboCanInspect(["bo3-patrol-robo"], 0), false);
+});
+
+test("Boosterの時間経過と地雷蜘蛛の効果を判定する", () => {
+  assert.deepEqual(hourglassOriginalStats("bo3-hourglass-courage", 1100, 1200, 4, 4), { atk: 550, def: 600 });
+  assert.deepEqual(hourglassOriginalStats("bo3-hourglass-courage", 1100, 1200, 4, 6), { atk: 550, def: 600 });
+  assert.deepEqual(hourglassOriginalStats("bo3-hourglass-courage", 1100, 1200, 4, 7), { atk: 2200, def: 2400 });
+  assert.equal(darkCastleUndeadBoost([3], 3), 200);
+  assert.equal(darkCastleUndeadBoost([3], 8), 1000);
+  assert.equal(pumpkingTimedBonus("bo7-pumpking", true, 5, 9), 500);
+  assert.equal(pumpkingTimedBonus("bo7-pumpking", false, 5, 9), 0);
+  assert.equal(giantSpiderAttackLife("bo7-giant-spider", 8000, false), 4000);
+  assert.equal(giantSpiderAttackLife("bo7-giant-spider", 1, false), 1);
+  assert.equal(giantSpiderAttackLife("bo7-giant-spider", 8000, true), 8000);
 });
 
 test("大王目玉はデッキ上5枚を並べ替えるリバース効果を持つ", () => {

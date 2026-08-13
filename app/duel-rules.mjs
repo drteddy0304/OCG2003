@@ -239,6 +239,30 @@ export function patrolRoboCanInspect(faceUpMonsterIds, opponentSetCount) {
   return opponentSetCount > 0 && faceUpMonsterIds.includes("bo3-patrol-robo");
 }
 
+export function hourglassOriginalStats(id, atk, defense, faceUpTurn, currentTurn) {
+  if (id !== "bo3-hourglass-courage" || !Number.isInteger(faceUpTurn) || !Number.isInteger(currentTurn)) {
+    return { atk, def: defense };
+  }
+  const elapsedTurns = Math.max(0, currentTurn - faceUpTurn);
+  return elapsedTurns < 3
+    ? { atk: Math.floor(atk / 2), def: Math.floor(defense / 2) }
+    : { atk: atk * 2, def: defense * 2 };
+}
+
+export function darkCastleUndeadBoost(faceUpTurns, currentTurn) {
+  return faceUpTurns.reduce((total, turn) => total + Math.min(5, Math.max(1, currentTurn - turn + 1)) * 200, 0);
+}
+
+export function pumpkingTimedBonus(id, castlePresent, faceUpTurn, currentTurn) {
+  if (id !== "bo7-pumpking" || !castlePresent || !Number.isInteger(faceUpTurn)) return 0;
+  return Math.min(5, Math.max(1, currentTurn - faceUpTurn + 1)) * 100;
+}
+
+export function giantSpiderAttackLife(id, lifePoints, coinMatched) {
+  if (id !== "bo7-giant-spider" || coinMatched) return Math.max(0, lifePoints);
+  return Math.ceil(Math.max(0, lifePoints) / 2);
+}
+
 export function advanceSwordsTurns(turns) {
   const remaining = turns.map((turn) => turn - 1).filter((turn) => turn > 0);
   return { remaining, expired: turns.length - remaining.length };

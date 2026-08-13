@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, graveyardLifeLoss, guardianAdjustedAttack, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, robbinGoblinCanTrigger, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -131,6 +131,7 @@ type ZoneCard = {
   attacked: boolean;
   equipped: string[];
   summonedTurn: number;
+  faceUpTurn?: number;
   positionChanged: boolean;
   guardianEffectUsed?: boolean;
   attackLockedTurn?: number;
@@ -545,7 +546,7 @@ export function DuelArena({
       ...duel,
       playerField: duel.playerField.map((item, fieldIndex) =>
         fieldIndex === index
-          ? { ...item, position: nextPosition, faceDown: false, positionChanged: true }
+          ? { ...item, position: nextPosition, faceDown: false, faceUpTurn: item.faceDown ? duel.turnNumber : item.faceUpTurn, positionChanged: true }
           : item,
       ),
       log: appendLog(
@@ -689,7 +690,7 @@ export function DuelArena({
       const next = removeHandCard(duel, handIndex);
       let revealed: DuelState = {
         ...next,
-        cpuField: next.cpuField.map((zone) => ({ ...zone, faceDown: false })),
+        cpuField: next.cpuField.map((zone) => ({ ...zone, faceDown: false, faceUpTurn: zone.faceDown ? next.turnNumber : zone.faceUpTurn })),
         playerSpellTrap: [...next.playerSpellTrap, card.id],
         playerSwordsTurns: [...next.playerSwordsTurns, 3],
         log: appendLog(next.log, "光の護封剣を発動。相手モンスターを表にし、3ターン攻撃を封じます。"),
@@ -796,7 +797,7 @@ export function DuelArena({
       next = {
         ...next,
         cpuField: next.cpuField.map((zone, index) => index === target
-          ? { ...zone, position: "attack", faceDown: false, positionChanged: true }
+          ? { ...zone, position: "attack", faceDown: false, faceUpTurn: zone.faceDown ? next.turnNumber : zone.faceUpTurn, positionChanged: true }
           : zone),
       };
       if (targetZone.faceDown) next = resolveFlipEffect(next, "cpu", targetZone.id);
@@ -2175,7 +2176,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 111</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 112</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4039,7 +4040,7 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
     const faceDownZones = state.playerField.filter((zone) => zone.faceDown);
     state = {
       ...removeCpuHandCard(state, "vol2-swords-revealing-light"),
-      playerField: state.playerField.map((zone) => ({ ...zone, faceDown: false })),
+      playerField: state.playerField.map((zone) => ({ ...zone, faceDown: false, faceUpTurn: zone.faceDown ? state.turnNumber : zone.faceUpTurn })),
       cpuSpellTrap: [...state.cpuSpellTrap, "vol2-swords-revealing-light"],
       cpuSwordsTurns: [...state.cpuSwordsTurns, 3],
       log: appendLog(state.log, "CPUが光の護封剣を発動。3ターン攻撃を封じます。"),
@@ -4112,7 +4113,7 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       state = {
         ...removeCpuHandCard(state, "vol3-stop-defense"),
         playerField: state.playerField.map((zone, index) => index === targetIndex
-          ? { ...zone, position: "attack", faceDown: false, positionChanged: true }
+          ? { ...zone, position: "attack", faceDown: false, faceUpTurn: zone.faceDown ? state.turnNumber : zone.faceUpTurn, positionChanged: true }
           : zone),
         cpuGraveyard: [...state.cpuGraveyard, "vol3-stop-defense"],
         log: appendLog(state.log, "CPUが『守備』封じを発動。守備モンスターを攻撃表示に変更。"),
@@ -4258,10 +4259,21 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   if (!attacker) return state;
   const attackCost = attackDeclarationCost(attacker.id, state[attackerLpKey]);
   if (attackCost === null) return state;
-  const attackerLpAfterCost = state[attackerLpKey] - attackCost;
-  const attackLog = attackCost > 0
+  let attackerLpAfterCost = state[attackerLpKey] - attackCost;
+  let attackLog = attackCost > 0
     ? appendLog(state.log, `${attacker.name}の攻撃コストとして1000LPを支払った。`)
     : state.log;
+  if (attacker.id === "bo7-giant-spider") {
+    const matched = Math.random() < 0.5;
+    const lifeAfterCoin = giantSpiderAttackLife(attacker.id, attackerLpAfterCost, matched);
+    attackLog = appendLog(
+      attackLog,
+      matched
+        ? "地雷蜘蛛のコイントスに成功。LPを失わず攻撃を続行。"
+        : `地雷蜘蛛のコイントスに失敗。LPが${attackerLpAfterCost}から${lifeAfterCoin}になった。`,
+    );
+    attackerLpAfterCost = lifeAfterCoin;
+  }
   attackerZone.attacked = true;
 
   if (defenderIndex === null || !defenderField[defenderIndex]) {
@@ -4277,6 +4289,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   const defenderZone = defenderField[defenderIndex];
   const wasFaceDown = defenderZone.faceDown;
   defenderZone.faceDown = false;
+  if (wasFaceDown) defenderZone.faceUpTurn = state.turnNumber;
   const defender = cardById.get(defenderZone.id);
   if (!defender) return state;
   const attackLockedTurn = electricLizardAttackLockTurn(defender.id, attacker.kind, state.turnNumber);
@@ -4865,7 +4878,14 @@ function lowestFaceUpAttackIndex(field: ZoneCard[], state?: DuelState, side?: Si
 
 function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   const card = cardById.get(zone.id);
-  const base = swappedMonsterStats(card?.atk ?? 0, card?.def ?? 0, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
+  const original = hourglassOriginalStats(
+    zone.id,
+    card?.atk ?? 0,
+    card?.def ?? 0,
+    zone.faceUpTurn ?? zone.summonedTurn,
+    state?.turnNumber,
+  );
+  const base = swappedMonsterStats(original.atk, original.def, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
   const equipped = equippedMonsterStats(base.atk, base.def, zone.equipped);
   if (!state || !side || zone.faceDown || !card) return equipped.atk;
   const stats = continuousMonsterStats({
@@ -4885,15 +4905,22 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     allyIds: (side === "player" ? state.playerField : state.cpuField).filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
-  return Math.max(0, stats.atk - germInfectionPenalty(zone.equipped, zone.germStandbys) - dopingPenalty(zone.equipped, zone.germStandbys));
+  return Math.max(0, stats.atk + timedFieldBonus(zone, state) - germInfectionPenalty(zone.equipped, zone.germStandbys) - dopingPenalty(zone.equipped, zone.germStandbys));
 }
 
 function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
   const card = cardById.get(zone.id);
-  const base = swappedMonsterStats(card?.atk ?? 0, card?.def ?? 0, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
+  const original = hourglassOriginalStats(
+    zone.id,
+    card?.atk ?? 0,
+    card?.def ?? 0,
+    zone.faceUpTurn ?? zone.summonedTurn,
+    state?.turnNumber,
+  );
+  const base = swappedMonsterStats(original.atk, original.def, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
   const equipped = equippedMonsterStats(base.atk, base.def, zone.equipped);
   if (!state || !side || zone.faceDown || !card) return equipped.def;
-  return continuousMonsterStats({
+  const stats = continuousMonsterStats({
     id: zone.id,
     attribute: card.attribute,
     kind: card.kind,
@@ -4903,7 +4930,26 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
     graveyardMonsterCount: 0,
     auraIds: [],
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
-  }).def;
+  });
+  return Math.max(0, stats.def + timedFieldBonus(zone, state));
+}
+
+function timedFieldBonus(zone: ZoneCard, state: DuelState) {
+  const card = cardById.get(zone.id);
+  if (!card || zone.faceDown) return 0;
+  const castleTurns = [...state.playerField, ...state.cpuField]
+    .filter((fieldZone) => fieldZone.id === "bo7-castle-dark-illusions" && !fieldZone.faceDown)
+    .map((fieldZone) => fieldZone.faceUpTurn ?? fieldZone.summonedTurn);
+  const castleBoost = card.kind === "アンデット族"
+    ? darkCastleUndeadBoost(castleTurns, state.turnNumber)
+    : 0;
+  const pumpkingBoost = pumpkingTimedBonus(
+    zone.id,
+    castleTurns.length > 0,
+    zone.faceUpTurn ?? zone.summonedTurn,
+    state.turnNumber,
+  );
+  return castleBoost + pumpkingBoost;
 }
 
 function canEquip(spellId: string, monster: Card) {
