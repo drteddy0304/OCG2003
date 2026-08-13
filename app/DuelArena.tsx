@@ -2135,7 +2135,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7 強化CPU · BUILD 106</strong>
+          <strong>VOL.1〜Vol.7 強化CPU · BUILD 107</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4475,6 +4475,38 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
           log: appendLog(state.log, `${ownerName}のスケルエンジェルがリバース。カードを1枚ドロー。`),
         };
   }
+  if (effect === "mill-five") {
+    const opponentDeck = owner === "player" ? state.cpuDeck : state.playerDeck;
+    const milled = opponentDeck.slice(0, 5);
+    if (milled.length === 0) return state;
+    return owner === "player"
+      ? {
+          ...state,
+          cpuDeck: opponentDeck.slice(milled.length),
+          cpuGraveyard: [...state.cpuGraveyard, ...milled],
+          log: appendLog(state.log, `${ownerName}のニードルワームがリバース。CPUのデッキ上から${milled.length}枚を墓地へ送った。`),
+        }
+      : {
+          ...state,
+          playerDeck: opponentDeck.slice(milled.length),
+          playerGraveyard: [...state.playerGraveyard, ...milled],
+          log: appendLog(state.log, `${ownerName}のニードルワームがリバース。あなたのデッキ上から${milled.length}枚を墓地へ送った。`),
+        };
+  }
+  if (effect === "reload-five") {
+    const playerDraw = state.playerDeck.slice(0, 5);
+    const cpuDraw = state.cpuDeck.slice(0, 5);
+    return {
+      ...state,
+      playerDeck: state.playerDeck.slice(playerDraw.length),
+      cpuDeck: state.cpuDeck.slice(cpuDraw.length),
+      playerGraveyard: [...state.playerGraveyard, ...state.playerHand],
+      cpuGraveyard: [...state.cpuGraveyard, ...state.cpuHand],
+      playerHand: playerDraw,
+      cpuHand: cpuDraw,
+      log: appendLog(state.log, `${ownerName}のメタモルポットがリバース。お互いに手札を全て捨て、あなたは${playerDraw.length}枚、CPUは${cpuDraw.length}枚ドローした。`),
+    };
+  }
 
   const playerChooses = shouldPlayerChooseFlipTarget(owner, state.turn, state.phase);
   if (playerChooses && effect) {
@@ -4681,6 +4713,8 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
       .filter((id) => cardById.get(id)?.cardType === "monster").length,
     faceUpPlantCount: [...state.playerField, ...state.cpuField]
       .filter((fieldZone) => !fieldZone.faceDown && cardById.get(fieldZone.id)?.kind === "植物族").length,
+    faceUpMachineCount: [...state.playerField, ...state.cpuField]
+      .filter((fieldZone) => !fieldZone.faceDown && cardById.get(fieldZone.id)?.kind === "機械族").length,
     auraIds: [...state.playerField, ...state.cpuField].filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     allyIds: (side === "player" ? state.playerField : state.cpuField).filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),

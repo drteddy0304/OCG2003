@@ -277,6 +277,9 @@ const flipEffects = Object.freeze({
   "vol5-big-eye": "reorder-five",
   "vol7-thunder-nyan-nyan": "gain-3000",
   "vol7-sword-queen": "damage-spell-traps",
+  "bo5-trap-master": "destroy-trap",
+  "bo5-needle-worm": "mill-five",
+  "bo5-morphing-jar": "reload-five",
 });
 
 export function flipEffect(id) {
@@ -450,11 +453,12 @@ export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds) {
     .sort((a, b) => b.score - a.score)[0]?.id ?? null;
 }
 
-export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
+export function continuousMonsterStats({ id, attribute, kind = "", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;
   if (id === "vol6-shadow-ghoul") nextAtk += graveyardMonsterCount * 100;
   if (id === "bo3-udan") nextAtk += faceUpPlantCount * 100;
+  if (id === "bo5-machine-king") nextAtk += faceUpMachineCount * 100;
   if (id === "vol6-muka-muka") {
     nextAtk += handSize * 300;
     nextDef += handSize * 300;

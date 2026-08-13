@@ -30,6 +30,10 @@ export const FUSION_RECIPES = {
   "bo3-warrior-elimination": ["bo3-otome", "bo3-headless-beauty"],
   "bo4-aqua-dragon": ["bo4-fairy-dragon", "bo4-warrior-of-tradition", "bo4-zone-eater"],
   "bo4-black-shark": ["bo4-sea-kamen", "bo4-killer-blob", "bo4-warrior-of-tradition"],
+  "bo5-soul-hunter": ["bo5-genie-lamp", "bo5-invader-another-dimension"],
+  "bo5-brachio-raidus": ["bo5-two-headed-king-rex", "bo5-crawling-dragon-2"],
+  "bo5-golden-elephant": ["bo5-medusa-ghost", "bo5-dragon-zombie"],
+  "bo5-marine-beast": ["bo5-water-magician", "bo5-behegon"],
 };
 
 export function fusionRecipe(fusionId) {

@@ -101,6 +101,7 @@ export function continuousMonsterStats(input: {
   handSize?: number;
   graveyardMonsterCount?: number;
   faceUpPlantCount?: number;
+  faceUpMachineCount?: number;
   auraIds?: string[];
   allyIds?: string[];
   fieldSpellIds?: string[];
@@ -120,7 +121,7 @@ export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps";
 
 export function flipEffect(id: string): FlipEffect | null;
 export function isDragonCaptureJarLocked(kind: string | undefined, faceDown: boolean, jarActive: boolean): boolean;

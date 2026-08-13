@@ -433,6 +433,17 @@ test("森の住人 ウダンは表側表示の植物族1体につきATK100アッ
   assert.deepEqual(continuousMonsterStats({ id: "bo3-udan", attribute: "地", atk: 900, def: 1200, faceUpPlantCount: 3 }), { atk: 1200, def: 1200 });
 });
 
+test("Booster 5の機械王は自身を含む表側機械族の数だけ攻撃力が上がる", () => {
+  assert.deepEqual(continuousMonsterStats({ id: "bo5-machine-king", attribute: "地", atk: 2200, def: 2000, faceUpMachineCount: 1 }), { atk: 2300, def: 2000 });
+  assert.deepEqual(continuousMonsterStats({ id: "bo5-machine-king", attribute: "地", atk: 2200, def: 2000, faceUpMachineCount: 3 }), { atk: 2500, def: 2000 });
+});
+
+test("Booster 5の主要リバース効果を識別できる", () => {
+  assert.equal(flipEffect("bo5-trap-master"), "destroy-trap");
+  assert.equal(flipEffect("bo5-needle-worm"), "mill-five");
+  assert.equal(flipEffect("bo5-morphing-jar"), "reload-five");
+});
+
 test("邪悪なるワーム・ビーストは召喚したターンのエンドフェイズに手札へ戻る", () => {
   assert.equal(wormBeastReturns("bo4-worm-beast", false, 7, 7), true);
   assert.equal(wormBeastReturns("bo4-worm-beast", true, 7, 7), false);
