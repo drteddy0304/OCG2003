@@ -144,7 +144,7 @@ export function strongestAttackIndex(attacks) {
 }
 
 export function shouldPlayerChooseFlipTarget(owner, turn, phase) {
-  return owner === "player" && (turn === "player" || phase === "battle");
+  return owner === "player";
 }
 
 const directAttackMonsters = new Set([

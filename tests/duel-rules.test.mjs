@@ -363,7 +363,7 @@ test("神の宣告は現在LPの半分を払う", () => {
 
 test("自分のリバース効果はCPUのバトル中でも自分で対象を選べる", () => {
   assert.equal(shouldPlayerChooseFlipTarget("player", "cpu", "battle"), true);
-  assert.equal(shouldPlayerChooseFlipTarget("player", "cpu", "main1"), false);
+  assert.equal(shouldPlayerChooseFlipTarget("player", "cpu", "main1"), true);
   assert.equal(shouldPlayerChooseFlipTarget("cpu", "player", "battle"), false);
 });
 

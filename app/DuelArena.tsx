@@ -106,8 +106,10 @@ type PendingBlastJuggler = {
 };
 type PendingFlipTarget = {
   monsterId: string;
+  owner: Side;
   effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap";
 };
+type PendingFlipQueueItem = { owner: Side; monsterId: string };
 type PendingMultiTarget = {
   monsterId: string;
   effect: "destroy-dragon" | "return-two-monsters" | "destroy-two-set-spell-traps";
@@ -224,6 +226,7 @@ type DuelState = {
   pendingFakeTrap: PendingFakeTrap | null;
   pendingTwoPronged: PendingTwoPronged | null;
   pendingFlipTarget: PendingFlipTarget | null;
+  pendingFlipQueue: PendingFlipQueueItem[];
   pendingMultiTarget: PendingMultiTarget | null;
   pendingDeckReorder: PendingDeckReorder | null;
   pendingDeckSearch: PendingDeckSearch | null;
@@ -477,6 +480,7 @@ export function DuelArena({
       pendingFakeTrap: null,
       pendingTwoPronged: null,
       pendingFlipTarget: null,
+      pendingFlipQueue: [],
       pendingMultiTarget: null,
       pendingDeckReorder: null,
       pendingDeckSearch: null,
@@ -640,7 +644,7 @@ export function DuelArena({
           log: appendLog(next.log, `${cardById.get(zone.id)?.name}の効果が発動。自分のデッキをシャッフル。`),
         };
       } else if (effect === "destroy-monster" || effect === "return-monster") {
-        const pending = { monsterId: zone.id, effect } as PendingFlipTarget;
+        const pending = { monsterId: zone.id, owner: "player" as Side, effect } as PendingFlipTarget;
         next = flipTargetChoices(next, pending).length > 0
           ? {
               ...next,
@@ -788,9 +792,7 @@ export function DuelArena({
         playerSwordsTurns: [...next.playerSwordsTurns, 3],
         log: appendLog(next.log, "光の護封剣を発動。相手モンスターを表にし、3ターン攻撃を封じます。"),
       };
-      for (const zone of next.cpuField.filter((item) => item.faceDown)) {
-        revealed = resolveFlipEffect(revealed, "cpu", zone.id);
-      }
+      revealed = resolveFlipSequence(revealed, "cpu", next.cpuField.filter((item) => item.faceDown).map((zone) => zone.id));
       setDuel(revealed);
       return;
     }
@@ -2741,7 +2743,12 @@ export function DuelArena({
 
   function chooseFlipTarget(targetIndex: number) {
     if (!duel?.pendingFlipTarget) return;
-    const resolved = resolvePendingFlipTarget(duel, targetIndex);
+    let resolved = resolvePendingFlipTarget(duel, targetIndex);
+    resolved = continuePendingFlipQueue(resolved);
+    if (resolved.pendingFlipTarget) {
+      setDuel(resolved);
+      return;
+    }
     if (duel.turn === "cpu") {
       const marker = "効果対象の選択が終了。";
       const resumed = { ...resolved, log: appendLog(resolved.log, marker) };
@@ -2844,7 +2851,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>VOL.1〜Vol.7・EX 強化CPU · BUILD 124</strong>
+          <strong>VOL.1〜Vol.7・EX 強化CPU · BUILD 125</strong>
           <p>最新のVol.7までのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -2955,6 +2962,8 @@ export function DuelArena({
                       ? "クリボーの効果確認へ"
                     : cpuPlayback.finalState.pendingWabokuResponse
                       ? "和睦の使者の発動確認へ"
+                    : cpuPlayback.finalState.pendingFlipTarget
+                      ? `${cardById.get(cpuPlayback.finalState.pendingFlipTarget.monsterId)?.name ?? "リバース効果"}の対象選択へ`
                     : cpuPlayback.finalState.pendingDeckReorder
                       ? "大王目玉の並べ替えへ"
                     : cpuPlayback.finalState.pendingDeckSearch
@@ -4305,7 +4314,7 @@ function runCpuTurn(initial: DuelState): DuelState {
   state = applyPatrolRoboStandby(state, "cpu");
   if (state.result) return state;
   state = playCpuNormalSpells(state);
-  if (state.result || state.pendingAntiRaigeki || state.pendingSpellSpecificTrap || state.pendingMagicJammer || state.pendingSolemnJudgment) return state;
+  if (state.result || state.pendingAntiRaigeki || state.pendingSpellSpecificTrap || state.pendingMagicJammer || state.pendingSolemnJudgment || state.pendingFlipTarget) return state;
   return continueCpuTurnAfterSpells(state);
 }
 
@@ -5070,7 +5079,8 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       cpuSwordsTurns: [...state.cpuSwordsTurns, 3],
       log: appendLog(state.log, "CPUが光の護封剣を発動。3ターン攻撃を封じます。"),
     };
-    for (const zone of faceDownZones) state = resolveFlipEffect(state, "player", zone.id);
+    state = resolveFlipSequence(state, "player", faceDownZones.map((zone) => zone.id));
+    if (state.pendingFlipTarget) return state;
   }
 
   if (state.cpuHand.includes("vol2-monster-reborn") && state.cpuField.length < FIELD_LIMIT && !isMonsterRebornBlocked(state.playerSpellTrap, state.cpuSpellTrap)) {
@@ -5555,11 +5565,13 @@ type FlipTargetChoice = {
 
 function flipTargetChoices(state: DuelState, pending: PendingFlipTarget): FlipTargetChoice[] {
   if (pending.effect === "destroy-monster" || pending.effect === "return-monster") {
-    return state.cpuField.flatMap((zone, index) => isEffectTargetProtected(state, "cpu", zone) ? [] : [{
+    const opponentSide: Side = pending.owner === "player" ? "cpu" : "player";
+    const opponentField = opponentSide === "player" ? state.playerField : state.cpuField;
+    return opponentField.flatMap((zone, index) => isEffectTargetProtected(state, opponentSide, zone) ? [] : [{
       id: zone.id,
       index,
-      zone: `相手モンスターゾーン ${index + 1}`,
-      name: zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name ?? "モンスター",
+      zone: `${pending.owner === "player" ? "CPU" : "自分"}モンスターゾーン ${index + 1}`,
+      name: opponentSide === "cpu" && zone.faceDown ? "裏側モンスター" : cardById.get(zone.id)?.name ?? "モンスター",
     }]);
   }
   if (pending.effect === "destroy-spell" || pending.effect === "destroy-trap") {
@@ -5597,28 +5609,23 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
   const effectMonsterName = cardById.get(pending.monsterId)?.name ?? "モンスター";
 
   if (pending.effect === "destroy-monster" || pending.effect === "return-monster") {
-    const target = state.cpuField[targetIndex];
-    if (!target || isEffectTargetProtected(state, "cpu", target)) return base;
+    const opponentSide: Side = pending.owner === "player" ? "cpu" : "player";
+    const opponentField = opponentSide === "player" ? state.playerField : state.cpuField;
+    const opponentSpellTrap = opponentSide === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
+    const target = opponentField[targetIndex];
+    if (!target || isEffectTargetProtected(state, opponentSide, target)) return base;
     const targetName = cardById.get(target.id)?.name ?? "モンスター";
-    const remainingField = state.cpuField.filter((_, index) => index !== targetIndex);
-    const remainingSpellTrap = discardEquips(state.cpuSpellTrap, [target]);
+    const remainingField = opponentField.filter((_, index) => index !== targetIndex);
+    const remainingSpellTrap = discardEquips(opponentSpellTrap, [target]);
     if (pending.effect === "return-monster") {
-      return {
-        ...base,
-        cpuField: remainingField,
-        cpuSpellTrap: remainingSpellTrap,
-        cpuHand: [...state.cpuHand, target.id],
-        cpuGraveyard: [...state.cpuGraveyard, ...target.equipped],
-        log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を手札に戻した。`),
-      };
+      return opponentSide === "cpu"
+        ? { ...base, cpuField: remainingField, cpuSpellTrap: remainingSpellTrap, cpuHand: [...state.cpuHand, target.id], cpuGraveyard: [...state.cpuGraveyard, ...target.equipped], log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}をCPUの手札に戻した。`) }
+        : { ...base, playerField: remainingField, playerSpellTrap: remainingSpellTrap, playerHand: [...state.playerHand, target.id], playerGraveyard: [...state.playerGraveyard, ...target.equipped], log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を自分の手札に戻した。`) };
     }
-    return applyDeckSearchTriggers({
-      ...base,
-      cpuField: remainingField,
-      cpuSpellTrap: remainingSpellTrap,
-      cpuGraveyard: [...state.cpuGraveyard, ...graveCards([target])],
-      log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を破壊した。`),
-    }, [], [target]);
+    const destroyedState: DuelState = opponentSide === "cpu"
+      ? { ...base, cpuField: remainingField, cpuSpellTrap: remainingSpellTrap, cpuGraveyard: [...state.cpuGraveyard, ...graveCards([target])], log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を破壊した。`) }
+      : { ...base, playerField: remainingField, playerSpellTrap: remainingSpellTrap, playerGraveyard: [...state.playerGraveyard, ...graveCards([target])], log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}を破壊した。`) };
+    return applyDeckSearchTriggers(destroyedState, opponentSide === "player" ? [target] : [], opponentSide === "cpu" ? [target] : []);
   }
 
   if (pending.effect === "destroy-spell" || pending.effect === "destroy-trap") {
@@ -5735,6 +5742,32 @@ function resolvePendingMultiTarget(state: DuelState): DuelState {
     cpuGraveyard: [...state.cpuGraveyard, ...cpuDestroyed],
     log: appendLog(state.log, `ドッペルゲンガーの効果でセットされた魔法・罠カード${playerDestroyed.length + cpuDestroyed.length}枚を破壊した。`),
   };
+}
+
+function resolveFlipSequence(state: DuelState, owner: Side, monsterIds: string[]): DuelState {
+  let next = { ...state, pendingFlipQueue: [] };
+  for (let index = 0; index < monsterIds.length; index += 1) {
+    next = resolveFlipEffect(next, owner, monsterIds[index]);
+    if (next.pendingFlipTarget) {
+      return {
+        ...next,
+        pendingFlipQueue: monsterIds.slice(index + 1).map((monsterId) => ({ owner, monsterId })),
+      };
+    }
+  }
+  return next;
+}
+
+function continuePendingFlipQueue(state: DuelState): DuelState {
+  let next = { ...state, pendingFlipQueue: [] };
+  for (let index = 0; index < state.pendingFlipQueue.length; index += 1) {
+    const item = state.pendingFlipQueue[index];
+    next = resolveFlipEffect(next, item.owner, item.monsterId);
+    if (next.pendingFlipTarget) {
+      return { ...next, pendingFlipQueue: state.pendingFlipQueue.slice(index + 1) };
+    }
+  }
+  return next;
 }
 
 function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
@@ -5899,12 +5932,18 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
 
   const playerChooses = shouldPlayerChooseFlipTarget(owner, state.turn, state.phase);
   if (playerChooses && effect) {
-    const pending = { monsterId, effect } as PendingFlipTarget;
+    const pending = { monsterId, owner, effect } as PendingFlipTarget;
     if (flipTargetChoices(state, pending).length > 0) {
       return {
         ...state,
         pendingFlipTarget: pending,
         log: appendLog(state.log, `${ownerName}の${cardById.get(monsterId)?.name ?? "モンスター"}がリバース。効果対象を選択してください。`),
+      };
+    }
+    if (effect === "destroy-monster" || effect === "return-monster") {
+      return {
+        ...state,
+        log: appendLog(state.log, `${ownerName}の${cardById.get(monsterId)?.name ?? "モンスター"}がリバース。効果を発動したが、選べる相手モンスターはいなかった。`),
       };
     }
   }
@@ -5934,8 +5973,18 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
 
   if (effect === "destroy-monster" || effect === "return-monster") {
     const opponentField = owner === "player" ? state.cpuField : state.playerField;
-    const targetIndex = strongestAttackIndex(opponentField.map(effectiveAtk));
-    if (targetIndex === null) return state;
+    const opponentSide: Side = owner === "player" ? "cpu" : "player";
+    const validTargets = opponentField
+      .map((zone, index) => ({ zone, index }))
+      .filter(({ zone }) => !isEffectTargetProtected(state, opponentSide, zone));
+    const choiceIndex = strongestAttackIndex(validTargets.map(({ zone }) => effectiveAtk(zone, state, opponentSide)));
+    const targetIndex = choiceIndex === null ? null : validTargets[choiceIndex]?.index ?? null;
+    if (targetIndex === null) {
+      return {
+        ...state,
+        log: appendLog(state.log, `${ownerName}の${cardById.get(monsterId)?.name ?? "モンスター"}がリバース。効果を発動したが、選べる相手モンスターはいなかった。`),
+      };
+    }
     const target = opponentField[targetIndex];
     const targetName = cardById.get(target.id)?.name ?? "モンスター";
     const remainingField = opponentField.filter((_, index) => index !== targetIndex);

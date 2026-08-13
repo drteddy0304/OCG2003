@@ -86,3 +86,10 @@ test("EXの戦闘効果と和睦の使者に操作導線がある", () => {
   assert.match(arena, /pendingDragonFlute/);
   assert.match(arena, /isEffectTargetProtected/);
 });
+
+test("光の護封剣で表になった人喰い虫も対象を選んで処理する", () => {
+  assert.match(arena, /resolveFlipSequence\(revealed, "cpu"/);
+  assert.match(arena, /resolveFlipSequence\(state, "player"/);
+  assert.match(arena, /pendingFlipQueue/);
+  assert.match(arena, /選べる相手モンスターはいなかった/);
+});
