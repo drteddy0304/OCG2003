@@ -8,6 +8,7 @@ import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs"
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, canSelectFusionMaterial, fusionChoices, fusionMaterialSelection, fusionRecipe, isValidFusionSelection } from "./fusion-rules.mjs";
 import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption } from "./duel-rules.mjs";
+import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -126,6 +127,9 @@ type PendingTemporaryStat = {
   source: "hand" | "trap";
   sourceIndex: number;
 };
+type PendingPainfulChoice = { spellIndex: number; selected: number[] };
+type PendingDarknessApproaches = { spellIndex: number; discardIndexes: number[] };
+type PendingTailor = { spellIndex: number; sourceSide: Side | null; sourceIndex: number | null; equipId: string | null };
 type PendingJustDesserts = { trapIndex: number };
 type PendingBattleStatTrap = { trapIndex: number; trapId: "bo3-reinforcements" | "bo3-castle-walls"; attackerIndex: number; defenderIndex: number };
 type PendingReverseTrap = { trapIndex: number; attackerIndex: number; defenderIndex: number };
@@ -280,6 +284,9 @@ export function DuelArena({
   const [pendingFinalDestiny, setPendingFinalDestiny] = useState<{ spellIndex: number; selected: number[] } | null>(null);
   const [pendingSharePain, setPendingSharePain] = useState<PendingSharePain | null>(null);
   const [pendingTemporaryStat, setPendingTemporaryStat] = useState<PendingTemporaryStat | null>(null);
+  const [pendingPainfulChoice, setPendingPainfulChoice] = useState<PendingPainfulChoice | null>(null);
+  const [pendingDarknessApproaches, setPendingDarknessApproaches] = useState<PendingDarknessApproaches | null>(null);
+  const [pendingTailor, setPendingTailor] = useState<PendingTailor | null>(null);
   const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
   const [pendingStopAttack, setPendingStopAttack] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
@@ -348,6 +355,9 @@ export function DuelArena({
     && pendingFinalDestiny === null
     && pendingSharePain === null
     && pendingTemporaryStat === null
+    && pendingPainfulChoice === null
+    && pendingDarknessApproaches === null
+    && pendingTailor === null
     && pendingMatangoTransfer === null
     && pendingStopAttack === null
     && pendingEgotist === null
@@ -712,6 +722,14 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "mr-tailor-fickle") {
+      if (![...duel.playerField, ...duel.cpuField].some((zone) => zone.equipped.some((id) => cardById.get(id)?.kind === "装備魔法"))) return;
+      setPendingTailor({ spellIndex: handIndex, sourceSide: null, sourceIndex: null, equipId: null });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
     if (card.id === "vol2-monster-reborn") {
       if (isMonsterRebornBlocked(duel.playerSpellTrap, duel.cpuSpellTrap)) return;
       const hasTarget = [...duel.playerGraveyard, ...duel.cpuGraveyard]
@@ -878,6 +896,22 @@ export function DuelArena({
     if (card.id === "mr-final-destiny") {
       if (duel.playerHand.length < 6) return;
       setPendingFinalDestiny({ spellIndex: handIndex, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "mr-painful-choice") {
+      if (duel.playerDeck.length < 5) return;
+      setPendingPainfulChoice({ spellIndex: handIndex, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "mr-darkness-approaches") {
+      if (duel.playerHand.length < 3 || ![...duel.playerField, ...duel.cpuField].some((zone) => !zone.faceDown)) return;
+      setPendingDarknessApproaches({ spellIndex: handIndex, discardIndexes: [] });
       setSelectedAttacker(null);
       setSelectedEquip(null);
       return;
@@ -1192,6 +1226,124 @@ export function DuelArena({
       log: appendLog(duel.log, `${cardName}を発動。${targetName}の${isAttackBoost ? "ATK" : "DEF"}をターン終了時まで${amount > 0 ? `${amount}アップ` : `${Math.abs(amount)}ダウン`}。`),
     });
     setPendingTemporaryStat(null);
+  }
+
+  function togglePainfulChoiceCard(deckIndex: number) {
+    setPendingPainfulChoice((current) => {
+      if (!current) return null;
+      if (current.selected.includes(deckIndex)) return { ...current, selected: current.selected.filter((index) => index !== deckIndex) };
+      if (current.selected.length >= 5) return current;
+      return { ...current, selected: [...current.selected, deckIndex].sort((a, b) => a - b) };
+    });
+  }
+
+  function confirmPainfulChoice() {
+    if (!duel || !pendingPainfulChoice || duel.playerHand[pendingPainfulChoice.spellIndex] !== "mr-painful-choice") return;
+    const offered = pendingPainfulChoice.selected.map((index) => duel.playerDeck[index]);
+    const cpuChoice = weakestHandCardIndex(offered);
+    const result = resolvePainfulChoice(duel.playerDeck, pendingPainfulChoice.selected, cpuChoice);
+    if (!result) return;
+    const chosenName = cardById.get(result.handCard)?.name ?? "カード";
+    setDuel({
+      ...duel,
+      playerHand: [...duel.playerHand.filter((_, index) => index !== pendingPainfulChoice.spellIndex), result.handCard],
+      playerDeck: result.deck,
+      playerGraveyard: [...duel.playerGraveyard, "mr-painful-choice", ...result.graveCards],
+      log: appendLog(duel.log, `苦渋の選択を発動。5枚を公開し、CPUが選んだ${chosenName}を手札へ加え、残り4枚を墓地へ送った。`),
+    });
+    setPendingPainfulChoice(null);
+  }
+
+  function toggleDarknessDiscard(handIndex: number) {
+    setPendingDarknessApproaches((current) => {
+      if (!current || handIndex === current.spellIndex) return current;
+      if (current.discardIndexes.includes(handIndex)) return { ...current, discardIndexes: current.discardIndexes.filter((index) => index !== handIndex) };
+      if (current.discardIndexes.length >= 2) return current;
+      return { ...current, discardIndexes: [...current.discardIndexes, handIndex].sort((a, b) => a - b) };
+    });
+  }
+
+  function resolveDarknessApproaches(side: Side, targetIndex: number) {
+    if (!duel || !pendingDarknessApproaches || duel.playerHand[pendingDarknessApproaches.spellIndex] !== "mr-darkness-approaches") return;
+    const discarded = darknessApproachesDiscard(duel.playerHand, pendingDarknessApproaches.spellIndex, pendingDarknessApproaches.discardIndexes);
+    const field = side === "player" ? duel.playerField : duel.cpuField;
+    const target = field[targetIndex];
+    if (!discarded || !target || target.faceDown) return;
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    const spellTrapKey = side === "player" ? "playerSpellTrap" : "cpuSpellTrap";
+    const nextField = field.map((zone, index) => index === targetIndex
+      ? { ...zone, faceDown: true, faceUpTurn: undefined, equipped: [] }
+      : zone);
+    setDuel({
+      ...duel,
+      playerHand: discarded.hand,
+      [side === "player" ? "playerField" : "cpuField"]: nextField,
+      [spellTrapKey]: discardEquips(duel[spellTrapKey], [target]),
+      playerGraveyard: [...duel.playerGraveyard, "mr-darkness-approaches", ...discarded.discarded, ...(side === "player" ? target.equipped : [])],
+      cpuGraveyard: [...duel.cpuGraveyard, ...(side === "cpu" ? target.equipped : [])],
+      log: appendLog(duel.log, `闇の訪れを発動。手札2枚を捨て、${targetName}を表示形式を変えずに裏側表示にした。`),
+    });
+    setPendingDarknessApproaches(null);
+  }
+
+  function selectTailorEquip(side: Side, sourceIndex: number, equipId: string) {
+    if (!duel || !pendingTailor || duel.playerHand[pendingTailor.spellIndex] !== "mr-tailor-fickle") return;
+    const source = (side === "player" ? duel.playerField : duel.cpuField)[sourceIndex];
+    if (!source?.equipped.includes(equipId) || cardById.get(equipId)?.kind !== "装備魔法") return;
+    setPendingTailor({ ...pendingTailor, sourceSide: side, sourceIndex, equipId });
+  }
+
+  function resolveTailor(side: Side, targetIndex: number) {
+    if (!duel || !pendingTailor?.equipId || pendingTailor.sourceSide === null || pendingTailor.sourceIndex === null) return;
+    if (duel.playerHand[pendingTailor.spellIndex] !== "mr-tailor-fickle") return;
+    if (side === pendingTailor.sourceSide && targetIndex === pendingTailor.sourceIndex) return;
+    const sourceField = pendingTailor.sourceSide === "player" ? duel.playerField : duel.cpuField;
+    const targetField = side === "player" ? duel.playerField : duel.cpuField;
+    const source = sourceField[pendingTailor.sourceIndex];
+    const target = targetField[targetIndex];
+    const targetCard = target ? cardById.get(target.id) : null;
+    if (!source?.equipped.includes(pendingTailor.equipId) || !target || target.faceDown || !targetCard || !canEquip(pendingTailor.equipId, targetCard)) return;
+    const sourceSpellTrap = pendingTailor.sourceSide === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap;
+    const targetSpellTrap = side === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap;
+    if (side !== pendingTailor.sourceSide && targetSpellTrap.length >= FIELD_LIMIT) return;
+
+    const removeFromSource = (field: ZoneCard[]) => field.map((zone, index) => index === pendingTailor.sourceIndex
+      ? { ...zone, equipped: removeCardCopies(zone.equipped, pendingTailor.equipId!, 1) }
+      : zone);
+    const addToTarget = (field: ZoneCard[]) => field.map((zone, index) => index === targetIndex
+      ? { ...zone, equipped: [...zone.equipped, pendingTailor.equipId!] }
+      : zone);
+    let playerField = duel.playerField;
+    let cpuField = duel.cpuField;
+    if (pendingTailor.sourceSide === "player") playerField = removeFromSource(playerField);
+    else cpuField = removeFromSource(cpuField);
+    if (side === "player") playerField = addToTarget(playerField);
+    else cpuField = addToTarget(cpuField);
+
+    let playerSpellTrap = duel.playerSpellTrap;
+    let cpuSpellTrap = duel.cpuSpellTrap;
+    if (side !== pendingTailor.sourceSide) {
+      if (pendingTailor.sourceSide === "player") {
+        playerSpellTrap = removeCardCopies(sourceSpellTrap, pendingTailor.equipId, 1);
+        cpuSpellTrap = [...targetSpellTrap, pendingTailor.equipId];
+      } else {
+        cpuSpellTrap = removeCardCopies(sourceSpellTrap, pendingTailor.equipId, 1);
+        playerSpellTrap = [...targetSpellTrap, pendingTailor.equipId];
+      }
+    }
+    const equipName = cardById.get(pendingTailor.equipId)?.name ?? "装備魔法";
+    const targetName = targetCard.name;
+    setDuel({
+      ...duel,
+      playerHand: duel.playerHand.filter((_, index) => index !== pendingTailor.spellIndex),
+      playerField,
+      cpuField,
+      playerSpellTrap,
+      cpuSpellTrap,
+      playerGraveyard: [...duel.playerGraveyard, "mr-tailor-fickle"],
+      log: appendLog(duel.log, `移り気な仕立屋を発動。${equipName}を${targetName}へ移し替えた。`),
+    });
+    setPendingTailor(null);
   }
 
   function toggleFinalDestinyCard(handIndex: number) {
@@ -2089,7 +2241,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -2112,7 +2264,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -3085,7 +3237,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 128</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 129</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4206,6 +4358,100 @@ export function DuelArena({
           </article>
         </div>
       )}
+      {pendingPainfulChoice && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">SPELL EFFECT</p>
+            <h2>苦渋の選択</h2>
+            <p>デッキから公開するカードを5枚選んでください（選択中 {pendingPainfulChoice.selected.length}/5）。CPUが1枚を選びます。</p>
+            <div className="target-list cannon-target-list">
+              {duel.playerDeck.map((id, index) => (
+                <button className={pendingPainfulChoice.selected.includes(index) ? "selected" : ""} key={`${id}-${index}`} onClick={() => togglePainfulChoiceCard(index)}>
+                  <strong>{cardById.get(id)?.name}</strong>
+                  <small>{pendingPainfulChoice.selected.includes(index) ? "公開候補に選択中" : "タップして選択"}</small>
+                </button>
+              ))}
+            </div>
+            <button disabled={pendingPainfulChoice.selected.length !== 5} onClick={confirmPainfulChoice}>この5枚を公開する</button>
+            <button className="overlay-close" onClick={() => setPendingPainfulChoice(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
+      {pendingTailor && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">QUICK-PLAY SPELL</p>
+            <h2>移り気な仕立屋</h2>
+            {pendingTailor.equipId === null ? (
+              <>
+                <p>移し替える装備魔法を選んでください。</p>
+                <div className="target-list cannon-target-list">
+                  {(["player", "cpu"] as const).flatMap((side) => (side === "player" ? duel.playerField : duel.cpuField).flatMap((zone, index) =>
+                    zone.equipped.filter((id) => cardById.get(id)?.kind === "装備魔法").map((equipId) => (
+                      <button key={`${side}-${index}-${equipId}`} onClick={() => selectTailorEquip(side, index, equipId)}>
+                        <strong>{cardById.get(equipId)?.name}</strong>
+                        <small>{cardById.get(zone.id)?.name}に装備中</small>
+                      </button>
+                    )),
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <p>{cardById.get(pendingTailor.equipId)?.name}の新しい装備先を選んでください。</p>
+                <div className="target-list cannon-target-list">
+                  {(["player", "cpu"] as const).flatMap((side) => (side === "player" ? duel.playerField : duel.cpuField).map((zone, index) => {
+                    const target = cardById.get(zone.id);
+                    const sameSource = side === pendingTailor.sourceSide && index === pendingTailor.sourceIndex;
+                    const crossingIntoFullZone = side !== pendingTailor.sourceSide && (side === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap).length >= FIELD_LIMIT;
+                    if (sameSource || crossingIntoFullZone || zone.faceDown || !target || !canEquip(pendingTailor.equipId!, target)) return null;
+                    return (
+                      <button key={`${side}-${zone.id}-${index}`} onClick={() => resolveTailor(side, index)}>
+                        <strong>{target.name}</strong><small>{side === "player" ? "自分フィールド" : "CPUフィールド"}</small>
+                      </button>
+                    );
+                  }))}
+                </div>
+              </>
+            )}
+            <button className="overlay-close" onClick={() => setPendingTailor(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
+      {pendingDarknessApproaches && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">SPELL EFFECT</p>
+            <h2>闇の訪れ</h2>
+            {pendingDarknessApproaches.discardIndexes.length < 2 ? (
+              <>
+                <p>墓地へ捨てる手札を2枚選んでください（選択中 {pendingDarknessApproaches.discardIndexes.length}/2）。</p>
+                <div className="target-list cannon-target-list">
+                  {duel.playerHand.map((id, index) => index === pendingDarknessApproaches.spellIndex ? null : (
+                    <button className={pendingDarknessApproaches.discardIndexes.includes(index) ? "selected" : ""} key={`${id}-${index}`} onClick={() => toggleDarknessDiscard(index)}>
+                      <strong>{cardById.get(id)?.name}</strong>
+                      <small>{pendingDarknessApproaches.discardIndexes.includes(index) ? "捨てるカードに選択中" : "タップして選択"}</small>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <p>表示形式を変えずに裏側表示にする、表側モンスター1体を選んでください。</p>
+                <div className="target-list cannon-target-list">
+                  {(["player", "cpu"] as const).flatMap((side) => (side === "player" ? duel.playerField : duel.cpuField).map((zone, index) => zone.faceDown ? null : (
+                    <button key={`${side}-${zone.id}-${index}`} onClick={() => resolveDarknessApproaches(side, index)}>
+                      <strong>{cardById.get(zone.id)?.name}</strong>
+                      <small>{side === "player" ? "自分" : "CPU"}・{zone.position === "attack" ? "攻撃表示" : "守備表示"}</small>
+                    </button>
+                  ))) }
+                </div>
+              </>
+            )}
+            <button className="overlay-close" onClick={() => setPendingDarknessApproaches(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
       {pendingSharePain && (
         <div className="card-overlay cannon-soldier-overlay">
           <article className="cannon-soldier-panel">
@@ -4402,6 +4648,9 @@ export function DuelArena({
                         || (card.id === "vol5-soul-release" && duel.playerGraveyard.length + duel.cpuGraveyard.length === 0)
                         || (card.id === "vol5-cheerful-coffin" && !canActivateCheerfulCoffin(duel.playerHand.flatMap((id, handIndex) => handIndex === index ? [] : [cardById.get(id)?.cardType ?? ""])))
                         || (card.id === "vol5-change-heart" && (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT) || !duel.cpuField.some((zone) => !isEffectTargetProtected(duel, "cpu", zone))))
+                        || (card.id === "mr-painful-choice" && duel.playerDeck.length < 5)
+                        || (card.id === "mr-darkness-approaches" && (duel.playerHand.length < 3 || ![...duel.playerField, ...duel.cpuField].some((zone) => !zone.faceDown)))
+                        || (card.id === "mr-tailor-fickle" && ![...duel.playerField, ...duel.cpuField].some((zone) => zone.equipped.some((id) => cardById.get(id)?.kind === "装備魔法")))
                         || ((card.id === "stb-polymerization" || card.id === "vol6-polymerization") && (
                           duel.playerField.length >= FIELD_LIMIT
                           || fusionChoices(
@@ -4432,13 +4681,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -6304,7 +6553,7 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
     const opponentDeck = owner === "player" ? state.cpuDeck : state.playerDeck;
     const milled = opponentDeck.slice(0, 5);
     if (milled.length === 0) return state;
-    return owner === "player"
+    let next: DuelState = owner === "player"
       ? {
           ...state,
           cpuDeck: opponentDeck.slice(milled.length),
@@ -6317,6 +6566,22 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
           playerGraveyard: [...state.playerGraveyard, ...milled],
           log: appendLog(state.log, `${ownerName}のニードルワームがリバース。あなたのデッキ上から${milled.length}枚を墓地へ送った。`),
         };
+    if (milled.includes("mr-penguin-knight")) {
+      next = owner === "player"
+        ? {
+            ...next,
+            cpuDeck: shuffle([...next.cpuDeck, ...next.cpuGraveyard]),
+            cpuGraveyard: [],
+            log: appendLog(next.log, "ペンギン・ナイトの効果が発動。CPUの墓地のカードをすべてデッキに戻してシャッフル。"),
+          }
+        : {
+            ...next,
+            playerDeck: shuffle([...next.playerDeck, ...next.playerGraveyard]),
+            playerGraveyard: [],
+            log: appendLog(next.log, "ペンギン・ナイトの効果が発動。自分の墓地のカードをすべてデッキに戻してシャッフル。"),
+          };
+    }
+    return next;
   }
   if (effect === "reload-five") {
     const playerDraw = state.playerDeck.slice(0, 5);
@@ -6558,6 +6823,20 @@ function strongestHandCardIndex(hand: string[]) {
     }
   });
   return bestIndex;
+}
+
+function weakestHandCardIndex(hand: string[]) {
+  let weakestIndex = 0;
+  let weakestScore = Number.POSITIVE_INFINITY;
+  hand.forEach((id, index) => {
+    const card = cardById.get(id);
+    const score = card?.cardType === "monster" ? (card.atk ?? 0) : card?.rarity === "UR" ? 2600 : card?.rarity === "SR" ? 2300 : 1800;
+    if (score < weakestScore) {
+      weakestScore = score;
+      weakestIndex = index;
+    }
+  });
+  return weakestIndex;
 }
 
 function applyOpponentDiscardTriggers(state: DuelState, owner: Side, discardedIds: string[]) {
@@ -6920,6 +7199,9 @@ function spellDescription(id: string) {
   if (id === "mr-confiscation") return "1000LPを払い、相手の手札を1枚選んで捨てる";
   if (id === "mr-delinquent-duo") return "1000LPを払い、相手の手札を2枚捨てる";
   if (id === "mr-forceful-sentry") return "相手の手札を1枚選んでデッキに戻す";
+  if (id === "mr-painful-choice") return "デッキから5枚を公開し、相手が選んだ1枚を手札へ、残りを墓地へ送る";
+  if (id === "mr-darkness-approaches") return "手札を2枚捨て、表側表示モンスター1体を表示形式を変えずに裏側表示にする";
+  if (id === "mr-tailor-fickle") return "フィールドの装備魔法1枚を、装備可能な別のモンスターへ移し替える";
   if (id === "vol3-stop-defense") return "相手の守備表示モンスター1体を攻撃表示に変更";
   if (id === "vol3-gravedigger-ghoul") return "相手の墓地のモンスターを2体まで除外";
   if (id === "vol4-elegant-egotist") return "ハーピィ・レディがいる時、手札・デッキからハーピィ1体を特殊召喚";
@@ -6964,6 +7246,9 @@ function isSpellImplemented(id: string) {
       "mr-forceful-sentry",
       "mr-rush-recklessly",
       "mr-reliable-guardian",
+      "mr-painful-choice",
+      "mr-darkness-approaches",
+      "mr-tailor-fickle",
       "vol3-stop-defense",
       "vol3-gravedigger-ghoul",
       "vol4-elegant-egotist",
@@ -7023,6 +7308,7 @@ function monsterDescription(id: string) {
   const recipe = fusionRecipe(id);
   if (recipe) return `融合素材：${recipe.map((materialId) => cardById.get(materialId)?.name ?? materialId).join(" ＋ ")}`;
   if (id === "mr-hiros-shadow-scout") return "リバース：相手は3枚ドローし、その中の魔法カードを全て墓地へ捨てる";
+  if (id === "mr-penguin-knight") return "相手のカード効果でデッキから墓地へ送られた時、自分の墓地を全てデッキに戻してシャッフルする";
   if (id === "vol3-reaper-cards") return "リバース：フィールドの罠カード1枚を確認し、罠カードなら破壊する";
   if (id === "vol3-armed-ninja") return "リバース：フィールドの魔法カード1枚を確認し、魔法カードなら破壊する";
   if (id === "vol3-man-eater-bug") return "リバース：フィールドのモンスター1体を破壊する";

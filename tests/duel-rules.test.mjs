@@ -5,7 +5,7 @@ import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption }
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { aileSwordsmanAttackBonus, bottomDeckSelection } from "../app/duel-rules.mjs";
-import { gracefulCharityDraw, selectedCards } from "../app/duel-rules.mjs";
+import { darknessApproachesDiscard, gracefulCharityDraw, resolvePainfulChoice, selectedCards } from "../app/duel-rules.mjs";
 import { justDessertsDamage } from "../app/duel-rules.mjs";
 import { temporaryBattleStatBonus } from "../app/duel-rules.mjs";
 import { canUseUltimateOffering } from "../app/duel-rules.mjs";
@@ -53,6 +53,20 @@ test("天使の施しは3枚引いて選択した2枚を捨てる", () => {
     remaining: ["b", "d"],
     chosen: ["a", "c"],
   });
+});
+
+test("苦渋の選択は選んだ5枚からCPUが1枚を手札へ渡す", () => {
+  assert.deepEqual(resolvePainfulChoice(["a", "b", "c", "d", "e", "f"], [0, 1, 2, 3, 4], 2), {
+    deck: ["f"], handCard: "c", graveCards: ["a", "b", "d", "e"],
+  });
+  assert.equal(resolvePainfulChoice(["a", "b"], [0, 1], 0), null);
+});
+
+test("闇の訪れは発動カード以外の手札2枚を捨てる", () => {
+  assert.deepEqual(darknessApproachesDiscard(["spell", "a", "b", "c"], 0, [1, 3]), {
+    hand: ["b"], discarded: ["a", "c"],
+  });
+  assert.equal(darknessApproachesDiscard(["spell", "a", "b"], 0, [0, 1]), null);
 });
 
 test("自業自得は相手モンスター1体につき500ダメージを与える", () => {

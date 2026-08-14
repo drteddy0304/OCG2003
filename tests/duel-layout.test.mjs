@@ -111,3 +111,15 @@ test("Magic Rulerの能力変化カードは表側モンスターを自分で選
   assert.match(arena, /毒蛇の牙を発動する/);
   assert.match(arena, /mr-hiros-shadow-scout/);
 });
+
+test("苦渋の選択と闇の訪れはコストと対象をプレイヤーが選べる", () => {
+  assert.match(arena, /pendingPainfulChoice/);
+  assert.match(arena, /togglePainfulChoiceCard/);
+  assert.match(arena, /この5枚を公開する/);
+  assert.match(arena, /pendingDarknessApproaches/);
+  assert.match(arena, /toggleDarknessDiscard/);
+  assert.match(arena, /表示形式を変えずに裏側表示/);
+  assert.match(arena, /mr-penguin-knight/);
+  assert.match(arena, /pendingTailor/);
+  assert.match(arena, /移し替える装備魔法を選んでください/);
+});

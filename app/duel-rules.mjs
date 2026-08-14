@@ -342,6 +342,28 @@ export function selectedCards(cards, selectedIndexes) {
   };
 }
 
+export function resolvePainfulChoice(deck, selectedIndexes, chosenIndex) {
+  const unique = [...new Set(selectedIndexes)].sort((a, b) => a - b);
+  if (unique.length !== 5 || unique.some((index) => !Number.isInteger(index) || index < 0 || index >= deck.length)) return null;
+  const selection = selectedCards(deck, unique);
+  if (!Number.isInteger(chosenIndex) || chosenIndex < 0 || chosenIndex >= selection.chosen.length) return null;
+  return {
+    deck: selection.remaining,
+    handCard: selection.chosen[chosenIndex],
+    graveCards: selection.chosen.filter((_, index) => index !== chosenIndex),
+  };
+}
+
+export function darknessApproachesDiscard(hand, spellIndex, discardIndexes) {
+  const unique = [...new Set(discardIndexes)].sort((a, b) => a - b);
+  if (!Number.isInteger(spellIndex) || spellIndex < 0 || spellIndex >= hand.length || unique.length !== 2 || unique.includes(spellIndex)) return null;
+  if (unique.some((index) => !Number.isInteger(index) || index < 0 || index >= hand.length)) return null;
+  return {
+    hand: hand.filter((_, index) => index !== spellIndex && !unique.includes(index)),
+    discarded: unique.map((index) => hand[index]),
+  };
+}
+
 export function justDessertsDamage(monsterCount) {
   return Number.isInteger(monsterCount) && monsterCount > 0 ? monsterCount * 500 : 0;
 }

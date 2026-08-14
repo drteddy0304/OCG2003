@@ -91,6 +91,8 @@ export function aileSwordsmanAttackBonus(boostTurn: number | undefined, tributeC
 export function bottomDeckSelection(cards: string[], selectedIndexes: number[]): { remaining: string[]; bottom: string[] };
 export function gracefulCharityDraw(hand: string[], deck: string[]): { hand: string[]; deck: string[] } | null;
 export function selectedCards(cards: string[], selectedIndexes: number[]): { remaining: string[]; chosen: string[] };
+export function resolvePainfulChoice(deck: string[], selectedIndexes: number[], chosenIndex: number): { deck: string[]; handCard: string; graveCards: string[] } | null;
+export function darknessApproachesDiscard(hand: string[], spellIndex: number, discardIndexes: number[]): { hand: string[]; discarded: string[] } | null;
 export function justDessertsDamage(monsterCount: number): number;
 export function temporaryBattleStatBonus(effectTurn: number | undefined, currentTurn: number | undefined, amount?: number): number;
 export function canUseUltimateOffering(lifePoints: number, normalSummoned: boolean, fieldCount: number, hasSummonCandidate: boolean, fieldLimit?: number): boolean;
