@@ -123,3 +123,11 @@ test("苦渋の選択と闇の訪れはコストと対象をプレイヤーが�
   assert.match(arena, /pendingTailor/);
   assert.match(arena, /移し替える装備魔法を選んでください/);
 });
+
+test("六芒星の呪縛は対象を選び攻撃と表示形式変更を封じる", () => {
+  assert.match(arena, /pendingSpellbindingCircle/);
+  assert.match(arena, /六芒星の呪縛の対象を選択/);
+  assert.match(arena, /isSpellbindingCircleLocked/);
+  assert.match(arena, /六芒星の呪縛・攻撃／表示変更不可/);
+  assert.match(arena, /cleanupSpellbindingCircles/);
+});

@@ -177,6 +177,7 @@ type ZoneCard = {
   blastPromptedTurn?: number;
   cocoonEquippedTurn?: number;
   controlReturn?: Side;
+  spellbindingCircleOwner?: Side;
   revivedByMonsterReborn?: boolean;
   catapultUsedTurn?: number;
   barrelUsedTurn?: number;
@@ -286,6 +287,7 @@ export function DuelArena({
   const [pendingFinalDestiny, setPendingFinalDestiny] = useState<{ spellIndex: number; selected: number[] } | null>(null);
   const [pendingSharePain, setPendingSharePain] = useState<PendingSharePain | null>(null);
   const [pendingTemporaryStat, setPendingTemporaryStat] = useState<PendingTemporaryStat | null>(null);
+  const [pendingSpellbindingCircle, setPendingSpellbindingCircle] = useState<number | null>(null);
   const [pendingPainfulChoice, setPendingPainfulChoice] = useState<PendingPainfulChoice | null>(null);
   const [pendingDarknessApproaches, setPendingDarknessApproaches] = useState<PendingDarknessApproaches | null>(null);
   const [pendingTailor, setPendingTailor] = useState<PendingTailor | null>(null);
@@ -357,6 +359,7 @@ export function DuelArena({
     && pendingFinalDestiny === null
     && pendingSharePain === null
     && pendingTemporaryStat === null
+    && pendingSpellbindingCircle === null
     && pendingPainfulChoice === null
     && pendingDarknessApproaches === null
     && pendingTailor === null
@@ -458,6 +461,7 @@ export function DuelArena({
     setPendingSharePain(null);
     setPendingMatangoTransfer(null);
     setPendingStopAttack(null);
+    setPendingSpellbindingCircle(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -649,6 +653,7 @@ export function DuelArena({
     if (!duel || !isPlayerMainPhase || duel.result || pendingTribute || pendingReborn !== null || pendingDeSpell !== null) return;
     const zone = duel.playerField[index];
     if (!zone || zone.attacked || zone.positionChanged || zone.summonedTurn === duel.turnNumber) return;
+    if (isSpellbindingCircleLocked(duel, zone)) return;
     if (isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(duel))) return;
     const nextPosition: Position = zone.position === "defense" ? "attack" : "defense";
     let next: DuelState = {
@@ -1200,6 +1205,29 @@ export function DuelArena({
     setPendingTemporaryStat({ cardId: "mr-snake-fang", source: "trap", sourceIndex: trapIndex });
     setSelectedAttacker(null);
     setSelectedEquip(null);
+  }
+
+  function beginSpellbindingCircle(trapIndex: number) {
+    if (!duel || !isPlayerMainPhase || areTrapEffectsNegated(duel) || duel.playerSpellTrap[trapIndex] !== "mr-spellbinding-circle") return;
+    if (hasSpellbindingCircleTarget(duel, "player")) return;
+    if (!duel.cpuField.some((zone) => !zone.faceDown && !isEffectTargetProtected(duel, "cpu", zone))) return;
+    setPendingSpellbindingCircle(trapIndex);
+    setSelectedAttacker(null);
+    setSelectedEquip(null);
+  }
+
+  function resolveSpellbindingCircle(targetIndex: number) {
+    if (!duel || pendingSpellbindingCircle === null || duel.playerSpellTrap[pendingSpellbindingCircle] !== "mr-spellbinding-circle") return;
+    const target = duel.cpuField[targetIndex];
+    if (!target || target.faceDown || isEffectTargetProtected(duel, "cpu", target)) return;
+    const targetName = cardById.get(target.id)?.name ?? "モンスター";
+    setDuel({
+      ...duel,
+      cpuField: duel.cpuField.map((zone, index) => index === targetIndex ? { ...zone, spellbindingCircleOwner: "player" } : zone),
+      playerActiveTraps: [...new Set([...duel.playerActiveTraps, "mr-spellbinding-circle"])],
+      log: appendLog(duel.log, `六芒星の呪縛を発動。${targetName}の攻撃と表示形式の変更を封じた。`),
+    });
+    setPendingSpellbindingCircle(null);
   }
 
   function resolveTemporaryStat(side: Side, targetIndex: number) {
@@ -2190,7 +2218,7 @@ export function DuelArena({
   function chooseAttacker(index: number) {
     if (!duel || duel.turn !== "player" || duel.phase !== "battle" || duel.turnNumber === 1 || duel.result || duel.cpuSwordsTurns.length > 0) return;
     const zone = duel.playerField[index];
-    if (!zone || zone.position !== "attack" || zone.attacked || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || duelAttackPayment(duel, "player", zone.id) === null) return;
+    if (!zone || zone.position !== "attack" || zone.attacked || isSpellbindingCircleLocked(duel, zone) || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || duelAttackPayment(duel, "player", zone.id) === null) return;
     if (duel.cpuField.length === 0) {
       resolvePlayerAttack(index, null);
       setSelectedAttacker(null);
@@ -2249,7 +2277,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "main1") {
@@ -2281,7 +2309,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -2304,6 +2332,7 @@ export function DuelArena({
     playerEnd = resolveIronScorpionEndPhase(playerEnd);
     playerEnd = returnWormBeastAtEndPhase(playerEnd, "player");
     playerEnd = returnChangedMonsters(playerEnd);
+    playerEnd = cleanupSpellbindingCircles(playerEnd);
     const matangoIndex = nextPlayerMatangoTransferIndex(playerEnd);
     if (matangoIndex !== null) {
       setDuel(playerEnd);
@@ -3254,7 +3283,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 130</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 131</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3703,6 +3732,24 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingSpellbindingCircle !== null && (
+        <div className="card-overlay">
+          <article>
+            <p className="section-label">CONTINUOUS TRAP</p>
+            <h2>六芒星の呪縛の対象を選択</h2>
+            <p>攻撃と表示形式の変更を封じる、CPUの表側表示モンスターを選んでください。</p>
+            <div className="spell-target-list">
+              {duel.cpuField.map((zone, index) => zone.faceDown || isEffectTargetProtected(duel, "cpu", zone) ? null : (
+                <button key={`${zone.id}-${index}`} onClick={() => resolveSpellbindingCircle(index)}>
+                  <strong>{cardById.get(zone.id)?.name}</strong>
+                  <small>ATK {effectiveAtk(zone, duel, "cpu")} / DEF {effectiveDef(zone, duel, "cpu")}</small>
+                </button>
+              ))}
+            </div>
+            <button className="secondary" onClick={() => setPendingSpellbindingCircle(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
       {pendingTemporaryStat && (
         <div className="card-overlay spell-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -4080,6 +4127,7 @@ export function DuelArena({
               && !zone.attacked
               && !zone.positionChanged
               && zone.summonedTurn !== duel.turnNumber
+              && !isSpellbindingCircleLocked(duel, zone)
               && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(duel))
             );
           }}
@@ -4129,6 +4177,9 @@ export function DuelArena({
           )}
         {isPlayerMainPhase && !areTrapEffectsNegated(duel) && duel.playerSpellTrap.map((id, index) => id === "mr-snake-fang" ? (
           <button className="effect-action-button" key={`snake-fang-${index}`} onClick={() => beginSnakeFang(index)}>毒蛇の牙を発動する</button>
+        ) : null)}
+        {isPlayerMainPhase && !areTrapEffectsNegated(duel) && !hasSpellbindingCircleTarget(duel, "player") && duel.cpuField.some((zone) => !zone.faceDown && !isEffectTargetProtected(duel, "cpu", zone)) && duel.playerSpellTrap.map((id, index) => id === "mr-spellbinding-circle" ? (
+          <button className="effect-action-button" key={`spellbinding-circle-${index}`} onClick={() => beginSpellbindingCircle(index)}>六芒星の呪縛を発動する</button>
         ) : null)}
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
@@ -4698,13 +4749,13 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {duel.phase !== "main2" && (
-            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -4826,6 +4877,7 @@ function FieldRow({
         const attackLocked = !canDeclareAttackOnTurn(zone.attackLockedTurn, state.turnNumber);
         const cannotPayAttackCost = owner === "player" && duelAttackPayment(state, "player", zone.id) === null;
         const paralyzed = paralyzingPotionPreventsAttack(zone.equipped);
+        const spellbound = isSpellbindingCircleLocked(state, zone);
         const scorpionTurns = zone.ironScorpionDestroyTurn === undefined
           ? null
           : Math.max(0, Math.ceil((zone.ironScorpionDestroyTurn - state.turnNumber) / 2));
@@ -4838,7 +4890,7 @@ function FieldRow({
           <div className="field-slot" key={`${zone.id}-${index}`}>
             <button
               className={`field-card ${zone.position} field-card-${owner} ${selectedTarget || validEquipTarget || tributeTarget ? "targetable" : ""} ${selectedTributes.includes(index) ? "tribute-selected" : ""}`}
-              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || !canAttack || zone.position !== "attack" || zone.attacked || attackLocked || paralyzed || cannotPayAttackCost}
+              disabled={tributeTarget ? false : equipTarget ? !validEquipTarget : selectedTarget ? !onTarget : owner === "cpu" || !canAttack || zone.position !== "attack" || zone.attacked || attackLocked || paralyzed || spellbound || cannotPayAttackCost}
               onClick={() => tributeTarget ? onTribute?.(index) : equipTarget ? onEquip?.(index) : selectedTarget ? onTarget?.(index) : onAttack?.(index)}
             >
               <strong>{hidden ? "伏せモンスター" : card.name}</strong>
@@ -4848,12 +4900,13 @@ function FieldRow({
               {!hidden && card.effect && <small className="field-effect-badge">効果モンスター</small>}
               {!hidden && attackLocked && <small className="field-effect-badge">でんきトカゲ・攻撃不可</small>}
               {!hidden && paralyzed && <small className="field-effect-badge">しびれ薬・攻撃不可</small>}
+              {!hidden && spellbound && <small className="field-effect-badge">六芒星の呪縛・攻撃／表示変更不可</small>}
               {!hidden && zone.id === "vol7-dark-elf" && <small className="field-effect-badge">攻撃時1000LP</small>}
               {!hidden && scorpionTurns !== null && <small className="field-effect-badge">鉄のサソリ・あと{scorpionTurns}自ターン</small>}
               {!hidden && swordsmanTurns !== null && <small className="field-effect-badge">異国の剣士・あと{swordsmanTurns}ターン</small>}
               {!hidden && zone.controlReturn === "cpu" && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
-              {owner === "player" && zone.position === "attack" && <small>{paralyzed ? "しびれ薬で攻撃不可" : attackLocked ? "次のターンまで攻撃不可" : cannotPayAttackCost ? "LP不足で攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
+              {owner === "player" && zone.position === "attack" && <small>{spellbound ? "六芒星の呪縛で攻撃不可" : paralyzed ? "しびれ薬で攻撃不可" : attackLocked ? "次のターンまで攻撃不可" : cannotPayAttackCost ? "LP不足で攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
             </button>
             {showPositionChange && (
               <button className="position-change" onClick={() => onPositionChange?.(index)}>
@@ -5017,6 +5070,43 @@ function applyControlChangeLifeTrigger(state: DuelState, monsterId: string, orig
     result: playerLp === 0 ? "lose" : cpuLp === 0 ? "win" : state.result,
     log: appendLog(state.log, `${cardName}のコントロール移動時効果が発動。${detail}`),
   };
+}
+
+function hasSpellbindingCircleTarget(state: DuelState, owner: Side) {
+  return [...state.playerField, ...state.cpuField].some((zone) => zone.spellbindingCircleOwner === owner);
+}
+
+function isSpellbindingCircleLocked(state: DuelState, zone: ZoneCard) {
+  const owner = zone.spellbindingCircleOwner;
+  if (!owner) return false;
+  const spellTrap = owner === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
+  const activeTraps = owner === "player" ? state.playerActiveTraps : state.cpuActiveTraps;
+  return spellTrap.includes("mr-spellbinding-circle") && activeTraps.includes("mr-spellbinding-circle") && !areTrapEffectsNegated(state);
+}
+
+function cleanupSpellbindingCircles(state: DuelState): DuelState {
+  let next = state;
+  (["player", "cpu"] as const).forEach((owner) => {
+    const spellTrapKey = owner === "player" ? "playerSpellTrap" : "cpuSpellTrap";
+    const activeTrapKey = owner === "player" ? "playerActiveTraps" : "cpuActiveTraps";
+    const graveyardKey = owner === "player" ? "playerGraveyard" : "cpuGraveyard";
+    const hasTarget = hasSpellbindingCircleTarget(next, owner);
+    const isActive = next[activeTrapKey].includes("mr-spellbinding-circle");
+    const remainsOnField = next[spellTrapKey].includes("mr-spellbinding-circle");
+    if (hasTarget && isActive && remainsOnField) return;
+    if (!hasTarget && !isActive) return;
+    const sendOrphanToGrave = !hasTarget && isActive && remainsOnField;
+    next = {
+      ...next,
+      playerField: next.playerField.map((zone) => zone.spellbindingCircleOwner === owner ? { ...zone, spellbindingCircleOwner: undefined } : zone),
+      cpuField: next.cpuField.map((zone) => zone.spellbindingCircleOwner === owner ? { ...zone, spellbindingCircleOwner: undefined } : zone),
+      [spellTrapKey]: sendOrphanToGrave ? removeCardCopies(next[spellTrapKey], "mr-spellbinding-circle", 1) : next[spellTrapKey],
+      [activeTrapKey]: isActive ? removeCardCopies(next[activeTrapKey], "mr-spellbinding-circle", 1) : next[activeTrapKey],
+      [graveyardKey]: sendOrphanToGrave ? [...next[graveyardKey], "mr-spellbinding-circle"] : next[graveyardKey],
+      log: sendOrphanToGrave ? appendLog(next.log, "対象がいなくなったため六芒星の呪縛を墓地へ送った。") : next.log,
+    };
+  });
+  return next;
 }
 
 function returnChangedMonsters(state: DuelState): DuelState {
@@ -5203,7 +5293,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   } else {
     for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingMultiTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingReverseTrap && !state.pendingBattleStatTrap && !state.pendingKuribohResponse && !state.pendingWabokuResponse; index -= 1) {
       const attacker = state.cpuField[index];
-      if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(attacker.equipped) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
+      if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(attacker.equipped) || isSpellbindingCircleLocked(state, attacker) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber)) continue;
       if (duelAttackPayment(state, "cpu", attacker.id) === null) continue;
       if (state.playerField.length === 0) {
         const mirrorForceIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol7-mirror-force");
@@ -5278,6 +5368,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   state = resolveIronScorpionEndPhase(state);
   state = returnWormBeastAtEndPhase(state, "cpu");
   state = transferCpuMatangos(state);
+  state = cleanupSpellbindingCircles(state);
   state = clearSwappedStats(state);
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
@@ -7372,11 +7463,12 @@ function trapDescription(id: string) {
   if (id === "bo6-magic-thorn") return "相手が効果で手札を捨てるたび、1枚につき500ダメージ";
   if (id === "bo7-griffin-wing") return "相手のハーピィの羽根帚にチェーンし、代わりに相手の魔法・罠を破壊する";
   if (id === "mr-snake-fang") return "表側表示モンスター1体のDEFをターン終了まで500ダウン";
+  if (id === "mr-spellbinding-circle") return "相手の表側表示モンスター1体の攻撃と表示形式の変更を封じる";
   return "効果処理は次の更新で対応";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "ex-040";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {
