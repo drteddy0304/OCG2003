@@ -163,9 +163,10 @@ export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set" | "opponent-draw-three-discard-spells";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle";
 
 export function flipEffect(id: string): FlipEffect | null;
+export function controlChangeLifeEffect(id: string): { newControllerDamage: number; originalOwnerGain: number } | null;
 export function phantomWallReturnsAttacker(defenderId: string, attackerDestroyed: boolean): boolean;
 export function dragonTargetProtected(targetKind: string, targetFaceDown: boolean, faceUpLordCount: number): boolean;
 export function isDragonCaptureJarLocked(kind: string | undefined, faceDown: boolean, jarActive: boolean): boolean;

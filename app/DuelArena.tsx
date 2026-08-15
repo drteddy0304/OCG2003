@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -206,6 +206,8 @@ type DuelState = {
   cpuSpellTrap: string[];
   cpuFieldSpell: string | null;
   cpuSwordsTurns: number[];
+  playerExtraBattles: number;
+  cpuExtraBattles: number;
   playerGraveyard: string[];
   cpuGraveyard: string[];
   playerLp: number;
@@ -474,6 +476,8 @@ export function DuelArena({
       cpuSpellTrap: [],
       cpuFieldSpell: null,
       cpuSwordsTurns: [],
+      playerExtraBattles: 0,
+      cpuExtraBattles: 0,
       playerGraveyard: [],
       cpuGraveyard: [],
       playerLp: STARTING_LP,
@@ -1773,7 +1777,7 @@ export function DuelArena({
     const target = duel.cpuField[targetIndex];
     if (!target || isEffectTargetProtected(duel, "cpu", target)) return;
     const targetName = cardById.get(target.id)?.name ?? "モンスター";
-    setDuel({
+    const changedState = {
       ...removeHandCard(duel, pendingChangeOfHeart),
       playerField: [
         ...duel.playerField,
@@ -1782,7 +1786,11 @@ export function DuelArena({
       cpuField: duel.cpuField.filter((_, index) => index !== targetIndex),
       playerGraveyard: [...duel.playerGraveyard, "vol5-change-heart"],
       log: appendLog(duel.log, `心変わりを発動。${targetName}のコントロールをターン終了時まで得た。`),
-    });
+    };
+    const changed = target.faceDown
+      ? changedState
+      : applyControlChangeLifeTrigger(changedState, target.id, "cpu", "player");
+    setDuel(changed);
     setPendingChangeOfHeart(null);
   }
 
@@ -2257,6 +2265,15 @@ export function DuelArena({
       return;
     }
     if (duel.phase === "battle") {
+      if (duel.playerExtraBattles > 0) {
+        setDuel({
+          ...duel,
+          playerExtraBattles: duel.playerExtraBattles - 1,
+          playerField: duel.playerField.map((zone) => ({ ...zone, attacked: false })),
+          log: appendLog(duel.log, "ウェザー・レポートの効果で、2回目のバトルフェイズを開始。"),
+        });
+        return;
+      }
       setDuel({ ...duel, phase: "main2", log: appendLog(duel.log, "メインフェイズ2へ。") });
       return;
     }
@@ -3237,7 +3254,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 129</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 130</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4976,6 +4993,32 @@ function openBlastJugglerPrompt(state: DuelState): DuelState {
     : { ...state, pendingBlastJuggler: { monsterIndex, selected: [] } };
 }
 
+function applyControlChangeLifeTrigger(state: DuelState, monsterId: string, originalOwner: Side, newController: Side): DuelState {
+  const effect = controlChangeLifeEffect(monsterId);
+  if (!effect) return state;
+  let playerLp = state.playerLp;
+  let cpuLp = state.cpuLp;
+  if (effect.newControllerDamage > 0) {
+    if (newController === "player") playerLp = Math.max(0, playerLp - effect.newControllerDamage);
+    else cpuLp = Math.max(0, cpuLp - effect.newControllerDamage);
+  }
+  if (effect.originalOwnerGain > 0) {
+    if (originalOwner === "player") playerLp += effect.originalOwnerGain;
+    else cpuLp += effect.originalOwnerGain;
+  }
+  const cardName = cardById.get(monsterId)?.name ?? "モンスター";
+  const detail = effect.newControllerDamage > 0
+    ? `${newController === "player" ? "あなた" : "CPU"}に${effect.newControllerDamage}ダメージ。`
+    : `${originalOwner === "player" ? "あなた" : "CPU"}が${effect.originalOwnerGain}LP回復。`;
+  return {
+    ...state,
+    playerLp,
+    cpuLp,
+    result: playerLp === 0 ? "lose" : cpuLp === 0 ? "win" : state.result,
+    log: appendLog(state.log, `${cardName}のコントロール移動時効果が発動。${detail}`),
+  };
+}
+
 function returnChangedMonsters(state: DuelState): DuelState {
   const returning = state.playerField.filter((zone) => zone.controlReturn === "cpu");
   if (returning.length === 0) return state;
@@ -5223,6 +5266,14 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     }
   }
   if (state.result || state.pendingFlipTarget || state.pendingMultiTarget || state.pendingDeckReorder || state.pendingDeckSearch || state.pendingGuardianResponse || state.pendingMirrorForce || state.pendingReverseTrap || state.pendingBattleStatTrap || state.pendingKuribohResponse || state.pendingWabokuResponse) return state;
+  if (state.cpuExtraBattles > 0) {
+    return finishCpuTurn({
+      ...state,
+      cpuExtraBattles: state.cpuExtraBattles - 1,
+      cpuField: state.cpuField.map((zone) => ({ ...zone, attacked: false })),
+      log: appendLog(state.log, "ウェザー・レポートの効果で、CPUが2回目のバトルフェイズを開始。"),
+    }, true);
+  }
 
   state = resolveIronScorpionEndPhase(state);
   state = returnWormBeastAtEndPhase(state, "cpu");
@@ -6418,6 +6469,30 @@ function continuePendingFlipQueue(state: DuelState): DuelState {
 function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): DuelState {
   const ownerName = owner === "player" ? "あなた" : "CPU";
   const effect = flipEffect(monsterId);
+  if (effect === "destroy-swords-extra-battle") {
+    const targetSpellTrap = owner === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
+    const destroyed = targetSpellTrap.filter((id) => id === "vol2-swords-revealing-light").length;
+    if (destroyed === 0) {
+      return { ...state, log: appendLog(state.log, `${ownerName}のウェザー・レポートがリバース。破壊できる光の護封剣はなかった。`) };
+    }
+    return owner === "player"
+      ? {
+          ...state,
+          cpuSpellTrap: removeCardCopies(state.cpuSpellTrap, "vol2-swords-revealing-light", destroyed),
+          cpuSwordsTurns: [],
+          cpuGraveyard: [...state.cpuGraveyard, ...Array(destroyed).fill("vol2-swords-revealing-light")],
+          playerExtraBattles: state.playerExtraBattles + 1,
+          log: appendLog(state.log, `あなたのウェザー・レポートがリバース。CPUの光の護封剣を${destroyed}枚破壊し、次のバトルフェイズを2回行える。`),
+        }
+      : {
+          ...state,
+          playerSpellTrap: removeCardCopies(state.playerSpellTrap, "vol2-swords-revealing-light", destroyed),
+          playerSwordsTurns: [],
+          playerGraveyard: [...state.playerGraveyard, ...Array(destroyed).fill("vol2-swords-revealing-light")],
+          cpuExtraBattles: state.cpuExtraBattles + 1,
+          log: appendLog(state.log, `CPUのウェザー・レポートがリバース。あなたの光の護封剣を${destroyed}枚破壊し、次のバトルフェイズを2回行える。`),
+        };
+  }
   if (effect === "inspect-all-set") {
     const opponentField = owner === "player" ? state.cpuField : state.playerField;
     const opponentSpellTrap = owner === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
@@ -7307,6 +7382,9 @@ function isTrapImplemented(id: string) {
 function monsterDescription(id: string) {
   const recipe = fusionRecipe(id);
   if (recipe) return `融合素材：${recipe.map((materialId) => cardById.get(materialId)?.name ?? materialId).join(" ＋ ")}`;
+  if (id === "mr-ameba") return "表側表示でコントロールが相手に移った時、そのコントローラーに2000ダメージ";
+  if (id === "mr-griggle") return "表側表示でコントロールが相手に移った時、元々の持ち主は3000LP回復";
+  if (id === "mr-weather-report") return "リバース：相手の光の護封剣を全て破壊し、このターンのバトルフェイズを2回行う";
   if (id === "mr-hiros-shadow-scout") return "リバース：相手は3枚ドローし、その中の魔法カードを全て墓地へ捨てる";
   if (id === "mr-penguin-knight") return "相手のカード効果でデッキから墓地へ送られた時、自分の墓地を全てデッキに戻してシャッフルする";
   if (id === "vol3-reaper-cards") return "リバース：フィールドの罠カード1枚を確認し、罠カードなら破壊する";

@@ -456,6 +456,7 @@ export function firstFaceUpTrapIndex(ids) {
 }
 
 const flipEffects = Object.freeze({
+  "mr-weather-report": "destroy-swords-extra-battle",
   "mr-hiros-shadow-scout": "opponent-draw-three-discard-spells",
   "vol6-dragon-piper": "destroy-dragon-jar",
   "vol3-reaper-cards": "destroy-trap",
@@ -479,6 +480,12 @@ const flipEffects = Object.freeze({
 
 export function flipEffect(id) {
   return flipEffects[id] ?? null;
+}
+
+export function controlChangeLifeEffect(id) {
+  if (id === "mr-ameba") return { newControllerDamage: 2000, originalOwnerGain: 0 };
+  if (id === "mr-griggle") return { newControllerDamage: 0, originalOwnerGain: 3000 };
+  return null;
 }
 
 export function phantomWallReturnsAttacker(defenderId, attackerDestroyed) {

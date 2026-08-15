@@ -12,6 +12,14 @@ import { canUseUltimateOffering } from "../app/duel-rules.mjs";
 import { reverseAdjustedStat } from "../app/duel-rules.mjs";
 import { phantomWallReturnsAttacker } from "../app/duel-rules.mjs";
 import { dragonTargetProtected } from "../app/duel-rules.mjs";
+import { controlChangeLifeEffect } from "../app/duel-rules.mjs";
+
+test("Magic Rulerのコントロール移動・リバース効果を判定する", () => {
+  assert.deepEqual(controlChangeLifeEffect("mr-ameba"), { newControllerDamage: 2000, originalOwnerGain: 0 });
+  assert.deepEqual(controlChangeLifeEffect("mr-griggle"), { newControllerDamage: 0, originalOwnerGain: 3000 });
+  assert.equal(controlChangeLifeEffect("mr-metal-fish"), null);
+  assert.equal(flipEffect("mr-weather-report"), "destroy-swords-extra-battle");
+});
 
 test("EXのリバース・戦闘効果を判定する", () => {
   assert.equal(flipEffect("ex-033"), "inspect-all-set");
