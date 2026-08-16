@@ -533,6 +533,10 @@ export function snatchStealStandbyGain(activeCount) {
   return Math.max(0, Math.trunc(activeCount)) * 1000;
 }
 
+export function curseOfFiendPosition(position) {
+  return position === "attack" ? "defense" : "attack";
+}
+
 export function canTransferMatango(lifePoints, opponentFieldCount, fieldLimit = 5) {
   return lifePoints > 500 && opponentFieldCount < fieldLimit;
 }
@@ -736,7 +740,8 @@ export const competitiveCpuDeck = Object.freeze([
   "mr-maha-vailo",
   "vol7-robbin-goblin",
   "vol5-white-magical-hat",
-  ...Array(3).fill("vol3-skull-red-bird"),
+  ...Array(2).fill("vol3-skull-red-bird"),
+  "mr-curse-fiend",
   "vol7-rainbow-fish",
   "vol1-gaia",
   "vol7-barrel-dragon",

@@ -10,6 +10,7 @@ import { bestFusionChoice, canSelectFusionMaterial, fusionChoices, fusionMateria
 import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption } from "./duel-rules.mjs";
 import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mjs";
 import { snatchStealStandbyGain } from "./duel-rules.mjs";
+import { curseOfFiendPosition } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -20,7 +21,7 @@ const FIELD_LIMIT = 5;
 type Position = "attack" | "defense";
 type Side = "player" | "cpu";
 type Result = "win" | "lose" | "draw" | null;
-type Phase = "main1" | "battle" | "main2";
+type Phase = "standby" | "main1" | "battle" | "main2";
 type PendingTribute = {
   handIndex: number;
   position: Position;
@@ -492,7 +493,7 @@ export function DuelArena({
       cpuLp: STARTING_LP,
       turn: "player",
       turnNumber: 1,
-      phase: "main1",
+      phase: "standby",
       normalSummoned: false,
       reverseTrapTurn: null,
       reverseTrapDeclinedTurn: null,
@@ -707,9 +708,27 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null) return;
+    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
+    const curseOfFiendStandby = card.id === "mr-curse-fiend" && duel.phase === "standby";
+    if (!isPlayerMainPhase && !curseOfFiendStandby) return;
+    if (card.id === "mr-curse-fiend") {
+      const revealed: PendingFlipQueueItem[] = [
+        ...duel.playerField.filter((zone) => zone.position === "defense" && zone.faceDown).map((zone) => ({ owner: "player" as Side, monsterId: zone.id })),
+        ...duel.cpuField.filter((zone) => zone.position === "defense" && zone.faceDown).map((zone) => ({ owner: "cpu" as Side, monsterId: zone.id })),
+      ];
+      let next: DuelState = {
+        ...removeHandCard(duel, handIndex),
+        playerField: switchAllMonsterPositions(duel.playerField, duel.turnNumber),
+        cpuField: switchAllMonsterPositions(duel.cpuField, duel.turnNumber),
+        playerGraveyard: [...duel.playerGraveyard, card.id],
+        log: appendLog(duel.log, "邪悪な儀式を発動。全モンスターの表示形式を入れ替え、このターンの表示形式変更を封じた。"),
+      };
+      next = resolveFlipItems(next, revealed);
+      setDuel(next);
+      return;
+    }
     if (FIELD_SPELL_IDS.includes(card.id)) {
       const oldFieldSpell = duel.playerFieldSpell;
       setDuel({
@@ -2308,6 +2327,10 @@ export function DuelArena({
     if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
+    if (duel.phase === "standby") {
+      setDuel({ ...duel, phase: "main1", log: appendLog(duel.log, "スタンバイフェイズ終了。メインフェイズ1へ。") });
+      return;
+    }
     if (duel.phase === "main1") {
       const nextPhase: Phase = duel.turnNumber === 1 ? "main2" : "battle";
       setDuel({
@@ -3312,7 +3335,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 133</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 134</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3361,7 +3384,7 @@ export function DuelArena({
           ["MAIN 2", "メイン2"],
           ["END", "エンド"],
         ].map(([english, japanese], index) => {
-          const activeIndex = duel.phase === "main1" ? 2 : duel.phase === "battle" ? 3 : 4;
+          const activeIndex = duel.phase === "standby" ? 1 : duel.phase === "main1" ? 2 : duel.phase === "battle" ? 3 : 4;
           return (
             <div className={index === activeIndex ? "active" : index < activeIndex ? "done" : ""} key={english}>
               <b>{english}</b><span>{japanese}</span>
@@ -3370,6 +3393,7 @@ export function DuelArena({
         })}
       </div>
       <p className="phase-help">
+        {duel.phase === "standby" && "スタンバイフェイズです。「邪悪な儀式」を発動するか、メイン1へ進んでください。"}
         {duel.phase === "main1" && "召喚・セット・魔法・罠・表示変更ができます。"}
         {duel.phase === "battle" && (duel.cpuSwordsTurns.length > 0
           ? "CPUの光の護封剣により、このターンは攻撃できません。"
@@ -4715,7 +4739,7 @@ export function DuelArena({
                     <button
                       disabled={
                         !isSpellImplemented(card.id)
-                        || !isPlayerMainPhase
+                        || (!isPlayerMainPhase && !(card.id === "mr-curse-fiend" && duel.phase === "standby"))
                         || pendingTribute !== null
                         || pendingReborn !== null
                         || pendingDeSpell !== null
@@ -4779,11 +4803,13 @@ export function DuelArena({
         </div>
         <div className="phase-actions">
           <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
-            {duel.phase === "main1"
+            {duel.phase === "standby"
+              ? "メイン1へ"
+              : duel.phase === "main1"
               ? duel.turnNumber === 1 ? "メイン2へ" : "バトルへ"
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
-          {duel.phase !== "main2" && (
+          {(duel.phase === "main1" || duel.phase === "battle") && (
             <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
@@ -4965,6 +4991,8 @@ function runCpuTurn(initial: DuelState): DuelState {
   state = applyGermInfectionStandby(state, "cpu");
   state = applyPatrolRoboStandby(state, "cpu");
   if (state.result) return state;
+  state = useCpuCurseOfFiend(state);
+  if (state.pendingFlipTarget || state.pendingMultiTarget || state.pendingDeckReorder || state.pendingDeckSearch) return state;
   state = playCpuNormalSpells(state);
   if (state.result || state.pendingAntiRaigeki || state.pendingSpellSpecificTrap || state.pendingMagicJammer || state.pendingSolemnJudgment || state.pendingFlipTarget) return state;
   return continueCpuTurnAfterSpells(state);
@@ -5210,6 +5238,42 @@ function applySnatchStealStandby(state: DuelState, side: Side): DuelState {
     [lifeKey]: state[lifeKey] + gain,
     log: appendLog(state.log, `「強奪」の効果で${side === "player" ? "プレイヤー" : "CPU"}が${gain}LP回復。`),
   };
+}
+
+function switchAllMonsterPositions(field: ZoneCard[], currentTurn: number): ZoneCard[] {
+  return field.map((zone) => ({
+    ...zone,
+    position: curseOfFiendPosition(zone.position),
+    faceDown: false,
+    faceUpTurn: zone.faceDown ? currentTurn : zone.faceUpTurn,
+    positionChanged: true,
+  }));
+}
+
+function curseOfFiendPositionScore(state: DuelState) {
+  const sideGain = (field: ZoneCard[], side: Side) => field.reduce((total, zone) => {
+    const current = zone.position === "attack" ? effectiveAtk(zone, state, side) : effectiveDef(zone, state, side);
+    const switched = zone.position === "attack" ? effectiveDef(zone, state, side) : effectiveAtk(zone, state, side);
+    return total + switched - current;
+  }, 0);
+  return sideGain(state.cpuField, "cpu") - sideGain(state.playerField, "player");
+}
+
+function useCpuCurseOfFiend(state: DuelState): DuelState {
+  if (!state.cpuHand.includes("mr-curse-fiend") || curseOfFiendPositionScore(state) <= 0) return state;
+  const revealed: PendingFlipQueueItem[] = [
+    ...state.playerField.filter((zone) => zone.position === "defense" && zone.faceDown).map((zone) => ({ owner: "player" as Side, monsterId: zone.id })),
+    ...state.cpuField.filter((zone) => zone.position === "defense" && zone.faceDown).map((zone) => ({ owner: "cpu" as Side, monsterId: zone.id })),
+  ];
+  let next: DuelState = {
+    ...removeCpuHandCard(state, "mr-curse-fiend"),
+    playerField: switchAllMonsterPositions(state.playerField, state.turnNumber),
+    cpuField: switchAllMonsterPositions(state.cpuField, state.turnNumber),
+    cpuGraveyard: [...state.cpuGraveyard, "mr-curse-fiend"],
+    log: appendLog(state.log, "CPUがスタンバイフェイズに邪悪な儀式を発動。全モンスターの表示形式を入れ替えた。"),
+  };
+  next = resolveFlipItems(next, revealed);
+  return next;
 }
 
 function returnChangedMonsters(state: DuelState): DuelState {
@@ -5501,7 +5565,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     playerField: state.playerField.map((zone) => ({ ...zone, attacked: false, positionChanged: false })),
     turn: "player",
     turnNumber: state.turnNumber + 1,
-    phase: "main1",
+    phase: "standby",
     normalSummoned: false,
     log: appendLog(state.log, "あなたのターン。1枚ドロー。"),
   };
@@ -6665,13 +6729,17 @@ function resolvePendingMultiTarget(state: DuelState): DuelState {
 }
 
 function resolveFlipSequence(state: DuelState, owner: Side, monsterIds: string[]): DuelState {
+  return resolveFlipItems(state, monsterIds.map((monsterId) => ({ owner, monsterId })));
+}
+
+function resolveFlipItems(state: DuelState, items: PendingFlipQueueItem[]): DuelState {
   let next = { ...state, pendingFlipQueue: [] };
-  for (let index = 0; index < monsterIds.length; index += 1) {
-    next = resolveFlipEffect(next, owner, monsterIds[index]);
+  for (let index = 0; index < items.length; index += 1) {
+    next = resolveFlipEffect(next, items[index].owner, items[index].monsterId);
     if (next.pendingFlipTarget) {
       return {
         ...next,
-        pendingFlipQueue: monsterIds.slice(index + 1).map((monsterId) => ({ owner, monsterId })),
+        pendingFlipQueue: items.slice(index + 1),
       };
     }
   }
@@ -7485,6 +7553,7 @@ function useCpuBarrelDragon(state: DuelState): DuelState {
 }
 
 function spellDescription(id: string) {
+  if (id === "mr-curse-fiend") return "スタンバイフェイズに全モンスターの表示形式を入れ替え、このターンの表示形式変更を封じる";
   if (id === "mr-snatch-steal") return "相手モンスター1体のコントロールを得る。相手スタンバイフェイズごとに相手は1000LP回復";
   if (id === "mr-axe-despair") return "モンスター1体のATKを1000アップ";
   if (id === "mr-black-pendant") return "モンスター1体のATKを500アップ";
@@ -7561,6 +7630,7 @@ function isSpellImplemented(id: string) {
       "vol2-de-spell",
       "vol3-pot-of-greed",
       "mr-upstart-goblin",
+      "mr-curse-fiend",
       "mr-mystical-space-typhoon",
       "mr-giant-trunade",
       "mr-gravekeepers-servant",

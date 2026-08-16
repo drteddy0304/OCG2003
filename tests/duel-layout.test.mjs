@@ -5,6 +5,14 @@ import test from "node:test";
 const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
 
+test("邪悪な儀式は操作可能なスタンバイフェイズで全モンスターを変更する", () => {
+  assert.match(arena, /type Phase = "standby"/);
+  assert.match(arena, /mr-curse-fiend/);
+  assert.match(arena, /switchAllMonsterPositions/);
+  assert.match(arena, /resolveFlipItems/);
+  assert.match(arena, /このターンの表示形式変更を封じた/);
+});
+
 test("強奪は対象選択・継続表示・LP回復・フィールドを離れた時の返却に対応する", () => {
   assert.match(arena, /mr-snatch-steal/);
   assert.match(arena, /snatchStealControl/);

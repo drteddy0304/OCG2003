@@ -5,11 +5,17 @@ import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption }
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { snatchStealStandbyGain } from "../app/duel-rules.mjs";
+import { curseOfFiendPosition } from "../app/duel-rules.mjs";
 
 test("強奪は相手スタンバイフェイズごとに1枚につき1000LP回復する", () => {
   assert.equal(snatchStealStandbyGain(0), 0);
   assert.equal(snatchStealStandbyGain(1), 1000);
   assert.equal(snatchStealStandbyGain(2), 2000);
+});
+
+test("邪悪な儀式は攻撃表示と守備表示を入れ替える", () => {
+  assert.equal(curseOfFiendPosition("attack"), "defense");
+  assert.equal(curseOfFiendPosition("defense"), "attack");
 });
 import { aileSwordsmanAttackBonus, bottomDeckSelection } from "../app/duel-rules.mjs";
 import { darknessApproachesDiscard, gracefulCharityDraw, resolvePainfulChoice, selectedCards } from "../app/duel-rules.mjs";
