@@ -109,7 +109,7 @@ type PendingBlastJuggler = {
 type PendingFlipTarget = {
   monsterId: string;
   owner: Side;
-  effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap";
+  effect: "destroy-monster" | "return-monster" | "destroy-spell" | "destroy-trap" | "recover-spell" | "recover-trap" | "swap-control";
 };
 type PendingFlipQueueItem = { owner: Side; monsterId: string };
 type PendingMultiTarget = {
@@ -177,6 +177,7 @@ type ZoneCard = {
   blastPromptedTurn?: number;
   cocoonEquippedTurn?: number;
   controlReturn?: Side;
+  permanentControl?: boolean;
   spellbindingCircleOwner?: Side;
   revivedByMonsterReborn?: boolean;
   catapultUsedTurn?: number;
@@ -3283,7 +3284,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 131</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 132</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4904,7 +4905,8 @@ function FieldRow({
               {!hidden && zone.id === "vol7-dark-elf" && <small className="field-effect-badge">攻撃時1000LP</small>}
               {!hidden && scorpionTurns !== null && <small className="field-effect-badge">鉄のサソリ・あと{scorpionTurns}自ターン</small>}
               {!hidden && swordsmanTurns !== null && <small className="field-effect-badge">異国の剣士・あと{swordsmanTurns}ターン</small>}
-              {!hidden && zone.controlReturn === "cpu" && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
+              {!hidden && zone.permanentControl && <small className="field-effect-badge">王座の侵略者・コントロール交換中</small>}
+              {!hidden && zone.controlReturn === "cpu" && !zone.permanentControl && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
               {owner === "player" && zone.position === "attack" && <small>{spellbound ? "六芒星の呪縛で攻撃不可" : paralyzed ? "しびれ薬で攻撃不可" : attackLocked ? "次のターンまで攻撃不可" : cannotPayAttackCost ? "LP不足で攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
             </button>
@@ -5110,12 +5112,12 @@ function cleanupSpellbindingCircles(state: DuelState): DuelState {
 }
 
 function returnChangedMonsters(state: DuelState): DuelState {
-  const returning = state.playerField.filter((zone) => zone.controlReturn === "cpu");
+  const returning = state.playerField.filter((zone) => zone.controlReturn === "cpu" && !zone.permanentControl);
   if (returning.length === 0) return state;
   return {
     ...state,
-    playerField: state.playerField.filter((zone) => zone.controlReturn !== "cpu"),
-    cpuField: [...state.cpuField, ...returning.map(({ controlReturn: _controlReturn, ...zone }) => zone)],
+    playerField: state.playerField.filter((zone) => zone.controlReturn !== "cpu" || zone.permanentControl),
+    cpuField: [...state.cpuField, ...returning.map(({ controlReturn: _controlReturn, permanentControl: _permanentControl, ...zone }) => zone)],
     log: appendLog(state.log, `心変わりの効果が終了。${returning.length}体をCPUフィールドへ戻した。`),
   };
 }
@@ -6180,34 +6182,27 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   const nextDefenderField = removal.removeDefender ? defenderField.filter((_, index) => index !== defenderIndex) : defenderField;
   const attackerLpName = attackerSide === "player" ? "プレイヤー" : "CPU";
   const defenderLpName = attackerSide === "player" ? "CPU" : "プレイヤー";
-  const destroyedPlayerZones = [
-    ...(removal.graveAttacker && attackerSide === "player" ? [attackerZone] : []),
-    ...(removal.graveDefender && attackerSide === "cpu" ? [defenderZone] : []),
+  const destroyedWithSide = [
+    ...(removal.graveAttacker ? [{ zone: attackerZone, side: attackerSide }] : []),
+    ...(removal.graveDefender ? [{ zone: defenderZone, side: defenderSide }] : []),
   ];
-  const destroyedCpuZones = [
-    ...(removal.graveAttacker && attackerSide === "cpu" ? [attackerZone] : []),
-    ...(removal.graveDefender && attackerSide === "player" ? [defenderZone] : []),
-  ];
-  const banishedPlayerZones = dimensionalBanish
-    ? attackerSide === "player" ? [attackerZone] : [defenderZone]
+  const banishedWithSide = dimensionalBanish
+    ? [{ zone: attackerZone, side: attackerSide }, { zone: defenderZone, side: defenderSide }]
     : [];
-  const banishedCpuZones = dimensionalBanish
-    ? attackerSide === "cpu" ? [attackerZone] : [defenderZone]
-    : [];
-  const returnedDestroyedZones = destroyedPlayerZones.filter((zone) => zone.controlReturn === "cpu");
-  const ownedDestroyedPlayerZones = destroyedPlayerZones.filter((zone) => zone.controlReturn !== "cpu");
-  const returnedBanishedZones = banishedPlayerZones.filter((zone) => zone.controlReturn === "cpu");
-  const ownedBanishedPlayerZones = banishedPlayerZones.filter((zone) => zone.controlReturn !== "cpu");
+  const destroyedPlayerZones = destroyedWithSide.filter(({ zone, side }) => (zone.controlReturn ?? side) === "player").map(({ zone }) => zone);
+  const destroyedCpuZones = destroyedWithSide.filter(({ zone, side }) => (zone.controlReturn ?? side) === "cpu").map(({ zone }) => zone);
+  const banishedPlayerZones = banishedWithSide.filter(({ zone, side }) => (zone.controlReturn ?? side) === "player").map(({ zone }) => zone);
+  const banishedCpuZones = banishedWithSide.filter(({ zone, side }) => (zone.controlReturn ?? side) === "cpu").map(({ zone }) => zone);
   let next = {
     ...state,
     [attackerFieldKey]: nextAttackerField,
     [defenderFieldKey]: nextDefenderField,
     [attackerLpKey]: attackerLpAfterCost - attackerDamage,
     [defenderLpKey]: state[defenderLpKey] - appliedDefenderDamage,
-    playerSpellTrap: discardEquips(state.playerSpellTrap, [...ownedDestroyedPlayerZones, ...ownedBanishedPlayerZones]),
-    cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpuZones, ...returnedDestroyedZones, ...banishedCpuZones, ...returnedBanishedZones]),
-    playerGraveyard: [...state.playerGraveyard, ...graveCards(ownedDestroyedPlayerZones), ...equipGraveCards(ownedBanishedPlayerZones)],
-    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones), ...graveCards(returnedDestroyedZones), ...equipGraveCards(banishedCpuZones), ...equipGraveCards(returnedBanishedZones)],
+    playerSpellTrap: discardEquips(state.playerSpellTrap, [...destroyedPlayerZones, ...banishedPlayerZones]),
+    cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpuZones, ...banishedCpuZones]),
+    playerGraveyard: [...state.playerGraveyard, ...graveCards(destroyedPlayerZones), ...equipGraveCards(banishedPlayerZones)],
+    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones), ...equipGraveCards(banishedCpuZones)],
     log: appendLog(
       attackLog,
       `${attacker.name}が${defender.name}を攻撃。${
@@ -6258,7 +6253,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
       log: appendLog(next.log, "薄幸の美少女の効果が発動。バトルフェイズを終了。"),
     };
   }
-  next = applyDeckSearchTriggers(next, ownedDestroyedPlayerZones, [...destroyedCpuZones, ...returnedDestroyedZones]);
+  next = applyDeckSearchTriggers(next, destroyedPlayerZones, destroyedCpuZones);
   if (appliedDefenderDamage > 0 && next[defenderLpKey] > 0) {
     next = resolveBattleDamageEffect(next, attackerSide, attacker.id, appliedDefenderDamage);
   }
@@ -6351,7 +6346,7 @@ type FlipTargetChoice = {
 };
 
 function flipTargetChoices(state: DuelState, pending: PendingFlipTarget): FlipTargetChoice[] {
-  if (pending.effect === "destroy-monster" || pending.effect === "return-monster") {
+  if (pending.effect === "destroy-monster" || pending.effect === "return-monster" || pending.effect === "swap-control") {
     const opponentSide: Side = pending.owner === "player" ? "cpu" : "player";
     const opponentField = opponentSide === "player" ? state.playerField : state.cpuField;
     return opponentField.flatMap((zone, index) => isEffectTargetProtected(state, opponentSide, zone) ? [] : [{
@@ -6384,6 +6379,7 @@ function flipTargetChoices(state: DuelState, pending: PendingFlipTarget): FlipTa
 function flipTargetHeading(effect: PendingFlipTarget["effect"]): string {
   if (effect === "destroy-monster") return "破壊するモンスターを選択";
   if (effect === "return-monster") return "手札に戻すモンスターを選択";
+  if (effect === "swap-control") return "コントロールを交換するモンスターを選択";
   if (effect === "destroy-spell") return "確認する魔法・罠カードを選択";
   if (effect === "destroy-trap") return "確認する魔法・罠カードを選択";
   return effect === "recover-spell" ? "手札に戻す魔法カードを選択" : "手札に戻す罠カードを選択";
@@ -6394,6 +6390,34 @@ function resolvePendingFlipTarget(state: DuelState, targetIndex: number): DuelSt
   if (!pending) return state;
   const base = { ...state, pendingFlipTarget: null };
   const effectMonsterName = cardById.get(pending.monsterId)?.name ?? "モンスター";
+
+  if (pending.effect === "swap-control") {
+    const ownerField = pending.owner === "player" ? state.playerField : state.cpuField;
+    const opponentField = pending.owner === "player" ? state.cpuField : state.playerField;
+    const sourceIndex = ownerField.findIndex((zone) => zone.id === pending.monsterId && !zone.faceDown);
+    const source = ownerField[sourceIndex];
+    const target = opponentField[targetIndex];
+    if (!source || !target || isEffectTargetProtected(state, pending.owner === "player" ? "cpu" : "player", target)) return base;
+    const targetName = target.faceDown ? "裏側モンスター" : cardById.get(target.id)?.name ?? "モンスター";
+    const movedSource: ZoneCard = { ...source, attacked: true, positionChanged: true, controlReturn: source.controlReturn ?? pending.owner, permanentControl: true };
+    const opponentSide: Side = pending.owner === "player" ? "cpu" : "player";
+    const movedTarget: ZoneCard = { ...target, attacked: true, positionChanged: true, controlReturn: target.controlReturn ?? opponentSide, permanentControl: true };
+    let swapped: DuelState = pending.owner === "player"
+      ? {
+          ...base,
+          playerField: [...ownerField.filter((_, index) => index !== sourceIndex), movedTarget],
+          cpuField: [...opponentField.filter((_, index) => index !== targetIndex), movedSource],
+          log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}とコントロールを交換した。`),
+        }
+      : {
+          ...base,
+          cpuField: [...ownerField.filter((_, index) => index !== sourceIndex), movedTarget],
+          playerField: [...opponentField.filter((_, index) => index !== targetIndex), movedSource],
+          log: appendLog(state.log, `${effectMonsterName}の効果で${targetName}とコントロールを交換した。`),
+        };
+    if (!target.faceDown) swapped = applyControlChangeLifeTrigger(swapped, target.id, opponentSide, pending.owner);
+    return swapped;
+  }
 
   if (pending.effect === "destroy-monster" || pending.effect === "return-monster") {
     const opponentSide: Side = pending.owner === "player" ? "cpu" : "player";
@@ -6780,6 +6804,10 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
     return resolvePendingMultiTarget({ ...state, pendingMultiTarget: { ...pending, selected: choices.slice(0, required).map((choice) => choice.key) } });
   }
 
+  if (effect === "swap-control" && state.phase === "battle") {
+    return { ...state, log: appendLog(state.log, `${ownerName}の王座の侵略者がリバース。バトルフェイズ中のため効果は発動できない。`) };
+  }
+
   const playerChooses = shouldPlayerChooseFlipTarget(owner, state.turn, state.phase);
   if (playerChooses && effect) {
     const pending = { monsterId, owner, effect } as PendingFlipTarget;
@@ -6790,12 +6818,28 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
         log: appendLog(state.log, `${ownerName}の${cardById.get(monsterId)?.name ?? "モンスター"}がリバース。効果対象を選択してください。`),
       };
     }
-    if (effect === "destroy-monster" || effect === "return-monster") {
+    if (effect === "destroy-monster" || effect === "return-monster" || effect === "swap-control") {
       return {
         ...state,
         log: appendLog(state.log, `${ownerName}の${cardById.get(monsterId)?.name ?? "モンスター"}がリバース。効果を発動したが、選べる相手モンスターはいなかった。`),
       };
     }
+  }
+
+  if (effect === "swap-control") {
+    const pending: PendingFlipTarget = { monsterId, owner, effect };
+    const choices = flipTargetChoices(state, pending);
+    if (choices.length === 0) {
+      return { ...state, log: appendLog(state.log, `${ownerName}の王座の侵略者がリバース。交換できる相手モンスターはいなかった。`) };
+    }
+    const opponentSide: Side = owner === "player" ? "cpu" : "player";
+    const strongest = strongestAttackIndex(choices.map((choice) => effectiveAtk(
+      (opponentSide === "player" ? state.playerField : state.cpuField)[choice.index],
+      state,
+      opponentSide,
+    )));
+    const targetIndex = strongest === null ? choices[0].index : choices[strongest].index;
+    return resolvePendingFlipTarget({ ...state, pendingFlipTarget: pending }, targetIndex);
   }
 
   if (effect === "recover-spell" || effect === "recover-trap") {
@@ -7477,6 +7521,7 @@ function monsterDescription(id: string) {
   if (id === "mr-ameba") return "表側表示でコントロールが相手に移った時、そのコントローラーに2000ダメージ";
   if (id === "mr-griggle") return "表側表示でコントロールが相手に移った時、元々の持ち主は3000LP回復";
   if (id === "mr-weather-report") return "リバース：相手の光の護封剣を全て破壊し、このターンのバトルフェイズを2回行う";
+  if (id === "mr-invader-throne") return "リバース：バトルフェイズ以外に相手モンスター1体とこのカードのコントロールを交換する";
   if (id === "mr-hiros-shadow-scout") return "リバース：相手は3枚ドローし、その中の魔法カードを全て墓地へ捨てる";
   if (id === "mr-penguin-knight") return "相手のカード効果でデッキから墓地へ送られた時、自分の墓地を全てデッキに戻してシャッフルする";
   if (id === "vol3-reaper-cards") return "リバース：フィールドの罠カード1枚を確認し、罠カードなら破壊する";

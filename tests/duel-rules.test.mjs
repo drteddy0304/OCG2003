@@ -19,6 +19,7 @@ test("Magic Rulerのコントロール移動・リバース効果を判定する
   assert.deepEqual(controlChangeLifeEffect("mr-griggle"), { newControllerDamage: 0, originalOwnerGain: 3000 });
   assert.equal(controlChangeLifeEffect("mr-metal-fish"), null);
   assert.equal(flipEffect("mr-weather-report"), "destroy-swords-extra-battle");
+  assert.equal(flipEffect("mr-invader-throne"), "swap-control");
 });
 
 test("EXのリバース・戦闘効果を判定する", () => {

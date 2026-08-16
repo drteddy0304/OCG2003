@@ -131,3 +131,11 @@ test("六芒星の呪縛は対象を選び攻撃と表示形式変更を封じ�
   assert.match(arena, /六芒星の呪縛・攻撃／表示変更不可/);
   assert.match(arena, /cleanupSpellbindingCircles/);
 });
+
+test("王座の侵略者は対象選択と永続コントロール交換に対応する", () => {
+  assert.match(arena, /swap-control/);
+  assert.match(arena, /コントロールを交換するモンスターを選択/);
+  assert.match(arena, /permanentControl/);
+  assert.match(arena, /バトルフェイズ中のため効果は発動できない/);
+  assert.match(arena, /王座の侵略者・コントロール交換中/);
+});

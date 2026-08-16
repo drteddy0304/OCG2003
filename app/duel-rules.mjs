@@ -456,6 +456,7 @@ export function firstFaceUpTrapIndex(ids) {
 }
 
 const flipEffects = Object.freeze({
+  "mr-invader-throne": "swap-control",
   "mr-weather-report": "destroy-swords-extra-battle",
   "mr-hiros-shadow-scout": "opponent-draw-three-discard-spells",
   "vol6-dragon-piper": "destroy-dragon-jar",
