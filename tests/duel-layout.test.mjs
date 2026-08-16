@@ -5,6 +5,13 @@ import test from "node:test";
 const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
 
+test("魔力の枷は双方の手札プレイと重複枚数をLPへ反映する", () => {
+  assert.match(arena, /mr-chain-energy/);
+  assert.match(arena, /canPayDuelChainEnergy/);
+  assert.match(arena, /applyChainEnergyPayment/);
+  assert.match(arena, /手札からカードを出すたび/);
+});
+
 test("邪悪な儀式は操作可能なスタンバイフェイズで全モンスターを変更する", () => {
   assert.match(arena, /type Phase = "standby"/);
   assert.match(arena, /mr-curse-fiend/);

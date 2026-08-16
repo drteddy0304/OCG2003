@@ -6,6 +6,15 @@ import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { snatchStealStandbyGain } from "../app/duel-rules.mjs";
 import { curseOfFiendPosition } from "../app/duel-rules.mjs";
+import { canPayChainEnergy, chainEnergyCost } from "../app/duel-rules.mjs";
+
+test("魔力の枷は表側の枚数と手札から出す枚数に応じてLPを要求する", () => {
+  assert.equal(chainEnergyCost([], 3), 0);
+  assert.equal(chainEnergyCost(["mr-chain-energy"]), 500);
+  assert.equal(chainEnergyCost(["mr-chain-energy", "mr-chain-energy"], 2), 2000);
+  assert.equal(canPayChainEnergy(501, ["mr-chain-energy"]), true);
+  assert.equal(canPayChainEnergy(500, ["mr-chain-energy"]), false);
+});
 
 test("強奪は相手スタンバイフェイズごとに1枚につき1000LP回復する", () => {
   assert.equal(snatchStealStandbyGain(0), 0);

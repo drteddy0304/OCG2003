@@ -162,6 +162,8 @@ export function canDeckSearchTarget(sourceId: string, target?: {
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
 export function snatchStealStandbyGain(activeCount: number): number;
 export function curseOfFiendPosition(position: "attack" | "defense"): "attack" | "defense";
+export function chainEnergyCost(activeSpellTrapIds: string[], actionCount?: number): number;
+export function canPayChainEnergy(lifePoints: number, activeSpellTrapIds: string[], actionCount?: number): boolean;
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 

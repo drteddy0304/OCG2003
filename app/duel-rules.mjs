@@ -537,6 +537,15 @@ export function curseOfFiendPosition(position) {
   return position === "attack" ? "defense" : "attack";
 }
 
+export function chainEnergyCost(activeSpellTrapIds, actionCount = 1) {
+  const activeCopies = activeSpellTrapIds.filter((id) => id === "mr-chain-energy").length;
+  return activeCopies * 500 * Math.max(0, Math.trunc(actionCount));
+}
+
+export function canPayChainEnergy(lifePoints, activeSpellTrapIds, actionCount = 1) {
+  return lifePoints > chainEnergyCost(activeSpellTrapIds, actionCount);
+}
+
 export function canTransferMatango(lifePoints, opponentFieldCount, fieldLimit = 5) {
   return lifePoints > 500 && opponentFieldCount < fieldLimit;
 }
