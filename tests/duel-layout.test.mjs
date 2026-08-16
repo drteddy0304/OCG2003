@@ -5,6 +5,14 @@ import test from "node:test";
 const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
 
+test("強奪は対象選択・継続表示・LP回復・フィールドを離れた時の返却に対応する", () => {
+  assert.match(arena, /mr-snatch-steal/);
+  assert.match(arena, /snatchStealControl/);
+  assert.match(arena, /applySnatchStealStandby/);
+  assert.match(arena, /cleanupSnatchStealControl/);
+  assert.match(arena, /強奪・コントロール変更中/);
+});
+
 test("Vol.7の起動効果に専用の操作導線がある", () => {
   assert.match(arena, /カタパルト・タートルの効果を使う/);
   assert.match(arena, /捨てて同名カードをサーチ/);

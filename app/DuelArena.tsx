@@ -9,6 +9,7 @@ import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSou
 import { bestFusionChoice, canSelectFusionMaterial, fusionChoices, fusionMaterialSelection, fusionRecipe, isValidFusionSelection } from "./fusion-rules.mjs";
 import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption } from "./duel-rules.mjs";
 import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mjs";
+import { snatchStealStandbyGain } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -178,6 +179,8 @@ type ZoneCard = {
   cocoonEquippedTurn?: number;
   controlReturn?: Side;
   permanentControl?: boolean;
+  snatchStealControl?: boolean;
+  snatchReturnSide?: Side;
   spellbindingCircleOwner?: Side;
   revivedByMonsterReborn?: boolean;
   catapultUsedTurn?: number;
@@ -1146,6 +1149,7 @@ export function DuelArena({
           ? "右手に盾を左手に剣をを発動。現在表側表示の全モンスターの元々のATKとDEFをターン終了時まで入れ替えた。"
         : `${card.name}を発動。`,
     );
+    next = cleanupSnatchStealControl(next);
     setDuel(next);
   }
 
@@ -1705,7 +1709,7 @@ export function DuelArena({
     } else {
       next.log = appendLog(next.log, `魔法除去で伏せカードを確認。${target.name}は罠カードのため元に戻します。`);
     }
-    setDuel(next);
+    setDuel(cleanupSnatchStealControl(next));
     setPendingDeSpell(null);
   }
 
@@ -2078,7 +2082,30 @@ export function DuelArena({
     const spellTrapKey = owner === "player" ? "playerSpellTrap" : "cpuSpellTrap";
     const zone = duel[fieldKey][fieldIndex];
     const monster = zone ? cardById.get(zone.id) : null;
-    if (!spell || !zone || zone.faceDown || !monster || !canEquip(spell.id, monster) || duel[spellTrapKey].length >= FIELD_LIMIT) return;
+    if (!spell || !zone || zone.faceDown || !monster || !canEquip(spell.id, monster) || (spell.id !== "mr-snatch-steal" && duel[spellTrapKey].length >= FIELD_LIMIT)) return;
+    if (spell.id === "mr-snatch-steal") {
+      if (owner !== "cpu" || duel.playerField.length >= FIELD_LIMIT || duel.playerSpellTrap.length >= FIELD_LIMIT || isEffectTargetProtected(duel, "cpu", zone)) return;
+      const moved: ZoneCard = {
+        ...zone,
+        attacked: false,
+        positionChanged: false,
+        equipped: [...zone.equipped, spell.id],
+        controlReturn: zone.controlReturn ?? "cpu",
+        snatchStealControl: true,
+        snatchReturnSide: "cpu",
+      };
+      let next: DuelState = {
+        ...removeHandCard(duel, selectedEquip),
+        playerField: [...duel.playerField, moved],
+        cpuField: duel.cpuField.filter((_, index) => index !== fieldIndex),
+        playerSpellTrap: [...duel.playerSpellTrap, spell.id],
+        log: appendLog(duel.log, `強奪を${monster.name}に装備。コントロールを得た。`),
+      };
+      next = applyControlChangeLifeTrigger(next, zone.id, zone.controlReturn ?? "cpu", "player");
+      setDuel(next);
+      setSelectedEquip(null);
+      return;
+    }
     setDuel({
       ...removeHandCard(duel, selectedEquip),
       [fieldKey]: duel[fieldKey].map((item, index) =>
@@ -2334,6 +2361,7 @@ export function DuelArena({
     playerEnd = returnWormBeastAtEndPhase(playerEnd, "player");
     playerEnd = returnChangedMonsters(playerEnd);
     playerEnd = cleanupSpellbindingCircles(playerEnd);
+    playerEnd = cleanupSnatchStealControl(playerEnd);
     const matangoIndex = nextPlayerMatangoTransferIndex(playerEnd);
     if (matangoIndex !== null) {
       setDuel(playerEnd);
@@ -3284,7 +3312,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 132</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 133</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4906,6 +4934,7 @@ function FieldRow({
               {!hidden && scorpionTurns !== null && <small className="field-effect-badge">鉄のサソリ・あと{scorpionTurns}自ターン</small>}
               {!hidden && swordsmanTurns !== null && <small className="field-effect-badge">異国の剣士・あと{swordsmanTurns}ターン</small>}
               {!hidden && zone.permanentControl && <small className="field-effect-badge">王座の侵略者・コントロール交換中</small>}
+              {!hidden && zone.snatchStealControl && <small className="field-effect-badge">強奪・コントロール変更中</small>}
               {!hidden && zone.controlReturn === "cpu" && !zone.permanentControl && <small className="field-effect-badge">心変わり・ターン終了時に戻る</small>}
               {tributeTarget && <small>{selectedTributes.includes(index) ? "生け贄に選択済" : "タップして選択"}</small>}
               {owner === "player" && zone.position === "attack" && <small>{spellbound ? "六芒星の呪縛で攻撃不可" : paralyzed ? "しびれ薬で攻撃不可" : attackLocked ? "次のターンまで攻撃不可" : cannotPayAttackCost ? "LP不足で攻撃不可" : zone.attacked ? "攻撃済" : canAttack ? "攻撃" : "BATTLEで攻撃"}</small>}
@@ -4931,6 +4960,7 @@ function runCpuTurn(initial: DuelState): DuelState {
     cpuHand: [...state.cpuHand, state.cpuDeck[0]],
     cpuDeck: state.cpuDeck.slice(1),
   };
+  state = applySnatchStealStandby(state, "cpu");
   state = applyMatangoStandby(state, "cpu");
   state = applyGermInfectionStandby(state, "cpu");
   state = applyPatrolRoboStandby(state, "cpu");
@@ -5111,12 +5141,83 @@ function cleanupSpellbindingCircles(state: DuelState): DuelState {
   return next;
 }
 
+function cleanupSnatchStealControl(state: DuelState): DuelState {
+  let remainingActiveCopies = state.playerSpellTrap.filter((id) => id === "mr-snatch-steal").length;
+  const returning: ZoneCard[] = [];
+  const staying: ZoneCard[] = [];
+
+  state.playerField.forEach((zone) => {
+    if (!zone.snatchStealControl) {
+      staying.push(zone);
+      return;
+    }
+    if (zone.equipped.includes("mr-snatch-steal") && remainingActiveCopies > 0) {
+      remainingActiveCopies -= 1;
+      staying.push(zone);
+      return;
+    }
+    returning.push({
+      ...zone,
+      equipped: zone.equipped.filter((id) => id !== "mr-snatch-steal"),
+      snatchStealControl: undefined,
+      snatchReturnSide: undefined,
+      attacked: true,
+      positionChanged: true,
+    });
+  });
+
+  if (returning.length === 0) return state;
+  let next: DuelState = { ...state, playerField: staying };
+  returning.forEach((zone) => {
+    const originalOwner = zone.controlReturn ?? "cpu";
+    const cleaned = originalOwner === "cpu" && !zone.permanentControl
+      ? { ...zone, controlReturn: undefined }
+      : zone;
+    if (next.cpuField.length < FIELD_LIMIT) {
+      next = {
+        ...next,
+        cpuField: [...next.cpuField, cleaned],
+        log: appendLog(next.log, `「強奪」がフィールドを離れたため、${cardById.get(zone.id)?.name ?? "モンスター"}をCPUへ戻した。`),
+      };
+      next = applyControlChangeLifeTrigger(next, zone.id, originalOwner, "cpu");
+    } else {
+      const graveyardKey = originalOwner === "player" ? "playerGraveyard" : "cpuGraveyard";
+      next = {
+        ...next,
+        [graveyardKey]: [...next[graveyardKey], zone.id, ...zone.equipped],
+        log: appendLog(next.log, `CPUのモンスターゾーンが空いていないため、${cardById.get(zone.id)?.name ?? "モンスター"}を墓地へ送った。`),
+      };
+    }
+  });
+  return next;
+}
+
+function applySnatchStealStandby(state: DuelState, side: Side): DuelState {
+  const activeCount = side === "cpu"
+    ? Math.min(
+        state.playerSpellTrap.filter((id) => id === "mr-snatch-steal").length,
+        state.playerField.filter((zone) => zone.snatchStealControl && zone.equipped.includes("mr-snatch-steal")).length,
+      )
+    : Math.min(
+        state.cpuSpellTrap.filter((id) => id === "mr-snatch-steal").length,
+        state.cpuField.filter((zone) => zone.snatchStealControl && zone.equipped.includes("mr-snatch-steal")).length,
+      );
+  const gain = snatchStealStandbyGain(activeCount);
+  if (gain === 0) return state;
+  const lifeKey = side === "player" ? "playerLp" : "cpuLp";
+  return {
+    ...state,
+    [lifeKey]: state[lifeKey] + gain,
+    log: appendLog(state.log, `「強奪」の効果で${side === "player" ? "プレイヤー" : "CPU"}が${gain}LP回復。`),
+  };
+}
+
 function returnChangedMonsters(state: DuelState): DuelState {
-  const returning = state.playerField.filter((zone) => zone.controlReturn === "cpu" && !zone.permanentControl);
+  const returning = state.playerField.filter((zone) => zone.controlReturn === "cpu" && !zone.permanentControl && !zone.snatchStealControl);
   if (returning.length === 0) return state;
   return {
     ...state,
-    playerField: state.playerField.filter((zone) => zone.controlReturn !== "cpu" || zone.permanentControl),
+    playerField: state.playerField.filter((zone) => zone.controlReturn !== "cpu" || zone.permanentControl || zone.snatchStealControl),
     cpuField: [...state.cpuField, ...returning.map(({ controlReturn: _controlReturn, permanentControl: _permanentControl, ...zone }) => zone)],
     log: appendLog(state.log, `心変わりの効果が終了。${returning.length}体をCPUフィールドへ戻した。`),
   };
@@ -5371,6 +5472,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   state = returnWormBeastAtEndPhase(state, "cpu");
   state = transferCpuMatangos(state);
   state = cleanupSpellbindingCircles(state);
+  state = cleanupSnatchStealControl(state);
   state = clearSwappedStats(state);
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
@@ -5403,6 +5505,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     normalSummoned: false,
     log: appendLog(state.log, "あなたのターン。1枚ドロー。"),
   };
+  playerStart = applySnatchStealStandby(playerStart, "player");
   playerStart = applyMatangoStandby(playerStart, "player");
   playerStart = applyGermInfectionStandby(playerStart, "player");
   playerStart = applyPatrolRoboStandby(playerStart, "player");
@@ -6193,16 +6296,22 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   const destroyedCpuZones = destroyedWithSide.filter(({ zone, side }) => (zone.controlReturn ?? side) === "cpu").map(({ zone }) => zone);
   const banishedPlayerZones = banishedWithSide.filter(({ zone, side }) => (zone.controlReturn ?? side) === "player").map(({ zone }) => zone);
   const banishedCpuZones = banishedWithSide.filter(({ zone, side }) => (zone.controlReturn ?? side) === "cpu").map(({ zone }) => zone);
+  const cpuOwnedSnatchEquips = [...destroyedCpuZones, ...banishedCpuZones]
+    .flatMap((zone) => zone.equipped.filter((id) => id === "mr-snatch-steal"));
   let next = {
     ...state,
     [attackerFieldKey]: nextAttackerField,
     [defenderFieldKey]: nextDefenderField,
     [attackerLpKey]: attackerLpAfterCost - attackerDamage,
     [defenderLpKey]: state[defenderLpKey] - appliedDefenderDamage,
-    playerSpellTrap: discardEquips(state.playerSpellTrap, [...destroyedPlayerZones, ...banishedPlayerZones]),
+    playerSpellTrap: discardEquips(state.playerSpellTrap, [...destroyedPlayerZones, ...banishedPlayerZones, ...destroyedCpuZones, ...banishedCpuZones]),
     cpuSpellTrap: discardEquips(state.cpuSpellTrap, [...destroyedCpuZones, ...banishedCpuZones]),
-    playerGraveyard: [...state.playerGraveyard, ...graveCards(destroyedPlayerZones), ...equipGraveCards(banishedPlayerZones)],
-    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyedCpuZones), ...equipGraveCards(banishedCpuZones)],
+    playerGraveyard: [...state.playerGraveyard, ...graveCards(destroyedPlayerZones), ...equipGraveCards(banishedPlayerZones), ...cpuOwnedSnatchEquips],
+    cpuGraveyard: [
+      ...state.cpuGraveyard,
+      ...graveCards(destroyedCpuZones).filter((id) => id !== "mr-snatch-steal"),
+      ...equipGraveCards(banishedCpuZones).filter((id) => id !== "mr-snatch-steal"),
+    ],
     log: appendLog(
       attackLog,
       `${attacker.name}が${defender.name}を攻撃。${
@@ -7171,16 +7280,21 @@ function canEquip(spellId: string, monster: Card) {
   if (spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion") return monster.cardType === "monster" && monster.kind !== "機械族";
   if (spellId === "vol7-sword-deep-seated") return monster.cardType === "monster";
   if (spellId === "bo7-magnetic-ring" || spellId === "bo7-doping") return monster.cardType === "monster";
-  if (["mr-axe-despair", "mr-black-pendant", "mr-horn-light", "mr-malevolent-nuzzler"].includes(spellId)) return monster.cardType === "monster";
+  if (["mr-axe-despair", "mr-black-pendant", "mr-horn-light", "mr-malevolent-nuzzler", "mr-snatch-steal"].includes(spellId)) return monster.cardType === "monster";
   if (EQUIP_RULES[spellId]?.endsWith("属性")) return monster.cardType === "monster" && `${monster.attribute}属性` === EQUIP_RULES[spellId];
   return monster.cardType === "monster" && EQUIP_RULES[spellId] === monster.kind;
 }
 
 function isOpponentEquip(spellId: string) {
-  return spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion";
+  return spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion" || spellId === "mr-snatch-steal";
 }
 
 function canActivateEquip(state: DuelState, spellId: string) {
+  if (spellId === "mr-snatch-steal") {
+    return state.playerField.length < FIELD_LIMIT
+      && state.playerSpellTrap.length < FIELD_LIMIT
+      && state.cpuField.some((zone) => !zone.faceDown && !isEffectTargetProtected(state, "cpu", zone));
+  }
   const playerTarget = state.playerSpellTrap.length < FIELD_LIMIT
     && state.playerField.some((zone) => !zone.faceDown && Boolean(cardById.get(zone.id) && canEquip(spellId, cardById.get(zone.id)!)));
   const cpuTarget = isOpponentEquip(spellId) && state.cpuSpellTrap.length < FIELD_LIMIT
@@ -7371,6 +7485,7 @@ function useCpuBarrelDragon(state: DuelState): DuelState {
 }
 
 function spellDescription(id: string) {
+  if (id === "mr-snatch-steal") return "相手モンスター1体のコントロールを得る。相手スタンバイフェイズごとに相手は1000LP回復";
   if (id === "mr-axe-despair") return "モンスター1体のATKを1000アップ";
   if (id === "mr-black-pendant") return "モンスター1体のATKを500アップ";
   if (id === "mr-horn-light") return "モンスター1体のDEFを800アップ";

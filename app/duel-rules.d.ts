@@ -160,6 +160,7 @@ export function canDeckSearchTarget(sourceId: string, target?: {
 }): boolean;
 
 export function deSpellDestroys(cardType: "monster" | "spell" | "trap"): boolean;
+export function snatchStealStandbyGain(activeCount: number): number;
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 

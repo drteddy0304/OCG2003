@@ -529,6 +529,10 @@ export function matangoStandbyDamage(faceUpIds) {
   return faceUpIds.filter((id) => id === "vol7-matango").length * 300;
 }
 
+export function snatchStealStandbyGain(activeCount) {
+  return Math.max(0, Math.trunc(activeCount)) * 1000;
+}
+
 export function canTransferMatango(lifePoints, opponentFieldCount, fieldLimit = 5) {
   return lifePoints > 500 && opponentFieldCount < fieldLimit;
 }
