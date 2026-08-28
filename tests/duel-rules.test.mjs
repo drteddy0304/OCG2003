@@ -6,6 +6,7 @@ import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { snatchStealStandbyGain } from "../app/duel-rules.mjs";
 import { curseOfFiendPosition } from "../app/duel-rules.mjs";
+import { goddessWhimMultiplier, timeWizardCoinResult } from "../app/duel-rules.mjs";
 import { canPayChainEnergy, chainEnergyCost } from "../app/duel-rules.mjs";
 import { blackPendantTriggerCounts } from "../app/duel-rules.mjs";
 import { monsterSentFromFieldToGrave } from "../app/duel-rules.mjs";
@@ -211,6 +212,13 @@ test("リボルバー・ドラゴンはコイン3回のうち表2回以上で破
   assert.deepEqual(barrelDragonCoinResult([true, false, true]), { heads: 2, destroys: true });
   assert.deepEqual(barrelDragonCoinResult([true, false, false]), { heads: 1, destroys: false });
   assert.deepEqual(barrelDragonCoinResult([true, true]), { heads: 2, destroys: false });
+});
+
+test("時の魔術師ときまぐれの女神はコイントス結果を正しく計算する", () => {
+  assert.deepEqual(timeWizardCoinResult(true, [500, 1000]), { destroysOpponent: true, destroysOwn: false, damage: 0 });
+  assert.deepEqual(timeWizardCoinResult(false, [500, 1000]), { destroysOpponent: false, destroysOwn: true, damage: 750 });
+  assert.equal(goddessWhimMultiplier(true), 2);
+  assert.equal(goddessWhimMultiplier(false), 0.5);
 });
 
 test("クリボーはCPUから受ける戦闘ダメージがある時だけ手札から使える", () => {
@@ -757,7 +765,8 @@ test("強化CPUは現在追加済みの1999プロモーションパックまで�
   assert.equal(competitiveCpuDeck.filter((id) => id === "vol3-red-eyes").length, 1);
   assert.ok(competitiveCpuFusionDeck.includes("pr99-meteor-black-dragon"));
   assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-dark-elf").length, 2);
-  assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-prevent-rat").length, 1);
+  assert.equal(competitiveCpuDeck.filter((id) => id === "pr99-time-wizard").length, 1);
+  assert.equal(competitiveCpuDeck.filter((id) => id === "pr99-goddess-whim").length, 1);
   assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-tremendous-fire").length, 1);
   assert.ok(competitiveCpuDeck.some((id) => id.startsWith("vol5-")));
   assert.ok(competitiveCpuDeck.some((id) => id.startsWith("vol6-")));

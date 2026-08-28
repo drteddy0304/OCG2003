@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuFusionDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuFusionDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -193,6 +193,9 @@ type ZoneCard = {
   revivedByMonsterReborn?: boolean;
   catapultUsedTurn?: number;
   barrelUsedTurn?: number;
+  promoCoinUsedTurn?: number;
+  goddessMultiplierTurn?: number;
+  goddessMultiplier?: number;
   matangoOfferedTurn?: number;
   statsSwappedTurn?: number;
   aileBoostTurn?: number;
@@ -2097,6 +2100,65 @@ export function DuelArena({
     setDuel(resolved);
   }
 
+  function activateTimeWizard() {
+    if (!duel || !isPlayerMainPhase) return;
+    const sourceIndex = duel.playerField.findIndex((zone) => zone.id === "pr99-time-wizard" && !zone.faceDown && zone.promoCoinUsedTurn !== duel.turnNumber);
+    if (sourceIndex < 0) return;
+    const heads = Math.random() < 0.5;
+    const result = timeWizardCoinResult(heads, duel.playerField.map((zone) => cardById.get(zone.id)?.atk ?? 0));
+    let resolved: DuelState = {
+      ...duel,
+      playerField: duel.playerField.map((zone, index) => index === sourceIndex ? { ...zone, promoCoinUsedTurn: duel.turnNumber } : zone),
+      log: appendLog(duel.log, `時の魔術師の効果を発動。コイントスは${heads ? "表" : "裏"}。`),
+    };
+    if (result.destroysOpponent) {
+      const destroyed = resolved.cpuField;
+      resolved = {
+        ...resolved,
+        cpuField: [],
+        cpuSpellTrap: discardEquips(resolved.cpuSpellTrap, destroyed),
+        cpuGraveyard: [...resolved.cpuGraveyard, ...graveCards(destroyed)],
+        log: appendLog(resolved.log, `成功。CPUのモンスター${destroyed.length}体をすべて破壊した。`),
+      };
+      resolved = applyDeckSearchTriggers(resolved, [], destroyed);
+    } else {
+      const destroyed = resolved.playerField;
+      const returnedCpu = destroyed.filter((zone) => zone.controlReturn === "cpu");
+      const playerOwned = destroyed.filter((zone) => zone.controlReturn !== "cpu");
+      const playerLp = Math.max(0, resolved.playerLp - result.damage);
+      resolved = {
+        ...resolved,
+        playerField: [],
+        playerSpellTrap: discardEquips(resolved.playerSpellTrap, destroyed),
+        playerGraveyard: [...resolved.playerGraveyard, ...graveCards(playerOwned)],
+        cpuGraveyard: [...resolved.cpuGraveyard, ...graveCards(returnedCpu)],
+        playerLp,
+        result: playerLp === 0 ? "lose" : resolved.result,
+        log: appendLog(resolved.log, `失敗。自分のモンスター${destroyed.length}体を破壊し、${result.damage}ダメージを受けた。`),
+      };
+      resolved = applyDeckSearchTriggers(resolved, playerOwned, returnedCpu);
+    }
+    setDuel(resolved);
+  }
+
+  function activateGoddessWhim() {
+    if (!duel || !isPlayerMainPhase) return;
+    const sourceIndex = duel.playerField.findIndex((zone) => zone.id === "pr99-goddess-whim" && !zone.faceDown && zone.promoCoinUsedTurn !== duel.turnNumber);
+    if (sourceIndex < 0) return;
+    const heads = Math.random() < 0.5;
+    const multiplier = goddessWhimMultiplier(heads);
+    setDuel({
+      ...duel,
+      playerField: duel.playerField.map((zone, index) => index === sourceIndex ? {
+        ...zone,
+        promoCoinUsedTurn: duel.turnNumber,
+        goddessMultiplierTurn: duel.turnNumber,
+        goddessMultiplier: multiplier,
+      } : zone),
+      log: appendLog(duel.log, `きまぐれの女神の効果を発動。コイントスは${heads ? "表" : "裏"}。ターン終了までATKが${heads ? "2倍" : "半分"}になった。`),
+    });
+  }
+
   function activateMonsterEye() {
     if (!duel || !isPlayerMainPhase || !canPayMonsterEffect(duel.playerLp, 1000)) return;
     if (!duel.playerField.some((zone) => zone.id === "bo6-monster-eye" && !zone.faceDown)) return;
@@ -3509,7 +3571,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>1999プロモ効果対応 強化CPU · BUILD 142</strong>
+          <strong>1999プロモ効果対応 強化CPU · BUILD 143</strong>
           <p>1999プロモまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4415,6 +4477,12 @@ export function DuelArena({
           >
             リボルバー・ドラゴンの効果を使う
           </button>
+        )}
+        {isPlayerMainPhase && duel.playerField.some((zone) => zone.id === "pr99-time-wizard" && !zone.faceDown && zone.promoCoinUsedTurn !== duel.turnNumber) && (
+          <button className="effect-action-button" onClick={activateTimeWizard}>時の魔術師の効果を使う</button>
+        )}
+        {isPlayerMainPhase && duel.playerField.some((zone) => zone.id === "pr99-goddess-whim" && !zone.faceDown && zone.promoCoinUsedTurn !== duel.turnNumber) && (
+          <button className="effect-action-button" onClick={activateGoddessWhim}>きまぐれの女神の効果を使う</button>
         )}
         {isPlayerMainPhase && canPayMonsterEffect(duel.playerLp, 1000) && duel.playerGraveyard.includes("vol1-polymerization") && duel.playerField.some((zone) => zone.id === "bo6-monster-eye" && !zone.faceDown) && (
           <button className="effect-action-button" onClick={activateMonsterEye}>モンスター・アイの効果を使う（1000LP）</button>
@@ -5668,6 +5736,8 @@ function resolveIronScorpionEndPhase(state: DuelState): DuelState {
 function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   let state: DuelState = { ...initial, pendingTrapResponse: null };
   if (!resumeBattle) {
+    state = useCpuPromoCoinEffects(state);
+    if (state.result || state.pendingDeckSearch) return state;
     state = useCpuBarrelDragon(state);
     if (state.result || state.pendingDeckSearch) return state;
     state = setCpuTrapAndEquips(state);
@@ -7593,7 +7663,10 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     + temporaryBattleStatBonus(zone.battleAtkBonusTurn, state.turnNumber, zone.battleAtkBonusValue)
     - germInfectionPenalty(zone.equipped, zone.germStandbys)
     - dopingPenalty(zone.equipped, zone.germStandbys);
-  return reverseAdjustedStat(base.atk, adjusted, state.reverseTrapTurn === state.turnNumber);
+  const coinAdjusted = zone.goddessMultiplierTurn === state.turnNumber
+    ? Math.floor(adjusted * (zone.goddessMultiplier ?? 1))
+    : adjusted;
+  return reverseAdjustedStat(base.atk, coinAdjusted, state.reverseTrapTurn === state.turnNumber);
 }
 
 function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
@@ -7845,6 +7918,61 @@ function useCpuCannonSoldierForLethal(state: DuelState): DuelState {
   };
   resolved = applyDeckSearchTriggers(resolved, [], [target]);
   return resolved;
+}
+
+function useCpuPromoCoinEffects(initial: DuelState): DuelState {
+  let state = initial;
+  const goddessIndex = state.cpuField.findIndex((zone) => zone.id === "pr99-goddess-whim" && !zone.faceDown && zone.promoCoinUsedTurn !== state.turnNumber);
+  if (goddessIndex >= 0) {
+    const heads = Math.random() < 0.5;
+    const multiplier = goddessWhimMultiplier(heads);
+    state = {
+      ...state,
+      cpuField: state.cpuField.map((zone, index) => index === goddessIndex ? {
+        ...zone,
+        promoCoinUsedTurn: state.turnNumber,
+        goddessMultiplierTurn: state.turnNumber,
+        goddessMultiplier: multiplier,
+      } : zone),
+      log: appendLog(state.log, `CPUのきまぐれの女神が効果を発動。コイントスは${heads ? "表" : "裏"}、ATKがターン終了まで${heads ? "2倍" : "半分"}。`),
+    };
+  }
+
+  const wizardIndex = state.cpuField.findIndex((zone) => zone.id === "pr99-time-wizard" && !zone.faceDown && zone.promoCoinUsedTurn !== state.turnNumber);
+  if (wizardIndex < 0 || state.playerField.length === 0 || fieldPower(state.playerField, state, "player") <= fieldPower(state.cpuField, state, "cpu")) return state;
+  const heads = Math.random() < 0.5;
+  const result = timeWizardCoinResult(heads, state.cpuField.map((zone) => cardById.get(zone.id)?.atk ?? 0));
+  state = {
+    ...state,
+    cpuField: state.cpuField.map((zone, index) => index === wizardIndex ? { ...zone, promoCoinUsedTurn: state.turnNumber } : zone),
+    log: appendLog(state.log, `CPUの時の魔術師が効果を発動。コイントスは${heads ? "表" : "裏"}。`),
+  };
+  if (result.destroysOpponent) {
+    const destroyed = state.playerField;
+    const returnedCpu = destroyed.filter((zone) => zone.controlReturn === "cpu");
+    const playerOwned = destroyed.filter((zone) => zone.controlReturn !== "cpu");
+    state = {
+      ...state,
+      playerField: [],
+      playerSpellTrap: discardEquips(state.playerSpellTrap, destroyed),
+      playerGraveyard: [...state.playerGraveyard, ...graveCards(playerOwned)],
+      cpuGraveyard: [...state.cpuGraveyard, ...graveCards(returnedCpu)],
+      log: appendLog(state.log, `成功。プレイヤーのモンスター${destroyed.length}体をすべて破壊。`),
+    };
+    return applyDeckSearchTriggers(state, playerOwned, returnedCpu);
+  }
+  const destroyed = state.cpuField;
+  const cpuLp = Math.max(0, state.cpuLp - result.damage);
+  state = {
+    ...state,
+    cpuField: [],
+    cpuSpellTrap: discardEquips(state.cpuSpellTrap, destroyed),
+    cpuGraveyard: [...state.cpuGraveyard, ...graveCards(destroyed)],
+    cpuLp,
+    result: cpuLp === 0 ? "win" : state.result,
+    log: appendLog(state.log, `失敗。CPUのモンスター${destroyed.length}体を破壊し、CPUが${result.damage}ダメージを受けた。`),
+  };
+  return applyDeckSearchTriggers(state, [], destroyed);
 }
 
 function useCpuBarrelDragon(state: DuelState): DuelState {

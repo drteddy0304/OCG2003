@@ -526,6 +526,20 @@ export function barrelDragonCoinResult(tosses) {
   return { heads, destroys: normalized.length === 3 && heads >= 2 };
 }
 
+export function timeWizardCoinResult(heads, ownOriginalAttacks = []) {
+  return heads
+    ? { destroysOpponent: true, destroysOwn: false, damage: 0 }
+    : {
+        destroysOpponent: false,
+        destroysOwn: true,
+        damage: Math.floor(ownOriginalAttacks.reduce((total, attack) => total + Math.max(0, attack ?? 0), 0) / 2),
+      };
+}
+
+export function goddessWhimMultiplier(heads) {
+  return heads ? 2 : 0.5;
+}
+
 export function canUseKuriboh(hand, attackerSide, battleDamage) {
   return attackerSide === "cpu" && battleDamage > 0 && hand.includes("vol7-kuriboh");
 }
@@ -811,7 +825,7 @@ export const competitiveCpuDeck = Object.freeze([
   "pr99-meteor-dragon",
   "vol1-gaia",
   "vol7-barrel-dragon",
-  "vol7-prevent-rat",
+  "pr99-time-wizard",
   "vol3-red-eyes",
   "mr-axe-despair",
   "vol3-giant-soldier-stone",
@@ -820,7 +834,8 @@ export const competitiveCpuDeck = Object.freeze([
   "vol3-hane-hane",
   "vol6-sangan",
   "vol6-witch-black-forest",
-  ...Array(2).fill("vol7-rainbow-fish"),
+  "vol7-rainbow-fish",
+  "pr99-goddess-whim",
   "vol3-reaper-cards",
   "vol2-curse-of-dragon",
   ...Array(2).fill("vol7-dark-elf"),

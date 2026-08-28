@@ -58,6 +58,14 @@ test("Vol.7の起動効果に専用の操作導線がある", () => {
   assert.match(arena, /CPUが追い剥ぎゴブリンを発動/);
 });
 
+test("1999プロモのコイントス効果はプレイヤーとCPUの双方が使える", () => {
+  assert.match(arena, /時の魔術師の効果を使う/);
+  assert.match(arena, /きまぐれの女神の効果を使う/);
+  assert.match(arena, /function useCpuPromoCoinEffects/);
+  assert.match(arena, /promoCoinUsedTurn/);
+  assert.match(arena, /goddessMultiplierTurn/);
+});
+
 test("攻撃・守備表示はプレイヤーごとの正しい向きになる", () => {
   assert.match(css, /\.zones-player \.field-card\.attack \{ transform: rotate\(0deg\)/);
   assert.match(css, /\.zones-player \.field-card\.defense \{ transform: rotate\(90deg\)/);
