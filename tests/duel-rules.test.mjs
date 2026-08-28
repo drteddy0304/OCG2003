@@ -760,6 +760,11 @@ test("強化CPUは現在の最新パックMagic Rulerまでの戦力をデッキ
   assert.ok(competitiveCpuDeck.some((id) => id.startsWith("vol6-")));
 });
 
+test("強化CPUは天使の手鏡を実戦で確認できるよう対象を取る守備封じを採用する", () => {
+  assert.equal(competitiveCpuDeck.includes("vol3-stop-defense"), true);
+  assert.equal(competitiveCpuDeck.length, 40);
+});
+
 test("Magic Rulerの装備魔法とマハー・ヴァイロの強化値を計算する", () => {
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["mr-axe-despair"]), { atk: 2000, def: 1000 });
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["mr-black-pendant", "mr-horn-light", "mr-malevolent-nuzzler"]), { atk: 2200, def: 1800 });

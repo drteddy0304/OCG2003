@@ -179,3 +179,18 @@ test("遺言状は墓地送りをターン中に記録し、対象と表示形�
   assert.match(arena, /攻撃表示/);
   assert.match(arena, /守備表示/);
 });
+
+test("天使の手鏡はCPUの対象を取る魔法に反応し、別の対象を自分で選べる", () => {
+  assert.match(arena, /pendingFairysHandMirror/);
+  assert.match(arena, /respondToFairysHandMirror/);
+  assert.match(arena, /天使の手鏡を発動しますか/);
+  assert.match(arena, /このモンスターへ対象を変更/);
+  assert.match(arena, /resolveCpuStopDefense/);
+  assert.match(arena, /"mr-fairys-hand-mirror"/);
+});
+
+test("デュエル詳細は共通の正式なカード説明を使い、未対応という仮表示を残さない", () => {
+  assert.match(arena, /import \{ cardDescription \} from "\.\/card-text"/);
+  assert.match(arena, /return card \? cardDescription\(card\) : ""/);
+  assert.doesNotMatch(arena, /効果処理は次の更新で対応/);
+});

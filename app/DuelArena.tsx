@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
+import { cardDescription } from "./card-text";
 import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
@@ -93,6 +94,11 @@ type PendingSpellSpecificTrap = {
   trapIndex: number;
   trapId: "bo4-white-hole" | "bo4-call-grave" | "bo7-griffin-wing";
   spellId: string;
+};
+type PendingFairysHandMirror = {
+  trapIndex: number;
+  originalTargetIndex: number;
+  targetIndexes: number[];
 };
 type PendingFakeTrap = {
   monsterId: string;
@@ -247,6 +253,7 @@ type DuelState = {
   pendingBlastJuggler: PendingBlastJuggler | null;
   pendingAntiRaigeki: PendingAntiRaigeki | null;
   pendingSpellSpecificTrap: PendingSpellSpecificTrap | null;
+  pendingFairysHandMirror: PendingFairysHandMirror | null;
   pendingFakeTrap: PendingFakeTrap | null;
   pendingTwoPronged: PendingTwoPronged | null;
   pendingFlipTarget: PendingFlipTarget | null;
@@ -349,6 +356,7 @@ export function DuelArena({
     && !duel.pendingBlastJuggler
     && !duel.pendingAntiRaigeki
     && !duel.pendingSpellSpecificTrap
+    && !duel.pendingFairysHandMirror
     && !duel.pendingFakeTrap
     && !duel.pendingTwoPronged
     && !duel.pendingFlipTarget
@@ -531,6 +539,7 @@ export function DuelArena({
       pendingBlastJuggler: null,
       pendingAntiRaigeki: null,
       pendingSpellSpecificTrap: null,
+      pendingFairysHandMirror: null,
       pendingFakeTrap: null,
       pendingTwoPronged: null,
       pendingFlipTarget: null,
@@ -2603,7 +2612,7 @@ export function DuelArena({
           log: appendLog(resumed.log, "続けて神の宣告を発動しますか？"),
         }
       : playCpuNormalSpells(resumed, discardIndex === null);
-    if (!finalState.result && !finalState.pendingAntiRaigeki && !finalState.pendingMagicJammer && !finalState.pendingSolemnJudgment) {
+    if (!finalState.result && !finalState.pendingAntiRaigeki && !finalState.pendingFairysHandMirror && !finalState.pendingMagicJammer && !finalState.pendingSolemnJudgment) {
       finalState = continueCpuTurnAfterSpells(finalState);
     }
     beginCpuPlayback(resumed, finalState, marker);
@@ -2748,7 +2757,7 @@ export function DuelArena({
 
     if (pending.kind === "spell") {
       let finalState = playCpuNormalSpells(resumed, !activate);
-      if (!finalState.result && !finalState.pendingAntiRaigeki && !finalState.pendingMagicJammer && !finalState.pendingSolemnJudgment) {
+      if (!finalState.result && !finalState.pendingAntiRaigeki && !finalState.pendingFairysHandMirror && !finalState.pendingMagicJammer && !finalState.pendingSolemnJudgment) {
         finalState = continueCpuTurnAfterSpells(finalState);
       }
       beginCpuPlayback(resumed, finalState, marker);
@@ -3224,6 +3233,37 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToFairysHandMirror(targetIndex: number | null) {
+    if (!duel?.pendingFairysHandMirror) return;
+    const pending = duel.pendingFairysHandMirror;
+    const activate = targetIndex !== null;
+    if (activate && (!pending.targetIndexes.includes(targetIndex) || targetIndex === pending.originalTargetIndex)) return;
+    const chosenIndex = activate ? targetIndex : pending.originalTargetIndex;
+    const marker = "天使の手鏡の発動確認が終了。";
+    let resumed: DuelState = {
+      ...duel,
+      pendingFairysHandMirror: null,
+      log: appendLog(duel.log, marker),
+    };
+    if (activate) {
+      const targetName = cardById.get(resumed.playerField[chosenIndex]?.id)?.name ?? "モンスター";
+      resumed = {
+        ...resumed,
+        playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
+        playerGraveyard: [...resumed.playerGraveyard, "mr-fairys-hand-mirror"],
+        log: appendLog(resumed.log, `天使の手鏡を発動。「守備」封じの対象を${targetName}へ変更した。`),
+      };
+    } else {
+      resumed = { ...resumed, log: appendLog(resumed.log, "天使の手鏡を発動しなかった。") };
+    }
+    resumed = resolveCpuStopDefense(resumed, chosenIndex);
+    let finalState = resumed.pendingFlipTarget ? resumed : playCpuNormalSpells(resumed, true);
+    if (!finalState.result && !finalState.pendingFairysHandMirror && !finalState.pendingFlipTarget) {
+      finalState = continueCpuTurnAfterSpells(finalState);
+    }
+    beginCpuPlayback(resumed, finalState, marker);
+  }
+
   function respondToFakeTrap(activate: boolean) {
     if (!duel?.pendingFakeTrap) return;
     const pending = duel.pendingFakeTrap;
@@ -3422,7 +3462,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 137</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 138</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -3527,6 +3567,8 @@ export function DuelArena({
                       ? "神の宣告の発動確認へ"
                     : cpuPlayback.finalState.pendingAntiRaigeki
                       ? "避雷針の発動確認へ"
+                    : cpuPlayback.finalState.pendingFairysHandMirror
+                      ? "天使の手鏡の対象選択へ"
                     : cpuPlayback.finalState.pendingMirrorForce
                       ? "ミラーフォースの発動確認へ"
                     : cpuPlayback.finalState.pendingBattleStatTrap
@@ -3763,6 +3805,30 @@ export function DuelArena({
               <button className="activate-trap" onClick={() => respondToSpellSpecificTrap(true)}>発動する</button>
               <button onClick={() => respondToSpellSpecificTrap(false)}>発動しない</button>
             </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingFairysHandMirror && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">TARGET CHANGE</p>
+            <h2>天使の手鏡を発動しますか？</h2>
+            <p>CPUが「守備」封じを発動しました。対象を別の守備表示モンスターへ変更できます。</p>
+            <div className="target-list">
+              {duel.pendingFairysHandMirror.targetIndexes
+                .filter((index) => index !== duel.pendingFairysHandMirror!.originalTargetIndex)
+                .map((index) => {
+                  const zone = duel.playerField[index];
+                  if (!zone) return null;
+                  return (
+                    <button key={`hand-mirror-${zone.id}-${index}`} onClick={() => respondToFairysHandMirror(index)}>
+                      <strong>{zone.faceDown ? "裏側守備モンスター" : cardById.get(zone.id)?.name}</strong>
+                      <small>このモンスターへ対象を変更</small>
+                    </button>
+                  );
+                })}
+            </div>
+            <button onClick={() => respondToFairysHandMirror(null)}>発動しない</button>
           </div>
         </div>
       )}
@@ -5120,7 +5186,7 @@ function runCpuTurn(initial: DuelState): DuelState {
   state = useCpuCurseOfFiend(state);
   if (state.pendingFlipTarget || state.pendingMultiTarget || state.pendingDeckReorder || state.pendingDeckSearch) return state;
   state = playCpuNormalSpells(state);
-  if (state.result || state.pendingAntiRaigeki || state.pendingSpellSpecificTrap || state.pendingMagicJammer || state.pendingSolemnJudgment || state.pendingFlipTarget) return state;
+  if (state.result || state.pendingAntiRaigeki || state.pendingSpellSpecificTrap || state.pendingFairysHandMirror || state.pendingMagicJammer || state.pendingSolemnJudgment || state.pendingFlipTarget) return state;
   return continueCpuTurnAfterSpells(state);
 }
 
@@ -5883,8 +5949,23 @@ function resolveCpuMonsterRebornEffect(state: DuelState): DuelState {
   };
 }
 
+function resolveCpuStopDefense(state: DuelState, targetIndex: number): DuelState {
+  const target = state.playerField[targetIndex];
+  if (!target || target.position !== "defense") return state;
+  let next: DuelState = {
+    ...state,
+    playerField: state.playerField.map((zone, index) => index === targetIndex
+      ? { ...zone, position: "attack", faceDown: false, faceUpTurn: zone.faceDown ? state.turnNumber : zone.faceUpTurn, positionChanged: true }
+      : zone),
+    log: appendLog(state.log, `「守備」封じにより${target.faceDown ? "裏側守備モンスター" : cardById.get(target.id)?.name ?? "守備モンスター"}を攻撃表示に変更。`),
+  };
+  if (target.faceDown) next = resolveFlipEffect(next, "player", target.id);
+  return next;
+}
+
 function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false): DuelState {
   let state = initial;
+  if (state.pendingFairysHandMirror) return state;
   if (!canPayDuelChainEnergy(state, "cpu")) return state;
   const magicJammerIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol6-magic-jammer");
   const pendingSpellId = firstCpuPlayableSpell(state);
@@ -6183,19 +6264,24 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
   }
 
   if (state.cpuHand.includes("vol3-stop-defense") && canPayDuelChainEnergy(state, "cpu")) {
-    const targetIndex = state.playerField.findIndex((zone) => zone.position === "defense"
-      && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)));
+    const targetIndexes = state.playerField.flatMap((zone, index) => zone.position === "defense"
+      && !isDragonCaptureJarLocked(cardById.get(zone.id)?.kind, zone.faceDown, isDragonCaptureJarActive(state)) ? [index] : []);
+    const targetIndex = targetIndexes[0] ?? -1;
     if (targetIndex >= 0) {
-      const target = state.playerField[targetIndex];
-      state = {
+      const activated: DuelState = {
         ...removeCpuHandCard(state, "vol3-stop-defense"),
-        playerField: state.playerField.map((zone, index) => index === targetIndex
-          ? { ...zone, position: "attack", faceDown: false, faceUpTurn: zone.faceDown ? state.turnNumber : zone.faceUpTurn, positionChanged: true }
-          : zone),
         cpuGraveyard: [...state.cpuGraveyard, "vol3-stop-defense"],
-        log: appendLog(state.log, "CPUが『守備』封じを発動。守備モンスターを攻撃表示に変更。"),
+        log: appendLog(state.log, `CPUが「守備」封じを発動。${state.playerField[targetIndex].faceDown ? "裏側守備モンスター" : cardById.get(state.playerField[targetIndex].id)?.name ?? "守備モンスター"}を対象にした。`),
       };
-      if (target.faceDown) state = resolveFlipEffect(state, "player", target.id);
+      const mirrorIndex = areTrapEffectsNegated(activated) ? -1 : activated.playerSpellTrap.indexOf("mr-fairys-hand-mirror");
+      if (mirrorIndex >= 0 && targetIndexes.length > 1) {
+        return {
+          ...activated,
+          pendingFairysHandMirror: { trapIndex: mirrorIndex, originalTargetIndex: targetIndex, targetIndexes },
+          log: appendLog(activated.log, "天使の手鏡を発動して対象を変更しますか？"),
+        };
+      }
+      state = resolveCpuStopDefense(activated, targetIndex);
     }
   }
 
@@ -7780,8 +7866,8 @@ function spellDescription(id: string) {
   if (id === "ex-039") return "このターンに自分のモンスターが墓地へ送られている場合、デッキからATK1500以下のモンスター1体を特殊召喚する";
   if (id === "ex-085") return "ロード・オブ・ドラゴンが表側表示の時、双方は手札からドラゴン族を最大2体ずつ特殊召喚できる";
   if (id === "stb-polymerization" || id === "vol6-polymerization") return "手札・フィールドの決められた素材を墓地へ送り、融合デッキから融合召喚する";
-  if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
-  return "";
+  const card = cardById.get(id);
+  return card ? cardDescription(card) : "";
 }
 
 function isSpellImplemented(id: string) {
@@ -7861,11 +7947,13 @@ function trapDescription(id: string) {
   if (id === "bo7-griffin-wing") return "相手のハーピィの羽根帚にチェーンし、代わりに相手の魔法・罠を破壊する";
   if (id === "mr-snake-fang") return "表側表示モンスター1体のDEFをターン終了まで500ダウン";
   if (id === "mr-spellbinding-circle") return "相手の表側表示モンスター1体の攻撃と表示形式の変更を封じる";
-  return "効果処理は次の更新で対応";
+  if (id === "mr-fairys-hand-mirror") return "相手がモンスター1体を対象に魔法を発動した時、その対象を別の正しい対象へ変更する";
+  const card = cardById.get(id);
+  return card ? cardDescription(card) : "";
 }
 
 function isTrapImplemented(id: string) {
-  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "ex-040";
+  return id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {
@@ -7893,7 +7981,8 @@ function monsterDescription(id: string) {
   if (id === "ex-033") return "リバース：相手フィールドのセットカードをすべて確認する";
   if (id === "ex-034") return "このカードを攻撃したモンスターが戦闘後もフィールドに残る場合、持ち主の手札へ戻す";
   if (id === "ex-084") return "表側表示で存在する限り、フィールドのドラゴン族はカード効果の対象にできない";
-  return "";
+  const card = cardById.get(id);
+  return card ? cardDescription(card) : "";
 }
 
 function removeCardCopies(cardIds: string[], cardId: string, count: number) {

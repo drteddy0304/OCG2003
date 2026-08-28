@@ -235,6 +235,7 @@ const descriptions: Record<string, string> = {
   "mr-giant-trunade": "フィールドの魔法・罠カードを全て持ち主の手札に戻す。",
   "mr-painful-choice": "デッキから5枚を選び、相手が選んだ1枚を手札に加え、残りを墓地へ送る。",
   "mr-snake-fang": "表側表示モンスター1体のDEFをターン終了時まで500ダウンする。",
+  "mr-fairys-hand-mirror": "相手がモンスター1体を対象に魔法カードを発動した時、その対象を別の正しい対象へ変更する。",
 };
 
 export function cardDescription(card: Card) {
