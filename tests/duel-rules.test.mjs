@@ -7,6 +7,14 @@ import { wormBeastReturns } from "../app/duel-rules.mjs";
 import { snatchStealStandbyGain } from "../app/duel-rules.mjs";
 import { curseOfFiendPosition } from "../app/duel-rules.mjs";
 import { canPayChainEnergy, chainEnergyCost } from "../app/duel-rules.mjs";
+import { blackPendantTriggerCounts } from "../app/duel-rules.mjs";
+
+test("黒いペンダントはフィールドから墓地へ送られた所有者側だけが相手へ500ダメージを与える", () => {
+  assert.deepEqual(blackPendantTriggerCounts(["mr-black-pendant"], [], [], [], 1), { player: 1, cpu: 0 });
+  assert.deepEqual(blackPendantTriggerCounts([], ["mr-black-pendant"], [], [], 1), { player: 0, cpu: 1 });
+  assert.deepEqual(blackPendantTriggerCounts(["mr-black-pendant"], [], [], ["mr-black-pendant"], 0), { player: 0, cpu: 0 });
+  assert.deepEqual(blackPendantTriggerCounts(["mr-black-pendant"], [], [], [], 0), { player: 0, cpu: 0 });
+});
 
 test("魔力の枷は表側の枚数と手札から出す枚数に応じてLPを要求する", () => {
   assert.equal(chainEnergyCost([], 3), 0);

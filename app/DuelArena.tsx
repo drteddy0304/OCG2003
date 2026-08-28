@@ -11,7 +11,7 @@ import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption }
 import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mjs";
 import { snatchStealStandbyGain } from "./duel-rules.mjs";
 import { curseOfFiendPosition } from "./duel-rules.mjs";
-import { canPayChainEnergy, chainEnergyCost } from "./duel-rules.mjs";
+import { blackPendantTriggerCounts, canPayChainEnergy, chainEnergyCost } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -267,7 +267,11 @@ export function DuelArena({
   collection: Record<string, number>;
   onReward: (cardId: string) => boolean;
 }) {
-  const [duel, setDuel] = useState<DuelState | null>(null);
+  const [duel, rawSetDuel] = useState<DuelState | null>(null);
+
+  function setDuel(next: DuelState | null) {
+    rawSetDuel((previous) => previous && next ? applyBlackPendantGraveTriggers(previous, next) : next);
+  }
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
   const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
@@ -3372,7 +3376,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 135</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 136</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -7640,7 +7644,7 @@ function spellDescription(id: string) {
   if (id === "mr-curse-fiend") return "スタンバイフェイズに全モンスターの表示形式を入れ替え、このターンの表示形式変更を封じる";
   if (id === "mr-snatch-steal") return "相手モンスター1体のコントロールを得る。相手スタンバイフェイズごとに相手は1000LP回復";
   if (id === "mr-axe-despair") return "モンスター1体のATKを1000アップ";
-  if (id === "mr-black-pendant") return "モンスター1体のATKを500アップ";
+  if (id === "mr-black-pendant") return "ATKを500アップ。フィールドから墓地へ送られた時、相手に500ダメージ";
   if (id === "mr-horn-light") return "モンスター1体のDEFを800アップ";
   if (id === "mr-malevolent-nuzzler") return "モンスター1体のATKを700アップ";
   if (id === "stb-forest") return "表側の昆虫・獣・植物・獣戦士族のATK・DEFを200アップ";
@@ -7832,6 +7836,33 @@ function removeEquippedCard(field: ZoneCard[], spellId: string) {
       return false;
     }),
   }));
+}
+
+function applyBlackPendantGraveTriggers(previous: DuelState, next: DuelState): DuelState {
+  const countInGraves = (state: DuelState) => [...state.playerGraveyard, ...state.cpuGraveyard]
+    .filter((id) => id === "mr-black-pendant").length;
+  const triggers = blackPendantTriggerCounts(
+    previous.playerSpellTrap,
+    previous.cpuSpellTrap,
+    next.playerSpellTrap,
+    next.cpuSpellTrap,
+    Math.max(0, countInGraves(next) - countInGraves(previous)),
+  );
+  if (triggers.player === 0 && triggers.cpu === 0) return next;
+  const playerDamage = triggers.cpu * 500;
+  const cpuDamage = triggers.player * 500;
+  const playerLp = Math.max(0, next.playerLp - playerDamage);
+  const cpuLp = Math.max(0, next.cpuLp - cpuDamage);
+  let log = next.log;
+  if (cpuDamage > 0) log = appendLog(log, `黒いペンダントの効果が発動。CPUに${cpuDamage}ダメージ。`);
+  if (playerDamage > 0) log = appendLog(log, `CPUの黒いペンダントの効果が発動。プレイヤーに${playerDamage}ダメージ。`);
+  return {
+    ...next,
+    playerLp,
+    cpuLp,
+    result: playerLp === 0 && cpuLp === 0 ? "draw" : cpuLp === 0 ? "win" : playerLp === 0 ? "lose" : next.result,
+    log,
+  };
 }
 
 function appendLog(log: string[], entry: string) {

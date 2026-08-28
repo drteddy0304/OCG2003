@@ -546,6 +546,25 @@ export function canPayChainEnergy(lifePoints, activeSpellTrapIds, actionCount = 
   return lifePoints > chainEnergyCost(activeSpellTrapIds, actionCount);
 }
 
+export function blackPendantTriggerCounts(
+  previousPlayerSpellTrapIds,
+  previousCpuSpellTrapIds,
+  nextPlayerSpellTrapIds,
+  nextCpuSpellTrapIds,
+  graveyardGain,
+) {
+  const count = (ids) => ids.filter((id) => id === "mr-black-pendant").length;
+  let playerDecrease = Math.max(0, count(previousPlayerSpellTrapIds) - count(nextPlayerSpellTrapIds));
+  let cpuDecrease = Math.max(0, count(previousCpuSpellTrapIds) - count(nextCpuSpellTrapIds));
+  const playerIncrease = Math.max(0, count(nextPlayerSpellTrapIds) - count(previousPlayerSpellTrapIds));
+  const cpuIncrease = Math.max(0, count(nextCpuSpellTrapIds) - count(previousCpuSpellTrapIds));
+  playerDecrease = Math.max(0, playerDecrease - cpuIncrease);
+  cpuDecrease = Math.max(0, cpuDecrease - playerIncrease);
+  const availableTriggers = Math.min(Math.max(0, Math.trunc(graveyardGain)), playerDecrease + cpuDecrease);
+  const player = Math.min(playerDecrease, availableTriggers);
+  return { player, cpu: Math.min(cpuDecrease, availableTriggers - player) };
+}
+
 export function canTransferMatango(lifePoints, opponentFieldCount, fieldLimit = 5) {
   return lifePoints > 500 && opponentFieldCount < fieldLimit;
 }

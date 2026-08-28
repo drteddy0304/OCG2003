@@ -164,6 +164,7 @@ export function snatchStealStandbyGain(activeCount: number): number;
 export function curseOfFiendPosition(position: "attack" | "defense"): "attack" | "defense";
 export function chainEnergyCost(activeSpellTrapIds: string[], actionCount?: number): number;
 export function canPayChainEnergy(lifePoints: number, activeSpellTrapIds: string[], actionCount?: number): boolean;
+export function blackPendantTriggerCounts(previousPlayerSpellTrapIds: string[], previousCpuSpellTrapIds: string[], nextPlayerSpellTrapIds: string[], nextCpuSpellTrapIds: string[], graveyardGain: number): { player: number; cpu: number };
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 

@@ -5,6 +5,13 @@ import test from "node:test";
 const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
 
+test("黒いペンダントは全ての盤面更新で墓地送りと500ダメージを確認する", () => {
+  assert.match(arena, /applyBlackPendantGraveTriggers/);
+  assert.match(arena, /blackPendantTriggerCounts/);
+  assert.match(arena, /黒いペンダントの効果が発動/);
+  assert.match(arena, /相手に500ダメージ/);
+});
+
 test("魔力の枷は双方の手札プレイと重複枚数をLPへ反映する", () => {
   assert.match(arena, /mr-chain-energy/);
   assert.match(arena, /canPayDuelChainEnergy/);
