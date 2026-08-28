@@ -786,7 +786,12 @@ export function canDeckSearchTarget(sourceId, target) {
   return false;
 }
 
-export const competitiveCpuDeckLatestPackId = "magic-ruler";
+export const competitiveCpuDeckLatestPackId = "promo-1999";
+
+export const competitiveCpuFusionDeck = Object.freeze([
+  "vol3-gaia-dragon-champion",
+  "pr99-meteor-black-dragon",
+]);
 
 export const competitiveCpuDeck = Object.freeze([
   "mr-maha-vailo",
@@ -795,12 +800,14 @@ export const competitiveCpuDeck = Object.freeze([
   "vol3-skull-red-bird",
   "vol3-stop-defense",
   "mr-curse-fiend",
-  "vol7-rainbow-fish",
+  "pr99-meteor-dragon",
   "vol1-gaia",
   "vol7-barrel-dragon",
-  ...Array(2).fill("vol7-prevent-rat"),
+  "vol7-prevent-rat",
+  "vol3-red-eyes",
   "mr-axe-despair",
-  ...Array(2).fill("vol3-giant-soldier-stone"),
+  "vol3-giant-soldier-stone",
+  "pr99-seiyaryu",
   ...Array(3).fill("vol3-man-eater-bug"),
   "vol3-hane-hane",
   "vol6-sangan",

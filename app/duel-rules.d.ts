@@ -16,8 +16,9 @@ export function equippedMonsterStats(atk: number, defense: number, equippedIds: 
 export function germInfectionPenalty(equippedIds: string[], standbyCount?: number): number;
 export function dopingPenalty(equippedIds: string[], standbyCount?: number): number;
 export function paralyzingPotionPreventsAttack(equippedIds: string[]): boolean;
-export const competitiveCpuDeckLatestPackId: "magic-ruler";
+export const competitiveCpuDeckLatestPackId: "promo-1999";
 export const competitiveCpuDeck: readonly string[];
+export const competitiveCpuFusionDeck: readonly string[];
 
 export type SimpleSpellEffect = {
   gain: number;
