@@ -1092,6 +1092,35 @@ export function DuelArena({
         cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField), ...graveCards(returnedMonsters)],
       };
       next = applyDeckSearchTriggers(next, playerMonsters, [...cpuMonsters, ...returnedMonsters]);
+    } else if (card.id === "stb-harpies-feather-duster" || card.id === "pr99-feather-duster") {
+      const griffinIndex = areTrapEffectsNegated(next) ? -1 : next.cpuSpellTrap.indexOf("bo7-griffin-wing");
+      if (griffinIndex >= 0) {
+        const destroyedPlayerCards = [...next.playerSpellTrap, ...(next.playerFieldSpell ? [next.playerFieldSpell] : [])];
+        next = {
+          ...next,
+          playerField: next.playerField.map((zone) => ({ ...zone, equipped: [] })),
+          playerSpellTrap: [],
+          playerFieldSpell: null,
+          playerSwordsTurns: [],
+          playerActiveTraps: [],
+          cpuSpellTrap: next.cpuSpellTrap.filter((_, index) => index !== griffinIndex),
+          playerGraveyard: [...next.playerGraveyard, ...destroyedPlayerCards],
+          cpuGraveyard: [...next.cpuGraveyard, "bo7-griffin-wing"],
+          log: appendLog(next.log, `CPUがグリフォンの翼を発動。自分の魔法・罠カード${destroyedPlayerCards.length}枚が破壊された。`),
+        };
+      } else {
+        const destroyedCpuCards = [...next.cpuSpellTrap, ...(next.cpuFieldSpell ? [next.cpuFieldSpell] : [])];
+        next = {
+          ...next,
+          cpuField: next.cpuField.map((zone) => ({ ...zone, equipped: [] })),
+          cpuSpellTrap: [],
+          cpuFieldSpell: null,
+          cpuSwordsTurns: [],
+          cpuActiveTraps: [],
+          cpuGraveyard: [...next.cpuGraveyard, ...destroyedCpuCards],
+          log: appendLog(next.log, `ハーピィの羽根帚を発動。相手の魔法・罠カード${destroyedCpuCards.length}枚をすべて破壊。`),
+        };
+      }
     } else if (card.id === "bo7-heavy-storm") {
       const playerCards = [...next.playerSpellTrap, ...(next.playerFieldSpell ? [next.playerFieldSpell] : [])];
       const cpuCards = [...next.cpuSpellTrap, ...(next.cpuFieldSpell ? [next.cpuFieldSpell] : [])];
@@ -3220,14 +3249,32 @@ export function DuelArena({
       } else {
         resumed = resolveCpuMonsterRebornEffect(resumed);
       }
-    } else if (pending.trapId === "bo7-griffin-wing" && activate) {
-      const destroyedCpuTraps = [...resumed.cpuSpellTrap];
-      resumed = {
-        ...resumed,
-        cpuSpellTrap: [],
-        cpuGraveyard: [...resumed.cpuGraveyard, ...destroyedCpuTraps],
-        log: appendLog(resumed.log, `グリフォンの翼によりCPUの魔法・罠${destroyedCpuTraps.length}枚を破壊した。`),
-      };
+    } else if (pending.trapId === "bo7-griffin-wing") {
+      if (activate) {
+        const destroyedCpuCards = [...resumed.cpuSpellTrap, ...(resumed.cpuFieldSpell ? [resumed.cpuFieldSpell] : [])];
+        resumed = {
+          ...resumed,
+          cpuField: resumed.cpuField.map((zone) => ({ ...zone, equipped: [] })),
+          cpuSpellTrap: [],
+          cpuFieldSpell: null,
+          cpuSwordsTurns: [],
+          cpuActiveTraps: [],
+          cpuGraveyard: [...resumed.cpuGraveyard, ...destroyedCpuCards],
+          log: appendLog(resumed.log, `グリフォンの翼によりCPUの魔法・罠${destroyedCpuCards.length}枚を破壊した。`),
+        };
+      } else {
+        const destroyedPlayerCards = [...resumed.playerSpellTrap, ...(resumed.playerFieldSpell ? [resumed.playerFieldSpell] : [])];
+        resumed = {
+          ...resumed,
+          playerField: resumed.playerField.map((zone) => ({ ...zone, equipped: [] })),
+          playerSpellTrap: [],
+          playerFieldSpell: null,
+          playerSwordsTurns: [],
+          playerActiveTraps: [],
+          playerGraveyard: [...resumed.playerGraveyard, ...destroyedPlayerCards],
+          log: appendLog(resumed.log, `グリフォンの翼を発動せず、ハーピィの羽根帚で自分の魔法・罠${destroyedPlayerCards.length}枚が破壊された。`),
+        };
+      }
     }
     const finalState = continueCpuTurnAfterSpells(resumed);
     beginCpuPlayback(resumed, finalState, marker);
@@ -3462,8 +3509,8 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>1999プロモ対応 強化CPU · BUILD 140</strong>
-          <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
+          <strong>1999プロモ効果対応 強化CPU · BUILD 141</strong>
+          <p>1999プロモまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
@@ -6133,6 +6180,32 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
     };
   }
 
+  const cpuFeatherDuster = state.cpuHand.find((id) => id === "stb-harpies-feather-duster" || id === "pr99-feather-duster");
+  if (cpuFeatherDuster && (state.playerSpellTrap.length > 0 || state.playerFieldSpell) && canPayDuelChainEnergy(state, "cpu")) {
+    const activated: DuelState = {
+      ...removeCpuHandCard(state, cpuFeatherDuster),
+      cpuGraveyard: [...state.cpuGraveyard, cpuFeatherDuster],
+      log: appendLog(state.log, "CPUがハーピィの羽根帚を発動。"),
+    };
+    const griffinId = spellSpecificTrapResponse(activated.playerSpellTrap, cpuFeatherDuster);
+    const griffinIndex = griffinId ? activated.playerSpellTrap.indexOf(griffinId) : -1;
+    if (griffinIndex >= 0 && !areTrapEffectsNegated(activated)) return {
+      ...activated,
+      pendingSpellSpecificTrap: { trapIndex: griffinIndex, trapId: "bo7-griffin-wing", spellId: cpuFeatherDuster },
+    };
+    const destroyedPlayerCards = [...activated.playerSpellTrap, ...(activated.playerFieldSpell ? [activated.playerFieldSpell] : [])];
+    state = {
+      ...activated,
+      playerField: activated.playerField.map((zone) => ({ ...zone, equipped: [] })),
+      playerSpellTrap: [],
+      playerFieldSpell: null,
+      playerSwordsTurns: [],
+      playerActiveTraps: [],
+      playerGraveyard: [...activated.playerGraveyard, ...destroyedPlayerCards],
+      log: appendLog(activated.log, `ハーピィの羽根帚でプレイヤーの魔法・罠${destroyedPlayerCards.length}枚をすべて破壊。`),
+    };
+  }
+
   const raceDestructionSpell = state.cpuHand.find((id) => shouldCpuUseRaceDestructionSpell(
     id,
     state.cpuField.filter((zone) => !zone.faceDown).map((zone) => cardById.get(zone.id)?.kind ?? ""),
@@ -7571,6 +7644,7 @@ function timedFieldBonus(zone: ZoneCard, state: DuelState) {
 }
 
 function canEquip(spellId: string, monster: Card) {
+  if (spellId === "pr99-cyber-bondage") return monster.id === "vol4-harpie-lady" || monster.id === "vol4-harpie-sisters";
   if (spellId === "vol4-cocoon-evolution") return monster.id === "vol4-petit-moth";
   if (spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion") return monster.cardType === "monster" && monster.kind !== "機械族";
   if (spellId === "vol7-sword-deep-seated") return monster.cardType === "monster";
@@ -7810,6 +7884,10 @@ function spellDescription(id: string) {
   if (id === "mr-black-pendant") return "ATKを500アップ。フィールドから墓地へ送られた時、相手に500ダメージ";
   if (id === "mr-horn-light") return "モンスター1体のDEFを800アップ";
   if (id === "mr-malevolent-nuzzler") return "モンスター1体のATKを700アップ";
+  if (id === "pr99-insect-armor") return "昆虫族モンスター1体のATKを700アップ";
+  if (id === "pr99-cyber-bondage") return "ハーピィ・レディまたは三姉妹のATKを500アップ";
+  if (id === "pr99-salamandra") return "炎属性モンスター1体のATKを700アップ";
+  if (id === "pr99-shine-palace") return "光属性モンスター1体のATKを700アップ";
   if (id === "stb-forest") return "表側の昆虫・獣・植物・獣戦士族のATK・DEFを200アップ";
   if (id === "stb-wasteland") return "表側の恐竜・アンデット・岩石族のATK・DEFを200アップ";
   if (id === "stb-mountain") return "表側のドラゴン・鳥獣・雷族のATK・DEFを200アップ";
@@ -7826,6 +7904,7 @@ function spellDescription(id: string) {
     : `${EQUIP_RULES[id]}1体のATK・DEFを300アップ`;
   if (id === "vol1-dark-hole") return "フィールドのモンスターをすべて破壊";
   if (id === "stb-raigeki") return "相手フィールドのモンスターをすべて破壊";
+  if (id === "stb-harpies-feather-duster" || id === "pr99-feather-duster") return "相手フィールドの魔法・罠カードをすべて破壊";
   const effect = simpleSpellEffect(id);
   if (effect?.gain) return `自分のLPを${effect.gain}回復`;
   if (effect?.damage) return `相手に${effect.damage}ダメージ${effect.selfDamage ? `、自分に${effect.selfDamage}ダメージ` : ""}`;
@@ -7876,6 +7955,8 @@ function isSpellImplemented(id: string) {
     || [
       "vol1-dark-hole",
       "stb-raigeki",
+      "stb-harpies-feather-duster",
+      "pr99-feather-duster",
       "vol1-fissure",
       "vol2-swords-revealing-light",
       "vol2-monster-reborn",

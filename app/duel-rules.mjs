@@ -63,6 +63,10 @@ export const equipRules = Object.freeze({
   "bo2-awakening": "地属性",
   "bo2-burning-spear": "炎属性",
   "bo2-gust-fan": "風属性",
+  "pr99-insect-armor": "昆虫族",
+  "pr99-cyber-bondage": "ハーピィ",
+  "pr99-salamandra": "炎属性",
+  "pr99-shine-palace": "光属性",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -621,6 +625,7 @@ export function spellSpecificTrapResponse(trapIds, spellId) {
     "vol1-dark-hole": "bo4-white-hole",
     "vol2-monster-reborn": "bo4-call-grave",
     "stb-harpies-feather-duster": "bo7-griffin-wing",
+    "pr99-feather-duster": "bo7-griffin-wing",
   };
   const trapId = responseBySpell[spellId] ?? null;
   return trapId && trapIds.includes(trapId) ? trapId : null;
@@ -671,6 +676,8 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
     if (id === "mr-black-pendant") return { atk: result.atk + 500, def: result.def };
     if (id === "mr-horn-light") return { atk: result.atk, def: result.def + 800 };
     if (id === "mr-malevolent-nuzzler") return { atk: result.atk + 700, def: result.def };
+    if (id === "pr99-insect-armor" || id === "pr99-salamandra" || id === "pr99-shine-palace") return { atk: result.atk + 700, def: result.def };
+    if (id === "pr99-cyber-bondage") return { atk: result.atk + 500, def: result.def };
     if (id.startsWith("bo2-")) return { atk: result.atk + 400, def: result.def - 200 };
     return { atk: result.atk + 300, def: result.def + 300 };
   }, { atk: 0, def: 0 });
@@ -819,7 +826,7 @@ export const competitiveCpuDeck = Object.freeze([
   "vol1-dark-hole",
   "vol1-fissure",
   "vol7-tremendous-fire",
-  "mr-mystical-space-typhoon",
+  "pr99-feather-duster",
   "vol1-trap-hole",
   "vol7-mirror-force",
   "mr-upstart-goblin",

@@ -743,7 +743,7 @@ test("強化CPUは40枚デッキを使い、2003年10月の制限枚数を守る
   assert.equal(counts["vol1-gaia"], 1);
   assert.equal(counts["vol7-barrel-dragon"], 1);
   assert.equal(counts["mr-axe-despair"], 1);
-  assert.equal(counts["mr-mystical-space-typhoon"], 1);
+  assert.equal(counts["pr99-feather-duster"], 1);
   assert.equal(counts["mr-upstart-goblin"], 1);
   assert.equal(counts["mr-confiscation"], 1);
   assert.equal(counts["mr-forceful-sentry"], 1);
@@ -766,6 +766,17 @@ test("強化CPUは現在追加済みの1999プロモーションパックまで�
 test("強化CPUは天使の手鏡を実戦で確認できるよう対象を取る守備封じを採用する", () => {
   assert.equal(competitiveCpuDeck.includes("vol3-stop-defense"), true);
   assert.equal(competitiveCpuDeck.length, 40);
+});
+
+test("1999プロモの装備魔法と羽根帚への専用罠を判定する", () => {
+  assert.equal(equipRules["pr99-insect-armor"], "昆虫族");
+  assert.equal(equipRules["pr99-cyber-bondage"], "ハーピィ");
+  assert.equal(equipRules["pr99-salamandra"], "炎属性");
+  assert.equal(equipRules["pr99-shine-palace"], "光属性");
+  assert.deepEqual(equippedMonsterStats(1000, 1000, ["pr99-insect-armor"]), { atk: 1700, def: 1000 });
+  assert.deepEqual(equippedMonsterStats(1000, 1000, ["pr99-cyber-bondage"]), { atk: 1500, def: 1000 });
+  assert.deepEqual(equippedMonsterStats(1000, 1000, ["pr99-salamandra", "pr99-shine-palace"]), { atk: 2400, def: 1000 });
+  assert.equal(spellSpecificTrapResponse(["bo7-griffin-wing"], "pr99-feather-duster"), "bo7-griffin-wing");
 });
 
 test("Magic Rulerの装備魔法とマハー・ヴァイロの強化値を計算する", () => {
