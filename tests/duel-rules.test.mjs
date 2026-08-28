@@ -780,6 +780,8 @@ test("1999プロモの装備魔法と羽根帚への専用罠を判定する", (
 });
 
 test("Magic Rulerの装備魔法とマハー・ヴァイロの強化値を計算する", () => {
+  assert.equal(equipRules["mr-snatch-steal"], "相手モンスター");
+  assert.deepEqual(equippedMonsterStats(1000, 1000, ["mr-snatch-steal"]), { atk: 1000, def: 1000 });
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["mr-axe-despair"]), { atk: 2000, def: 1000 });
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["mr-black-pendant", "mr-horn-light", "mr-malevolent-nuzzler"]), { atk: 2200, def: 1800 });
   assert.deepEqual(continuousMonsterStats({ id: "mr-maha-vailo", attribute: "光", kind: "魔法使い族", atk: 1550, def: 1400, equipCount: 2 }), { atk: 2550, def: 1400 });

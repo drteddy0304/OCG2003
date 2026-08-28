@@ -3509,7 +3509,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>1999プロモ効果対応 強化CPU · BUILD 141</strong>
+          <strong>1999プロモ効果対応 強化CPU · BUILD 142</strong>
           <p>1999プロモまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>

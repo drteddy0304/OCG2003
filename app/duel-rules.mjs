@@ -57,6 +57,7 @@ export const equipRules = Object.freeze({
   "mr-black-pendant": "全モンスター",
   "mr-horn-light": "全モンスター",
   "mr-malevolent-nuzzler": "全モンスター",
+  "mr-snatch-steal": "相手モンスター",
   "bo2-dark-piercing-sword": "闇属性",
   "bo2-elf-light": "光属性",
   "bo2-steel-shell": "水属性",
@@ -668,7 +669,7 @@ export function fakeTrapCanProtect(trapIds, targetIndex) {
 export function equippedMonsterStats(atk, defense, equippedIds) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
   const modifiers = equippedIds.reduce((result, id) => {
-    if (id === "vol4-cocoon-evolution" || id === "vol7-germ-infection" || id === "vol7-paralyzing-potion") return result;
+    if (id === "vol4-cocoon-evolution" || id === "vol7-germ-infection" || id === "vol7-paralyzing-potion" || id === "mr-snatch-steal") return result;
     if (id === "vol7-sword-deep-seated") return { atk: result.atk + 500, def: result.def + 500 };
     if (id === "bo7-magnetic-ring") return { atk: result.atk - 500, def: result.def - 500 };
     if (id === "bo7-doping") return { atk: result.atk + 700, def: result.def };
