@@ -730,6 +730,22 @@ export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds) {
     .sort((a, b) => b.score - a.score)[0]?.id ?? null;
 }
 
+export function monsterSentFromFieldToGrave(previousFieldIds, nextFieldIds, previousGraveIds, nextGraveIds) {
+  const countCards = (ids) => ids.reduce((counts, id) => {
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+    return counts;
+  }, new Map());
+  const previousField = countCards(previousFieldIds);
+  const nextField = countCards(nextFieldIds);
+  const previousGrave = countCards(previousGraveIds);
+  const nextGrave = countCards(nextGraveIds);
+  return [...previousField].some(([id, count]) => {
+    const leftField = count - (nextField.get(id) ?? 0);
+    const enteredGrave = (nextGrave.get(id) ?? 0) - (previousGrave.get(id) ?? 0);
+    return leftField > 0 && enteredGrave > 0;
+  });
+}
+
 export function continuousMonsterStats({ id, attribute, kind = "", position = "attack", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, equipCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;

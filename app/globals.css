@@ -378,6 +378,9 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .cannon-target-list button { min-width: 0; border: 1px solid #8d342f; background: #f7e2d8; padding: 11px; text-align: left; }
 .cannon-target-list strong, .cannon-target-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cannon-target-list small { margin-top: 4px; color: #7c514a; }
+.last-will-target { min-width: 0; border: 1px solid #8d342f; border-radius: 8px; background: #f7e2d8; padding: 10px; }
+.last-will-target strong, .last-will-target small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.last-will-target .overlay-actions { margin-top: 8px; }
 .card-detail-overlay { z-index: 35; }
 .graveyard-panel, .card-detail { width: min(520px, 100%); max-height: 82vh; overflow: auto; background: #eee5d4; color: var(--ink); border: 3px solid var(--ink); padding: 18px; box-shadow: 0 16px 40px #0008; }
 .graveyard-panel h2, .card-detail h2 { margin: 4px 0 14px; font-family: "Yu Mincho", serif; }

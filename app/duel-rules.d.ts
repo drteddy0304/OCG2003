@@ -152,6 +152,7 @@ export function continuousMonsterStats(input: {
 export function fieldSpellStatModifier(kind: string, fieldSpellIds?: string[]): number;
 export function wormBeastReturns(id: string, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
 export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[]): string | null;
+export function monsterSentFromFieldToGrave(previousFieldIds: string[], nextFieldIds: string[], previousGraveIds: string[], nextGraveIds: string[]): boolean;
 
 export function canDeckSearchTarget(sourceId: string, target?: {
   cardType: "monster" | "spell" | "trap";

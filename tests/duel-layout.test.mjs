@@ -169,3 +169,13 @@ test("王座の侵略者は対象選択と永続コントロール交換に対�
   assert.match(arena, /バトルフェイズ中のため効果は発動できない/);
   assert.match(arena, /王座の侵略者・コントロール交換中/);
 });
+
+test("遺言状は墓地送りをターン中に記録し、対象と表示形式を選んで特殊召喚できる", () => {
+  assert.match(arena, /playerMonsterSentToGraveTurn/);
+  assert.match(arena, /trackMonstersSentToGrave/);
+  assert.match(arena, /pendingLastWill/);
+  assert.match(arena, /summonWithLastWill/);
+  assert.match(arena, /デッキからATK1500以下のモンスター1体を選び/);
+  assert.match(arena, /攻撃表示/);
+  assert.match(arena, /守備表示/);
+});

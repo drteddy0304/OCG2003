@@ -8,6 +8,15 @@ import { snatchStealStandbyGain } from "../app/duel-rules.mjs";
 import { curseOfFiendPosition } from "../app/duel-rules.mjs";
 import { canPayChainEnergy, chainEnergyCost } from "../app/duel-rules.mjs";
 import { blackPendantTriggerCounts } from "../app/duel-rules.mjs";
+import { monsterSentFromFieldToGrave } from "../app/duel-rules.mjs";
+
+test("遺言状の条件はフィールドから同じモンスターが墓地へ移った時だけ成立する", () => {
+  assert.equal(monsterSentFromFieldToGrave(["a", "b"], ["b"], [], ["a"]), true);
+  assert.equal(monsterSentFromFieldToGrave(["a", "a"], ["a"], [], ["a"]), true);
+  assert.equal(monsterSentFromFieldToGrave(["a"], [], [], ["spell"]), false);
+  assert.equal(monsterSentFromFieldToGrave(["a"], [], ["a"], ["a"]), false);
+  assert.equal(monsterSentFromFieldToGrave(["a"], ["a"], [], ["a"]), false);
+});
 
 test("黒いペンダントはフィールドから墓地へ送られた所有者側だけが相手へ500ダメージを与える", () => {
   assert.deepEqual(blackPendantTriggerCounts(["mr-black-pendant"], [], [], [], 1), { player: 1, cpu: 0 });

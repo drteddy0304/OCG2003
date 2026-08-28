@@ -11,7 +11,7 @@ import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption }
 import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mjs";
 import { snatchStealStandbyGain } from "./duel-rules.mjs";
 import { curseOfFiendPosition } from "./duel-rules.mjs";
-import { blackPendantTriggerCounts, canPayChainEnergy, chainEnergyCost } from "./duel-rules.mjs";
+import { blackPendantTriggerCounts, canPayChainEnergy, chainEnergyCost, monsterSentFromFieldToGrave } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -217,6 +217,8 @@ type DuelState = {
   cpuExtraBattles: number;
   playerGraveyard: string[];
   cpuGraveyard: string[];
+  playerMonsterSentToGraveTurn: number | null;
+  cpuMonsterSentToGraveTurn: number | null;
   playerLp: number;
   cpuLp: number;
   turn: Side;
@@ -270,7 +272,9 @@ export function DuelArena({
   const [duel, rawSetDuel] = useState<DuelState | null>(null);
 
   function setDuel(next: DuelState | null) {
-    rawSetDuel((previous) => previous && next ? applyBlackPendantGraveTriggers(previous, next) : next);
+    rawSetDuel((previous) => previous && next
+      ? applyBlackPendantGraveTriggers(previous, trackMonstersSentToGrave(previous, next))
+      : next);
   }
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
@@ -282,6 +286,7 @@ export function DuelArena({
   const [pendingSoulRelease, setPendingSoulRelease] = useState<PendingSoulRelease | null>(null);
   const [pendingCheerfulCoffin, setPendingCheerfulCoffin] = useState<PendingCheerfulCoffin | null>(null);
   const [pendingFusion, setPendingFusion] = useState<PendingFusion | null>(null);
+  const [pendingLastWill, setPendingLastWill] = useState<number | null>(null);
   const [pendingDragonFlute, setPendingDragonFlute] = useState<PendingDragonFlute | null>(null);
   const [pendingChangeOfHeart, setPendingChangeOfHeart] = useState<number | null>(null);
   const [pendingCannonSoldier, setPendingCannonSoldier] = useState<number | null>(null);
@@ -354,6 +359,7 @@ export function DuelArena({
     && pendingSoulRelease === null
     && pendingCheerfulCoffin === null
     && pendingFusion === null
+    && pendingLastWill === null
     && pendingDragonFlute === null
     && pendingChangeOfHeart === null
     && pendingCannonSoldier === null
@@ -456,6 +462,7 @@ export function DuelArena({
     setPendingSoulRelease(null);
     setPendingCheerfulCoffin(null);
     setPendingFusion(null);
+    setPendingLastWill(null);
     setPendingChangeOfHeart(null);
     setPendingCannonSoldier(null);
     setPendingCatapultTurtle(null);
@@ -494,6 +501,8 @@ export function DuelArena({
       cpuExtraBattles: 0,
       playerGraveyard: [],
       cpuGraveyard: [],
+      playerMonsterSentToGraveTurn: null,
+      cpuMonsterSentToGraveTurn: null,
       playerLp: STARTING_LP,
       cpuLp: STARTING_LP,
       turn: "player",
@@ -718,7 +727,7 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null) return;
+    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingLastWill !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
     const curseOfFiendStandby = card.id === "mr-curse-fiend" && duel.phase === "standby";
@@ -763,6 +772,14 @@ export function DuelArena({
       if (!canActivateEquip(duel, card.id)) return;
       setSelectedEquip(handIndex);
       setSelectedAttacker(null);
+      return;
+    }
+
+    if (card.id === "ex-039") {
+      if (duel.playerMonsterSentToGraveTurn !== duel.turnNumber || duel.playerField.length >= FIELD_LIMIT || lastWillTargets(duel.playerDeck).length === 0) return;
+      setPendingLastWill(handIndex);
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
       return;
     }
 
@@ -1512,6 +1529,35 @@ export function DuelArena({
     );
     if (!available.includes(fusionId)) return;
     setPendingFusion({ ...pendingFusion, fusionId, selected: [] });
+  }
+
+  function summonWithLastWill(deckIndex: number, position: Position) {
+    if (!duel || pendingLastWill === null || duel.playerHand[pendingLastWill] !== "ex-039" || duel.playerField.length >= FIELD_LIMIT) return;
+    const monsterId = duel.playerDeck[deckIndex];
+    if (!lastWillTargets(duel.playerDeck).some((target) => target.index === deckIndex)) return;
+    const monster = cardById.get(monsterId);
+    if (!monster) return;
+    const next = removeHandCard(duel, pendingLastWill);
+    setDuel({
+      ...next,
+      playerDeck: next.playerDeck.filter((_, index) => index !== deckIndex),
+      playerField: [
+        ...next.playerField,
+        {
+          id: monsterId,
+          position,
+          faceDown: false,
+          attacked: false,
+          equipped: [],
+          summonedTurn: next.turnNumber,
+          faceUpTurn: next.turnNumber,
+          positionChanged: false,
+        },
+      ],
+      playerGraveyard: [...next.playerGraveyard, "ex-039"],
+      log: appendLog(next.log, `遺言状を発動。デッキから${monster.name}を${position === "attack" ? "攻撃" : "守備"}表示で特殊召喚。`),
+    });
+    setPendingLastWill(null);
   }
 
   function chooseFusionMaterial(source: "hand" | "field", index: number) {
@@ -3376,7 +3422,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 136</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 137</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4637,6 +4683,31 @@ export function DuelArena({
           </article>
         </div>
       )}
+      {pendingLastWill !== null && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">SPECIAL SUMMON</p>
+            <h2>遺言状</h2>
+            <p>デッキからATK1500以下のモンスター1体を選び、表示形式を指定して特殊召喚します。</p>
+            <div className="target-list cannon-target-list">
+              {lastWillTargets(duel.playerDeck).map(({ id, index }) => {
+                const monster = cardById.get(id);
+                return (
+                  <div className="last-will-target" key={`last-will-${id}-${index}`}>
+                    <strong>{monster?.name}</strong>
+                    <small>★{monster?.level}　ATK {monster?.atk} / DEF {monster?.def}　{monster?.kind}</small>
+                    <div className="overlay-actions">
+                      <button onClick={() => summonWithLastWill(index, "attack")}>攻撃表示</button>
+                      <button onClick={() => summonWithLastWill(index, "defense")}>守備表示</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingLastWill(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
       {pendingFusion && (
         <div className="card-overlay">
           <article>
@@ -4797,6 +4868,7 @@ export function DuelArena({
                         || pendingSoulRelease !== null
                         || pendingCheerfulCoffin !== null
                         || pendingFusion !== null
+                        || pendingLastWill !== null
                         || pendingDragonFlute !== null
                         || pendingChangeOfHeart !== null
                         || pendingStopAttack !== null
@@ -4821,6 +4893,11 @@ export function DuelArena({
                         || (card.id === "mr-painful-choice" && duel.playerDeck.length < 5)
                         || (card.id === "mr-darkness-approaches" && (duel.playerHand.length < 3 || ![...duel.playerField, ...duel.cpuField].some((zone) => !zone.faceDown)))
                         || (card.id === "mr-tailor-fickle" && ![...duel.playerField, ...duel.cpuField].some((zone) => zone.equipped.some((id) => cardById.get(id)?.kind === "装備魔法")))
+                        || (card.id === "ex-039" && (
+                          duel.playerMonsterSentToGraveTurn !== duel.turnNumber
+                          || duel.playerField.length >= FIELD_LIMIT
+                          || lastWillTargets(duel.playerDeck).length === 0
+                        ))
                         || ((card.id === "stb-polymerization" || card.id === "vol6-polymerization") && (
                           duel.playerField.length >= FIELD_LIMIT
                           || fusionChoices(
@@ -7700,6 +7777,7 @@ function spellDescription(id: string) {
   if (id === "bo6-revolution") return "相手の手札1枚につき200ダメージを与える";
   if (id === "bo6-fusion-sage") return "デッキから「融合」1枚を手札に加える";
   if (id === "bo7-share-pain") return "自分のモンスター1体を生け贄にし、相手にもモンスター1体を生け贄にさせる";
+  if (id === "ex-039") return "このターンに自分のモンスターが墓地へ送られている場合、デッキからATK1500以下のモンスター1体を特殊召喚する";
   if (id === "ex-085") return "ロード・オブ・ドラゴンが表側表示の時、双方は手札からドラゴン族を最大2体ずつ特殊召喚できる";
   if (id === "stb-polymerization" || id === "vol6-polymerization") return "手札・フィールドの決められた素材を墓地へ送り、融合デッキから融合召喚する";
   if (id.startsWith("vol4-")) return "効果処理は次の更新で対応";
@@ -7749,6 +7827,7 @@ function isSpellImplemented(id: string) {
       "bo6-revolution",
       "bo6-fusion-sage",
       "bo7-share-pain",
+      "ex-039",
       "stb-remove-trap",
       "stb-polymerization",
       "vol6-polymerization",
@@ -7863,6 +7942,38 @@ function applyBlackPendantGraveTriggers(previous: DuelState, next: DuelState): D
     result: playerLp === 0 && cpuLp === 0 ? "draw" : cpuLp === 0 ? "win" : playerLp === 0 ? "lose" : next.result,
     log,
   };
+}
+
+function trackMonstersSentToGrave(previous: DuelState, next: DuelState): DuelState {
+  const previousGraves = [...previous.playerGraveyard, ...previous.cpuGraveyard];
+  const nextGraves = [...next.playerGraveyard, ...next.cpuGraveyard];
+  const playerSent = monsterSentFromFieldToGrave(
+    previous.playerField.map((zone) => zone.id),
+    next.playerField.map((zone) => zone.id),
+    previousGraves,
+    nextGraves,
+  );
+  const cpuSent = monsterSentFromFieldToGrave(
+    previous.cpuField.map((zone) => zone.id),
+    next.cpuField.map((zone) => zone.id),
+    previousGraves,
+    nextGraves,
+  );
+  if (!playerSent && !cpuSent) return next;
+  return {
+    ...next,
+    playerMonsterSentToGraveTurn: playerSent ? next.turnNumber : next.playerMonsterSentToGraveTurn,
+    cpuMonsterSentToGraveTurn: cpuSent ? next.turnNumber : next.cpuMonsterSentToGraveTurn,
+  };
+}
+
+function lastWillTargets(deck: string[]) {
+  return deck.flatMap((id, index) => {
+    const card = cardById.get(id);
+    return card?.cardType === "monster" && !card.fusion && card.id !== "mr-relinquished" && (card.atk ?? 0) <= 1500
+      ? [{ id, index }]
+      : [];
+  });
 }
 
 function appendLog(log: string[], entry: string) {
