@@ -41,6 +41,8 @@ export const FUSION_RECIPES = {
   "bo6-amphibious-bugroth": ["vol4-ground-bagroth", "bo6-sea-guardian"],
   "bo7-fiend-box": ["bo7-crass-clown", "bo7-dream-clown"],
   "bo7-skull-bishop": ["bo7-wisdom-devil", "bo7-makenro"],
+  "pr99-blue-eyes-ultimate": ["stb-blue-eyes", "stb-blue-eyes", "stb-blue-eyes"],
+  "pr99-meteor-black-dragon": ["vol3-red-eyes", "pr99-meteor-dragon"],
 };
 
 export function fusionRecipe(fusionId) {

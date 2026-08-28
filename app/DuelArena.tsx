@@ -3462,7 +3462,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>Magic Ruler対応 強化CPU · BUILD 138</strong>
+          <strong>Magic Ruler対応 強化CPU · BUILD 139</strong>
           <p>Magic Rulerまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>

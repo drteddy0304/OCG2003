@@ -10,6 +10,7 @@ import { vol6Cards } from "./vol6-data";
 import { vol7Cards } from "./vol7-data";
 import { exCards, exPack } from "./ex-data";
 import { magicRulerCards, magicRulerPack } from "./magic-ruler-data";
+import { promo1999Cards, promo1999Pack } from "./promo-1999-data";
 
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
@@ -25,6 +26,7 @@ export type Card = {
   rarity: Rarity;
   fusion?: boolean;
   effect?: boolean;
+  ritual?: boolean;
 };
 
 export type Pack = {
@@ -229,6 +231,7 @@ export const cards: Card[] = [
   ...earlyProductCards,
   ...exCards,
   ...magicRulerCards,
+  ...promo1999Cards,
 ];
 
 export const packs: Pack[] = [
@@ -290,6 +293,7 @@ export const packs: Pack[] = [
   boosterSevenPack,
   exPack,
   magicRulerPack,
+  promo1999Pack,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));

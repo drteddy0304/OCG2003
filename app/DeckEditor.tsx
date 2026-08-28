@@ -218,6 +218,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
         <div><span>モンスター</span><strong>{composition.monsters}</strong></div>
         <div><span>通常</span><strong>{composition.normalMonsters}</strong></div>
         <div><span>効果</span><strong>{composition.effectMonsters}</strong></div>
+        <div><span>儀式</span><strong>{composition.ritualMonsters}</strong></div>
         <div><span>魔法</span><strong>{composition.spells}</strong></div>
         <div><span>罠</span><strong>{composition.traps}</strong></div>
       </div>
@@ -258,6 +259,7 @@ export function DeckEditor({ collection }: { collection: Record<string, number> 
                 ["normal", "通常"],
                 ["effect", "効果"],
                 ["fusion", "融合"],
+                ["ritual", "儀式"],
               ] as const).map(([value, label]) => (
                 <button
                   className={monsterClass === value ? "active" : ""}
@@ -434,7 +436,7 @@ function DeckRow({
   onToggleFavorite: () => void;
 }) {
   const typeLabel = card.cardType === "monster"
-    ? `${card.rarity}｜${card.attribute}属性｜${card.kind}｜${card.effect ? "効果" : card.fusion ? "融合" : "通常"}｜★${card.level}`
+    ? `${card.rarity}｜${card.attribute}属性｜${card.kind}｜${card.effect ? "効果" : card.fusion ? "融合" : card.ritual ? "儀式" : "通常"}｜★${card.level}`
     : `${card.rarity}｜${card.kind}`;
   return (
     <article className={`deck-row row-${card.cardType}`}>
@@ -446,7 +448,7 @@ function DeckRow({
           </span>
         )}
         <span>{typeLabel}</span>
-        {(card.effect || card.fusion || card.cardType !== "monster") && <span className="deck-effect-text">{cardDescription(card)}</span>}
+        {(card.effect || card.fusion || card.ritual || card.cardType !== "monster") && <span className="deck-effect-text">{cardDescription(card)}</span>}
         {card.cardType === "monster" && <span className="monster-stats">ATK {card.atk} / DEF {card.def}</span>}
       </div>
       <b>{count}</b>

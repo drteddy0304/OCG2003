@@ -290,7 +290,7 @@ export function GameHome() {
           </section>
         </div>
       )}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 138</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 139</span></footer>
     </main>
   );
 }
@@ -307,7 +307,7 @@ function CardTile({ card, onSelect }: { card: Card; onSelect?: () => void }) {
     >
       <div className="card-name"><strong>{card.name}</strong><span>{card.attribute ?? (card.cardType === "spell" ? "魔" : "罠")}</span></div>
       <div className="stars">{isMonster ? "★".repeat(card.level ?? 0) : card.kind}</div>
-      <div className="card-art"><span>{card.kind}</span>{card.effect && <em className="effect-badge">効果</em>}</div>
+      <div className="card-art"><span>{card.kind}</span>{card.ritual ? <em className="effect-badge">儀式</em> : card.effect && <em className="effect-badge">効果</em>}</div>
       <div className="card-text">
         <b>【{card.kind}】</b>
         <p>{cardDescription(card)}</p>

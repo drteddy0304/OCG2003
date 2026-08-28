@@ -4,12 +4,16 @@ import { deckComposition, matchesDeckFilters, normalizeDeckLibrary, sanitizeDeck
 
 const effectMonster = { name: "人喰い虫", cardType: "monster", kind: "昆虫族", attribute: "地", level: 2, effect: true };
 const fusionMonster = { name: "竜騎士ガイア", cardType: "monster", kind: "ドラゴン族", attribute: "風", level: 7, fusion: true };
+const ritualMonster = { name: "スカルライダー", cardType: "monster", kind: "アンデット族", attribute: "闇", level: 6, ritual: true };
 const normalMonster = { name: "真紅眼の黒竜", cardType: "monster", kind: "ドラゴン族", attribute: "闇", level: 7 };
 
 test("モンスターを通常・効果・融合で絞り込める", () => {
   assert.equal(matchesDeckFilters(effectMonster, "", "monster", "effect", "all"), true);
   assert.equal(matchesDeckFilters(effectMonster, "", "monster", "normal", "all"), false);
   assert.equal(matchesDeckFilters(fusionMonster, "", "monster", "fusion", "all"), true);
+  assert.equal(matchesDeckFilters(ritualMonster, "", "monster", "ritual", "all"), true);
+  assert.equal(matchesDeckFilters(ritualMonster, "", "monster", "normal", "all"), false);
+  assert.equal(matchesDeckFilters(ritualMonster, "儀式モンスター", "monster", "all", "all"), true);
   assert.equal(matchesDeckFilters(normalMonster, "", "monster", "normal", "all"), true);
 });
 
@@ -87,13 +91,15 @@ test("デッキ内の通常・効果モンスター、魔法、罠の枚数を�
   const cardsById = new Map([
     ["normal", { cardType: "monster" }],
     ["effect", { cardType: "monster", effect: true }],
+    ["ritual", { cardType: "monster", ritual: true }],
     ["spell", { cardType: "spell" }],
     ["trap", { cardType: "trap" }],
   ]);
-  assert.deepEqual(deckComposition({ normal: 3, effect: 2, spell: 10, trap: 5 }, cardsById), {
-    monsters: 5,
+  assert.deepEqual(deckComposition({ normal: 3, effect: 2, ritual: 1, spell: 10, trap: 5 }, cardsById), {
+    monsters: 6,
     normalMonsters: 3,
     effectMonsters: 2,
+    ritualMonsters: 1,
     spells: 10,
     traps: 5,
   });

@@ -586,7 +586,15 @@ export function isElegantEgotistTarget(id) {
 }
 
 export function canNormalSummonMonster(id, fusion = false) {
-  return !fusion && id !== "vol4-harpie-sisters" && id !== "vol5-larvae-moth" && id !== "vol6-great-moth";
+  return !fusion && !new Set([
+    "vol4-harpie-sisters",
+    "vol5-larvae-moth",
+    "vol6-great-moth",
+    "pr99-gate-guardian",
+    "pr99-black-chaos-magician",
+    "pr99-skull-rider",
+    "pr99-perfect-moth",
+  ]).has(id);
 }
 
 export function canSpecialSummonLarvaeMoth(currentTurn, cocoonEquippedTurn) {

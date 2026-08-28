@@ -6,7 +6,8 @@ export function matchesDeckFilters(card, query, cardType, monsterClass, level, a
     if (card.cardType !== "monster") return false;
     if (monsterClass === "effect" && !card.effect) return false;
     if (monsterClass === "fusion" && !card.fusion) return false;
-    if (monsterClass === "normal" && (card.effect || card.fusion)) return false;
+    if (monsterClass === "ritual" && !card.ritual) return false;
+    if (monsterClass === "normal" && (card.effect || card.fusion || card.ritual)) return false;
   }
   const selectedLevels = Array.isArray(level) ? level.map(Number) : level === "all" ? [] : [Number(level)];
   if (selectedLevels.length > 0 && (card.cardType !== "monster" || !selectedLevels.includes(card.level))) return false;
@@ -17,7 +18,7 @@ export function matchesDeckFilters(card, query, cardType, monsterClass, level, a
   const normalized = query.trim().toLocaleLowerCase("ja");
   if (!normalized) return true;
   const monsterLabel = card.cardType === "monster"
-    ? card.effect ? "効果 効果モンスター" : card.fusion ? "融合 融合モンスター" : "通常 通常モンスター"
+    ? card.effect ? "効果 効果モンスター" : card.fusion ? "融合 融合モンスター" : card.ritual ? "儀式 儀式モンスター" : "通常 通常モンスター"
     : "";
   const searchable = `${card.name} ${card.kind} ${card.attribute ?? ""} ${monsterLabel} ${card.level ? `★${card.level}` : ""} ${card.atk !== undefined ? `ATK ${card.atk}` : ""} ${card.def !== undefined ? `DEF ${card.def}` : ""} ${description}`;
   return searchable.toLocaleLowerCase("ja").includes(normalized);
@@ -30,6 +31,7 @@ export function deckComposition(counts, cardsById) {
     if (card.cardType === "monster") {
       result.monsters += count;
       if (card.effect) result.effectMonsters += count;
+      else if (card.ritual) result.ritualMonsters += count;
       else result.normalMonsters += count;
     } else if (card.cardType === "spell") {
       result.spells += count;
@@ -37,7 +39,7 @@ export function deckComposition(counts, cardsById) {
       result.traps += count;
     }
     return result;
-  }, { monsters: 0, normalMonsters: 0, effectMonsters: 0, spells: 0, traps: 0 });
+  }, { monsters: 0, normalMonsters: 0, effectMonsters: 0, ritualMonsters: 0, spells: 0, traps: 0 });
 }
 
 export function sanitizeDeckCounts(counts, collection, cardsById, fusion) {
