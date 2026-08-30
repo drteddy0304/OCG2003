@@ -595,6 +595,13 @@ test("グレート・モスは通常召喚できず進化の繭から4回目の�
   assert.equal(canSpecialSummonMoth("vol6-great-moth", 9), false);
 });
 
+test("究極完全態・グレート・モスは通常召喚できず進化の繭から6回目の自分ターン以降に特殊召喚できる", () => {
+  assert.equal(canNormalSummonMonster("pr99-perfect-moth"), false);
+  assert.equal(canSpecialSummonMoth("pr99-perfect-moth", 12, 1), false);
+  assert.equal(canSpecialSummonMoth("pr99-perfect-moth", 13, 1), true);
+  assert.equal(canSpecialSummonMoth("pr99-perfect-moth", 13), false);
+});
+
 test("心変わりは自分の場に空きがあり相手モンスターがいる時だけ発動できる", () => {
   assert.equal(canActivateChangeOfHeart(4, 1), true);
   assert.equal(canActivateChangeOfHeart(5, 1), false);

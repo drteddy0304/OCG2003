@@ -2351,7 +2351,7 @@ export function DuelArena({
     if (!duel || !isPlayerMainPhase) return;
     if (!canPayDuelChainEnergy(duel, "player")) return;
     const mothId = duel.playerHand[handIndex];
-    if (mothId !== "vol5-larvae-moth" && mothId !== "vol6-great-moth") return;
+    if (!["vol5-larvae-moth", "vol6-great-moth", "pr99-perfect-moth"].includes(mothId)) return;
     const targetIndex = mothTargetIndex(duel, mothId);
     if (targetIndex < 0) return;
     const petitMoth = duel.playerField[targetIndex];
@@ -3571,7 +3571,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>1999プロモ効果対応 強化CPU · BUILD 143</strong>
+          <strong>1999プロモ効果対応 強化CPU · BUILD 144</strong>
           <p>1999プロモまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4995,11 +4995,11 @@ export function DuelArena({
                 {card.cardType === "monster" ? (
                   <>
                     <small>★{card.level}　ATK {card.atk} / DEF {card.def}</small>
-                    {(card.id === "vol5-larvae-moth" || card.id === "vol6-great-moth") ? (
+                    {(["vol5-larvae-moth", "vol6-great-moth", "pr99-perfect-moth"].includes(card.id)) ? (
                       <>
                         <small>{mothTargetIndex(duel, card.id) >= 0
                           ? "進化条件を満たしています"
-                          : `進化の繭を装備して${card.id === "vol6-great-moth" ? "4" : "2"}回目の自分ターンを待ちます`}</small>
+                          : `進化の繭を装備して${card.id === "pr99-perfect-moth" ? "6" : card.id === "vol6-great-moth" ? "4" : "2"}回目の自分ターンを待ちます`}</small>
                         <div>
                           <button disabled={!isPlayerMainPhase || mothTargetIndex(duel, card.id) < 0} onClick={() => summonMoth(index, "attack")}>特殊召喚（攻）</button>
                           <button disabled={!isPlayerMainPhase || mothTargetIndex(duel, card.id) < 0} onClick={() => summonMoth(index, "defense")}>特殊召喚（守）</button>
@@ -5308,9 +5308,10 @@ function runCpuTurn(initial: DuelState): DuelState {
 function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
   let state = useCpuCannonSoldierForLethal(initial);
   if (state.result) return state;
+  state = useCpuMothEvolution(state);
   const candidates = state.cpuHand
     .map((id, index) => ({ card: cardById.get(id), index }))
-    .filter((item): item is { card: Card; index: number } => item.card?.cardType === "monster")
+    .filter((item): item is { card: Card; index: number } => item.card?.cardType === "monster" && canNormalSummonMonster(item.card.id, item.card.fusion))
     .sort((a, b) => (b.card.atk ?? 0) - (a.card.atk ?? 0));
   const summonChoice = canPayDuelChainEnergy(state, "cpu") ? candidates.find(({ card }) => {
     const tributes = tributeCount(card);
@@ -5387,6 +5388,35 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     }
   }
   return finishCpuTurn(state);
+}
+
+function useCpuMothEvolution(initial: DuelState): DuelState {
+  if (!canPayDuelChainEnergy(initial, "cpu")) return initial;
+  const mothId = ["pr99-perfect-moth", "vol6-great-moth", "vol5-larvae-moth"]
+    .find((id) => initial.cpuHand.includes(id) && cpuMothTargetIndex(initial, id) >= 0);
+  if (!mothId) return initial;
+  const targetIndex = cpuMothTargetIndex(initial, mothId);
+  const petitMoth = initial.cpuField[targetIndex];
+  const moth = cardById.get(mothId);
+  const paidState = removeCpuHandCard(initial, mothId);
+  return {
+    ...paidState,
+    cpuField: [
+      ...initial.cpuField.filter((_, index) => index !== targetIndex),
+      {
+        id: mothId,
+        position: "attack",
+        faceDown: false,
+        attacked: true,
+        equipped: [],
+        summonedTurn: initial.turnNumber,
+        positionChanged: false,
+      },
+    ],
+    cpuSpellTrap: discardEquips(initial.cpuSpellTrap, [petitMoth]),
+    cpuGraveyard: [...initial.cpuGraveyard, ...graveCards([petitMoth])],
+    log: appendLog(paidState.log, `CPUがプチモスを生け贄にし、${moth?.name ?? "進化モンスター"}を特殊召喚。`),
+  };
 }
 
 type BlastJugglerChoice = { side: Side; index: number; id: string; name: string };
@@ -6476,6 +6506,21 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
 function setCpuTrapAndEquips(initial: DuelState): DuelState {
   let state = initial;
   if (state.cpuSpellTrap.length >= FIELD_LIMIT) return state;
+
+  const cpuPetitMothIndex = state.cpuField.findIndex((zone) =>
+    zone.id === "vol4-petit-moth" && !zone.faceDown && !zone.equipped.includes("vol4-cocoon-evolution"),
+  );
+  if (state.cpuHand.includes("vol4-cocoon-evolution") && cpuPetitMothIndex >= 0 && canPayDuelChainEnergy(state, "cpu")) {
+    const paidState = removeCpuHandCard(state, "vol4-cocoon-evolution");
+    state = {
+      ...paidState,
+      cpuField: state.cpuField.map((zone, index) => index === cpuPetitMothIndex
+        ? { ...zone, equipped: [...zone.equipped, "vol4-cocoon-evolution"], cocoonEquippedTurn: state.turnNumber }
+        : zone),
+      cpuSpellTrap: [...state.cpuSpellTrap, "vol4-cocoon-evolution"],
+      log: appendLog(paidState.log, "CPUがプチモスに進化の繭を装備。"),
+    };
+  }
 
   if (state.cpuHand.includes("vol7-mirror-force") && canPayDuelChainEnergy(state, "cpu")) {
     state = {
@@ -7746,6 +7791,15 @@ function canActivateEquip(state: DuelState, spellId: string) {
 
 function mothTargetIndex(state: DuelState, mothId: string) {
   return state.playerField.findIndex((zone) =>
+    zone.id === "vol4-petit-moth"
+    && !zone.faceDown
+    && zone.equipped.includes("vol4-cocoon-evolution")
+    && canSpecialSummonMoth(mothId, state.turnNumber, zone.cocoonEquippedTurn),
+  );
+}
+
+function cpuMothTargetIndex(state: DuelState, mothId: string) {
+  return state.cpuField.findIndex((zone) =>
     zone.id === "vol4-petit-moth"
     && !zone.faceDown
     && zone.equipped.includes("vol4-cocoon-evolution")

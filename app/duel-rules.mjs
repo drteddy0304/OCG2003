@@ -624,6 +624,7 @@ export function canSpecialSummonMoth(id, currentTurn, cocoonEquippedTurn) {
   if (!Number.isInteger(cocoonEquippedTurn)) return false;
   if (id === "vol5-larvae-moth") return currentTurn - cocoonEquippedTurn >= 4;
   if (id === "vol6-great-moth") return currentTurn - cocoonEquippedTurn >= 8;
+  if (id === "pr99-perfect-moth") return currentTurn - cocoonEquippedTurn >= 12;
   return false;
 }
 
