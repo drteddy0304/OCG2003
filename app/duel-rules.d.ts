@@ -121,6 +121,7 @@ export function guardianAdjustedAttack(attack: number, activate: boolean): numbe
 export function canBlastJugglerTarget(faceDown: boolean, attack: number): boolean;
 export function canSpecialSummonLarvaeMoth(currentTurn: number, cocoonEquippedTurn?: number): boolean;
 export function canSpecialSummonMoth(id: string, currentTurn: number, cocoonEquippedTurn?: number): boolean;
+export function gateGuardianMaterialIndexes(fieldIds: string[]): number[] | null;
 export function canActivateChangeOfHeart(playerMonsterCount: number, opponentMonsterCount: number, fieldLimit?: number): boolean;
 export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): boolean;
 export function spellSpecificTrapResponse(trapIds: string[], spellId: string): string | null;

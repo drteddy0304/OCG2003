@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuFusionDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuFusionDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -2380,6 +2380,43 @@ export function DuelArena({
     setSelectedEquip(null);
   }
 
+  function summonGateGuardian(handIndex: number, position: Position) {
+    if (!duel || !isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player")) return;
+    if (duel.playerHand[handIndex] !== "pr99-gate-guardian") return;
+    const materialIndexes = gateGuardianMaterialIndexes(duel.playerField.map((zone) => zone.id));
+    if (!materialIndexes) return;
+    const materialIndexSet = new Set(materialIndexes);
+    const materials = duel.playerField.filter((_, index) => materialIndexSet.has(index));
+    const returnedMaterials = materials.filter((zone) => zone.controlReturn === "cpu");
+    const playerMaterials = materials.filter((zone) => zone.controlReturn !== "cpu");
+    const paidState = removeHandCard(duel, handIndex);
+    let nextState: DuelState = {
+      ...paidState,
+      playerField: [
+        ...duel.playerField.filter((_, index) => !materialIndexSet.has(index)),
+        {
+          id: "pr99-gate-guardian",
+          position,
+          faceDown: false,
+          attacked: false,
+          equipped: [],
+          summonedTurn: duel.turnNumber,
+          positionChanged: false,
+        },
+      ],
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, playerMaterials),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, returnedMaterials),
+      playerGraveyard: [...duel.playerGraveyard, ...graveCards(playerMaterials)],
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(returnedMaterials)],
+      log: appendLog(paidState.log, `雷魔神－サンガ、風魔神－ヒューガ、水魔神－スーガをリリースし、ゲート・ガーディアンを${position === "attack" ? "攻撃" : "守備"}表示で特殊召喚。`),
+    };
+    nextState = applyDeckSearchTriggers(nextState, playerMaterials, returnedMaterials);
+    nextState = applyMysteriousPuppeteerGain(nextState);
+    setDuel(nextState);
+    setSelectedAttacker(null);
+    setSelectedEquip(null);
+  }
+
   function setTrap(handIndex: number) {
     if (!duel || !isPlayerMainPhase || duel.result || pendingReborn !== null || pendingDeSpell !== null || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
     if (!canPayDuelChainEnergy(duel, "player")) return;
@@ -3571,7 +3608,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>1999プロモ効果対応 強化CPU · BUILD 144</strong>
+          <strong>1999プロモ効果対応 強化CPU · BUILD 145</strong>
           <p>1999プロモまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4995,7 +5032,17 @@ export function DuelArena({
                 {card.cardType === "monster" ? (
                   <>
                     <small>★{card.level}　ATK {card.atk} / DEF {card.def}</small>
-                    {(["vol5-larvae-moth", "vol6-great-moth", "pr99-perfect-moth"].includes(card.id)) ? (
+                    {card.id === "pr99-gate-guardian" ? (
+                      <>
+                        <small>{gateGuardianMaterialIndexes(duel.playerField.map((zone) => zone.id))
+                          ? "三魔神がそろっています"
+                          : "雷魔神－サンガ、風魔神－ヒューガ、水魔神－スーガが必要です"}</small>
+                        <div>
+                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || !gateGuardianMaterialIndexes(duel.playerField.map((zone) => zone.id))} onClick={() => summonGateGuardian(index, "attack")}>特殊召喚（攻）</button>
+                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || !gateGuardianMaterialIndexes(duel.playerField.map((zone) => zone.id))} onClick={() => summonGateGuardian(index, "defense")}>特殊召喚（守）</button>
+                        </div>
+                      </>
+                    ) : (["vol5-larvae-moth", "vol6-great-moth", "pr99-perfect-moth"].includes(card.id)) ? (
                       <>
                         <small>{mothTargetIndex(duel, card.id) >= 0
                           ? "進化条件を満たしています"
@@ -5308,6 +5355,7 @@ function runCpuTurn(initial: DuelState): DuelState {
 function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
   let state = useCpuCannonSoldierForLethal(initial);
   if (state.result) return state;
+  state = useCpuGateGuardian(state);
   state = useCpuMothEvolution(state);
   const candidates = state.cpuHand
     .map((id, index) => ({ card: cardById.get(id), index }))
@@ -5388,6 +5436,39 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     }
   }
   return finishCpuTurn(state);
+}
+
+function useCpuGateGuardian(initial: DuelState): DuelState {
+  if (!initial.cpuHand.includes("pr99-gate-guardian") || !canPayDuelChainEnergy(initial, "cpu")) return initial;
+  const materialIndexes = gateGuardianMaterialIndexes(initial.cpuField.map((zone) => zone.id));
+  if (!materialIndexes) return initial;
+  const materialIndexSet = new Set(materialIndexes);
+  const materials = initial.cpuField.filter((_, index) => materialIndexSet.has(index));
+  const returnedMaterials = materials.filter((zone) => zone.controlReturn === "player");
+  const cpuMaterials = materials.filter((zone) => zone.controlReturn !== "player");
+  const paidState = removeCpuHandCard(initial, "pr99-gate-guardian");
+  let next: DuelState = {
+    ...paidState,
+    cpuField: [
+      ...initial.cpuField.filter((_, index) => !materialIndexSet.has(index)),
+      {
+        id: "pr99-gate-guardian",
+        position: "attack",
+        faceDown: false,
+        attacked: true,
+        equipped: [],
+        summonedTurn: initial.turnNumber,
+        positionChanged: false,
+      },
+    ],
+    playerSpellTrap: discardEquips(initial.playerSpellTrap, returnedMaterials),
+    cpuSpellTrap: discardEquips(initial.cpuSpellTrap, cpuMaterials),
+    playerGraveyard: [...initial.playerGraveyard, ...graveCards(returnedMaterials)],
+    cpuGraveyard: [...initial.cpuGraveyard, ...graveCards(cpuMaterials)],
+    log: appendLog(paidState.log, "CPUが三魔神をリリースし、ゲート・ガーディアンを特殊召喚。"),
+  };
+  next = applyDeckSearchTriggers(next, returnedMaterials, cpuMaterials);
+  return applyMysteriousPuppeteerGain(next);
 }
 
 function useCpuMothEvolution(initial: DuelState): DuelState {

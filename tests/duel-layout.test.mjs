@@ -66,6 +66,13 @@ test("1999プロモのコイントス効果はプレイヤーとCPUの双方が�
   assert.match(arena, /goddessMultiplierTurn/);
 });
 
+test("ゲート・ガーディアンは三魔神をそろえてプレイヤーとCPUが特殊召喚できる", () => {
+  assert.match(arena, /function summonGateGuardian/);
+  assert.match(arena, /三魔神がそろっています/);
+  assert.match(arena, /function useCpuGateGuardian/);
+  assert.match(arena, /CPUが三魔神をリリースし、ゲート・ガーディアンを特殊召喚/);
+});
+
 test("攻撃・守備表示はプレイヤーごとの正しい向きになる", () => {
   assert.match(css, /\.zones-player \.field-card\.attack \{ transform: rotate\(0deg\)/);
   assert.match(css, /\.zones-player \.field-card\.defense \{ transform: rotate\(90deg\)/);

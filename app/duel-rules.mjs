@@ -628,6 +628,18 @@ export function canSpecialSummonMoth(id, currentTurn, cocoonEquippedTurn) {
   return false;
 }
 
+const gateGuardianMaterialIds = Object.freeze(["vol5-sanga", "vol5-kazejin", "vol5-suijin"]);
+
+export function gateGuardianMaterialIndexes(fieldIds) {
+  const used = new Set();
+  const indexes = gateGuardianMaterialIds.map((materialId) => {
+    const index = fieldIds.findIndex((id, fieldIndex) => id === materialId && !used.has(fieldIndex));
+    if (index >= 0) used.add(index);
+    return index;
+  });
+  return indexes.some((index) => index < 0) ? null : indexes;
+}
+
 export function canActivateChangeOfHeart(playerMonsterCount, opponentMonsterCount, fieldLimit = 5) {
   return playerMonsterCount < fieldLimit && opponentMonsterCount > 0;
 }
