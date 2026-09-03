@@ -89,6 +89,14 @@ test("キャノン・ソルジャーの対象選択には専用の読みやす�
   assert.match(css, /\.feedback-effect \.action-cut-in strong \{[^}]*overflow-wrap: anywhere;/);
 });
 
+test("効果・デッキ検索・融合・儀式の選択画面は共通の読みやすいパネルを使う", () => {
+  assert.match(arena, /className="effect-choice-panel deck-search-panel"/);
+  assert.match(arena, /className="effect-choice-panel"/);
+  assert.match(css, /\.effect-choice-panel \{[^}]*max-height: calc\(100dvh - 36px\);[^}]*overflow: auto;/);
+  assert.match(css, /\.target-list \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[^}]*overflow: auto;/);
+  assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.target-list, \.cannon-target-list, \.spell-target-list \{ grid-template-columns: 1fr;/);
+});
+
 test("CPUの行動は処理済みの結果一覧としてまとめて表示する", () => {
   assert.match(arena, /CPU ACTION RESULT/);
   assert.match(arena, /以下はすべて盤面へ反映済みです/);

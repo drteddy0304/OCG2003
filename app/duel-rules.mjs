@@ -640,6 +640,10 @@ export function gateGuardianMaterialIndexes(fieldIds) {
   return indexes.some((index) => index < 0) ? null : indexes;
 }
 
+export function ritualMaterialLevelTotal(levels) {
+  return levels.reduce((total, level) => total + Math.max(0, Number(level) || 0), 0);
+}
+
 export function canActivateChangeOfHeart(playerMonsterCount, opponentMonsterCount, fieldLimit = 5) {
   return playerMonsterCount < fieldLimit && opponentMonsterCount > 0;
 }

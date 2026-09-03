@@ -370,6 +370,17 @@ h1 { font: 900 clamp(34px, 8vw, 58px)/.9 Georgia, serif; letter-spacing: -.04em;
 .duel-result p:not(.section-label) { font-size: 14px; }
 .duel-result button { margin-top: 20px; border: 1px solid white; background: transparent; color: white; padding: 14px 30px; font-weight: 800; }
 .card-overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #11100ed9; padding: 18px; }
+.effect-choice-panel { box-sizing: border-box; width: min(680px, 100%); max-height: calc(100dvh - 36px); overflow: auto; overscroll-behavior: contain; background: #eee5d4; color: var(--ink); border: 3px solid var(--ink); padding: 18px; box-shadow: 0 16px 40px #0009; }
+.effect-choice-panel h2 { margin: 4px 0 8px; font-family: "Yu Mincho", serif; overflow-wrap: anywhere; }
+.effect-choice-panel h3 { margin: 16px 0 7px; font-size: 11px; }
+.effect-choice-panel > p:not(.section-label) { margin: 0 0 12px; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.target-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; max-height: 50dvh; overflow: auto; overscroll-behavior: contain; padding: 2px 4px 2px 2px; }
+.target-list button { min-width: 0; border: 1px solid #8d342f; background: #f7e2d8; color: var(--ink); padding: 11px; text-align: left; overflow-wrap: anywhere; }
+.target-list button.selected { border-color: #d39c19; background: #fff1b8; box-shadow: inset 0 0 0 2px #d39c19; }
+.target-list strong, .target-list small { display: block; min-width: 0; }
+.target-list strong { font: 900 11px/1.45 "Yu Mincho", serif; }
+.target-list small { margin-top: 4px; color: #7c514a; font: 700 9px/1.4 monospace; }
+.deck-search-panel { width: min(760px, 100%); }
 .cannon-soldier-overlay { z-index: 38; }
 .cannon-soldier-panel { width: min(520px, 100%); max-height: 84vh; overflow: auto; background: #eee5d4; color: var(--ink); border: 3px solid var(--ink); padding: 18px; box-shadow: 0 16px 40px #0009; }
 .cannon-soldier-panel h2 { margin: 4px 0 8px; font-family: "Yu Mincho", serif; }
@@ -506,6 +517,9 @@ footer { border-top: 1px solid #aaa18f; padding-top: 12px; display: flex; justif
   .field-card span { font-size: 7px; margin-top: 7px; }
   .duel-controls { grid-template-columns: minmax(0, 1fr) 78px; }
   .hand-card { flex-basis: 130px; }
+  .card-overlay { align-items: start; padding: 10px; }
+  .effect-choice-panel, .cannon-soldier-panel, .graveyard-panel, .card-detail { max-height: calc(100dvh - 20px); padding: 14px; }
+  .target-list, .cannon-target-list, .spell-target-list { grid-template-columns: 1fr; max-height: 52dvh; }
 }
 
 @media (max-width: 390px) {

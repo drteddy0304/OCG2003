@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { cardById, type Card } from "./card-data";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuFusionDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuFusionDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -162,6 +162,7 @@ type PendingCheerfulCoffin = {
   selected: string[];
 };
 type FusionMaterialSelection = { source: "hand" | "field"; index: number; id: string };
+type PendingRitual = { spellIndex: number; ritualIndex: number; selected: FusionMaterialSelection[] };
 type PendingFusion = {
   spellIndex: number;
   fusionId: string | null;
@@ -296,6 +297,7 @@ export function DuelArena({
   const [pendingSoulRelease, setPendingSoulRelease] = useState<PendingSoulRelease | null>(null);
   const [pendingCheerfulCoffin, setPendingCheerfulCoffin] = useState<PendingCheerfulCoffin | null>(null);
   const [pendingFusion, setPendingFusion] = useState<PendingFusion | null>(null);
+  const [pendingRitual, setPendingRitual] = useState<PendingRitual | null>(null);
   const [pendingLastWill, setPendingLastWill] = useState<number | null>(null);
   const [pendingDragonFlute, setPendingDragonFlute] = useState<PendingDragonFlute | null>(null);
   const [pendingChangeOfHeart, setPendingChangeOfHeart] = useState<number | null>(null);
@@ -370,6 +372,7 @@ export function DuelArena({
     && pendingSoulRelease === null
     && pendingCheerfulCoffin === null
     && pendingFusion === null
+    && pendingRitual === null
     && pendingLastWill === null
     && pendingDragonFlute === null
     && pendingChangeOfHeart === null
@@ -739,12 +742,20 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingLastWill !== null) return;
+    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingLastWill !== null || pendingRitual !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
     const curseOfFiendStandby = card.id === "mr-curse-fiend" && duel.phase === "standby";
     if (!isPlayerMainPhase && !curseOfFiendStandby) return;
     if (!canPayDuelChainEnergy(duel, "player")) return;
+    if (card.id === "pr99-skull-rider-ritual") {
+      const ritualIndex = duel.playerHand.findIndex((id, index) => id === "pr99-skull-rider" && index !== handIndex);
+      if (ritualIndex < 0 || ritualAvailableLevelTotal(duel, handIndex, ritualIndex) < 6) return;
+      setPendingRitual({ spellIndex: handIndex, ritualIndex, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
     if (card.id === "mr-chain-energy") {
       const next = removeHandCard(duel, handIndex);
       setDuel({
@@ -1640,6 +1651,60 @@ export function DuelArena({
     next = applyDeckSearchTriggers(next, fieldMaterials, []);
     setDuel(next);
     setPendingFusion(null);
+  }
+
+  function toggleRitualMaterial(source: "hand" | "field", index: number) {
+    if (!duel || !pendingRitual) return;
+    if (source === "hand" && (index === pendingRitual.spellIndex || index === pendingRitual.ritualIndex)) return;
+    const id = source === "hand" ? duel.playerHand[index] : duel.playerField[index]?.id;
+    if (!id || cardById.get(id)?.cardType !== "monster") return;
+    setPendingRitual((current) => {
+      if (!current) return null;
+      const selected = current.selected.some((choice) => choice.source === source && choice.index === index)
+        ? current.selected.filter((choice) => choice.source !== source || choice.index !== index)
+        : [...current.selected, { source, index, id }];
+      return { ...current, selected };
+    });
+  }
+
+  function resolveSkullRiderRitual(position: Position) {
+    if (!duel || !pendingRitual) return;
+    if (duel.playerHand[pendingRitual.spellIndex] !== "pr99-skull-rider-ritual" || duel.playerHand[pendingRitual.ritualIndex] !== "pr99-skull-rider") return;
+    const levels = pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0);
+    if (ritualMaterialLevelTotal(levels) < 6) return;
+    const handIndexes = new Set([
+      pendingRitual.spellIndex,
+      pendingRitual.ritualIndex,
+      ...pendingRitual.selected.filter((choice) => choice.source === "hand").map((choice) => choice.index),
+    ]);
+    const fieldIndexes = new Set(pendingRitual.selected.filter((choice) => choice.source === "field").map((choice) => choice.index));
+    if (duel.playerField.length - fieldIndexes.size >= FIELD_LIMIT) return;
+    const fieldMaterials = duel.playerField.filter((_, index) => fieldIndexes.has(index));
+    const returnedMaterials = fieldMaterials.filter((zone) => zone.controlReturn === "cpu");
+    const playerMaterials = fieldMaterials.filter((zone) => zone.controlReturn !== "cpu");
+    const paidState = applyChainEnergyPayment(duel, "player");
+    let next: DuelState = {
+      ...paidState,
+      playerHand: duel.playerHand.filter((_, index) => !handIndexes.has(index)),
+      playerField: [
+        ...duel.playerField.filter((_, index) => !fieldIndexes.has(index)),
+        { id: "pr99-skull-rider", position, faceDown: false, attacked: false, equipped: [], summonedTurn: duel.turnNumber, positionChanged: false },
+      ],
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, playerMaterials),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, returnedMaterials),
+      playerGraveyard: [
+        ...duel.playerGraveyard,
+        "pr99-skull-rider-ritual",
+        ...pendingRitual.selected.filter((choice) => choice.source === "hand").map((choice) => choice.id),
+        ...graveCards(playerMaterials),
+      ],
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(returnedMaterials)],
+      log: appendLog(paidState.log, `スカルライダーの復活を発動。素材のレベル合計${ritualMaterialLevelTotal(levels)}でスカルライダーを儀式召喚。`),
+    };
+    next = applyDeckSearchTriggers(next, playerMaterials, returnedMaterials);
+    next = applyMysteriousPuppeteerGain(next);
+    setDuel(next);
+    setPendingRitual(null);
   }
 
   function toggleDragonFluteCard(handIndex: number) {
@@ -3608,7 +3673,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>1999プロモ効果対応 強化CPU · BUILD 145</strong>
+          <strong>1999プロモ効果対応 強化CPU · BUILD 146</strong>
           <p>1999プロモまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4091,7 +4156,7 @@ export function DuelArena({
       )}
       {pendingSpellbindingCircle !== null && (
         <div className="card-overlay">
-          <article>
+          <article className="effect-choice-panel">
             <p className="section-label">CONTINUOUS TRAP</p>
             <h2>六芒星の呪縛の対象を選択</h2>
             <p>攻撃と表示形式の変更を封じる、CPUの表側表示モンスターを選んでください。</p>
@@ -4405,7 +4470,7 @@ export function DuelArena({
       )}
       {duel.pendingDeckSearch && (
         <div className="card-overlay deck-search-overlay">
-          <article>
+          <article className="effect-choice-panel deck-search-panel">
             <p className="section-label">MONSTER EFFECT</p>
             <h2>{cardById.get(duel.pendingDeckSearch.monsterIds[0])?.name}のデッキ検索</h2>
             <p>手札に加えるモンスターを選んでください。</p>
@@ -4928,7 +4993,7 @@ export function DuelArena({
       )}
       {pendingFusion && (
         <div className="card-overlay">
-          <article>
+          <article className="effect-choice-panel">
             <p className="section-label">FUSION SUMMON</p>
             <h2>{pendingFusion.fusionId ? cardById.get(pendingFusion.fusionId)?.name : "融合先を選択"}</h2>
             {!pendingFusion.fusionId ? (
@@ -4983,9 +5048,51 @@ export function DuelArena({
           </article>
         </div>
       )}
+      {pendingRitual && (
+        <div className="card-overlay">
+          <article className="effect-choice-panel">
+            <p className="section-label">RITUAL SUMMON</p>
+            <h2>スカルライダーの儀式召喚</h2>
+            <p>手札・フィールドからモンスターを選び、レベルの合計を6以上にしてください。</p>
+            <p><strong>選択中のレベル合計：{ritualMaterialLevelTotal(pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0))}</strong></p>
+            <h3>手札の素材</h3>
+            <div className="target-list">
+              {duel.playerHand.map((id, index) => {
+                if (index === pendingRitual.spellIndex || index === pendingRitual.ritualIndex) return null;
+                const material = cardById.get(id);
+                if (material?.cardType !== "monster") return null;
+                const selected = pendingRitual.selected.some((choice) => choice.source === "hand" && choice.index === index);
+                return (
+                  <button className={selected ? "selected" : ""} key={`ritual-hand-${id}-${index}`} onClick={() => toggleRitualMaterial("hand", index)}>
+                    <strong>{material.name}</strong><small>手札・★{material.level}{selected ? "・選択中" : ""}</small>
+                  </button>
+                );
+              })}
+            </div>
+            <h3>フィールドの素材</h3>
+            <div className="target-list">
+              {duel.playerField.map((zone, index) => {
+                const material = cardById.get(zone.id);
+                if (!material) return null;
+                const selected = pendingRitual.selected.some((choice) => choice.source === "field" && choice.index === index);
+                return (
+                  <button className={selected ? "selected" : ""} key={`ritual-field-${zone.id}-${index}`} onClick={() => toggleRitualMaterial("field", index)}>
+                    <strong>{zone.faceDown ? "伏せモンスター" : material.name}</strong><small>フィールド・★{material.level}{selected ? "・選択中" : ""}</small>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="overlay-actions">
+              <button disabled={ritualMaterialLevelTotal(pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0)) < 6 || duel.playerField.length - pendingRitual.selected.filter((choice) => choice.source === "field").length >= FIELD_LIMIT} onClick={() => resolveSkullRiderRitual("attack")}>攻撃表示で儀式召喚</button>
+              <button disabled={ritualMaterialLevelTotal(pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0)) < 6 || duel.playerField.length - pendingRitual.selected.filter((choice) => choice.source === "field").length >= FIELD_LIMIT} onClick={() => resolveSkullRiderRitual("defense")}>守備表示で儀式召喚</button>
+            </div>
+            <button onClick={() => setPendingRitual(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
       {pendingDragonFlute && (
         <div className="card-overlay">
-          <article>
+          <article className="effect-choice-panel">
             <p className="section-label">SPECIAL SUMMON</p>
             <h2>ドラゴンを呼ぶ笛</h2>
             <p>手札から特殊召喚するドラゴン族を最大2体選んでください。CPUも手札にいれば最大2体を特殊召喚します。</p>
@@ -5118,6 +5225,10 @@ export function DuelArena({
                         || (card.id === "vol5-soul-release" && duel.playerGraveyard.length + duel.cpuGraveyard.length === 0)
                         || (card.id === "vol5-cheerful-coffin" && !canActivateCheerfulCoffin(duel.playerHand.flatMap((id, handIndex) => handIndex === index ? [] : [cardById.get(id)?.cardType ?? ""])))
                         || (card.id === "vol5-change-heart" && (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT) || !duel.cpuField.some((zone) => !isEffectTargetProtected(duel, "cpu", zone))))
+                        || (card.id === "pr99-skull-rider-ritual" && (() => {
+                          const ritualIndex = duel.playerHand.findIndex((id, handIndex) => id === "pr99-skull-rider" && handIndex !== index);
+                          return ritualIndex < 0 || ritualAvailableLevelTotal(duel, index, ritualIndex) < 6;
+                        })())
                         || (card.id === "mr-painful-choice" && duel.playerDeck.length < 5)
                         || (card.id === "mr-darkness-approaches" && (duel.playerHand.length < 3 || ![...duel.playerField, ...duel.cpuField].some((zone) => !zone.faceDown)))
                         || (card.id === "mr-tailor-fickle" && ![...duel.playerField, ...duel.cpuField].some((zone) => zone.equipped.some((id) => cardById.get(id)?.kind === "装備魔法")))
@@ -7686,6 +7797,16 @@ function tributeCount(card: Card) {
   return level >= 7 ? 2 : level >= 5 ? 1 : 0;
 }
 
+function ritualAvailableLevelTotal(state: DuelState, spellIndex: number, ritualIndex: number) {
+  const handLevels = state.playerHand.flatMap((id, index) => {
+    if (index === spellIndex || index === ritualIndex) return [];
+    const card = cardById.get(id);
+    return card?.cardType === "monster" ? [card.level ?? 0] : [];
+  });
+  const fieldLevels = state.playerField.map((zone) => cardById.get(zone.id)?.level ?? 0);
+  return ritualMaterialLevelTotal([...handLevels, ...fieldLevels]);
+}
+
 function lowestAttackIndexes(field: ZoneCard[], count: number) {
   return field
     .map((zone, index) => ({ index, value: cardById.get(zone.id)?.atk ?? 0 }))
@@ -8196,6 +8317,7 @@ function spellDescription(id: string) {
   if (id === "vol5-soul-release") return "自分・相手の墓地からカードを合計5枚まで除外する";
   if (id === "vol5-cheerful-coffin") return "手札のモンスターを3枚まで墓地へ送る";
   if (id === "vol5-change-heart") return "相手モンスター1体のコントロールをターン終了時まで得る";
+  if (id === "pr99-skull-rider-ritual") return "手札・フィールドからレベル合計6以上のモンスターをリリースし、スカルライダーを儀式召喚する";
   if (id === "vol7-stop-attack") return "相手の表側攻撃表示モンスター1体を表側守備表示に変更";
   if (id === "vol7-shield-sword") return "現在表側表示の全モンスターの元々のATKとDEFをターン終了時まで入れ替える";
   if (id === "bo2-light-reveal") return "相手の裏側表示モンスターをすべて表側にして確認する。リバース効果は発動しない";
@@ -8248,6 +8370,7 @@ function isSpellImplemented(id: string) {
       "vol5-soul-release",
       "vol5-cheerful-coffin",
       "vol5-change-heart",
+      "pr99-skull-rider-ritual",
       "vol7-stop-attack",
       "vol7-shield-sword",
       "bo2-light-reveal",
