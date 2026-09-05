@@ -29,3 +29,10 @@ test("Booster 1のようにRだけならレア枠はR100%になる", () => {
   const cardOdds = calculatePackCardOdds(cards);
   assert.equal(cardOdds.find((item) => item.cardId === "r0")?.probability, 0.2);
 });
+
+test("三幻神プロモは1枚枠で3種が均等に出る", () => {
+  const cards = ["obelisk", "slifer", "ra"].map((id) => ({ id, rarity: "SE" }));
+  const odds = calculatePackCardOdds(cards, 1);
+  assert.deepEqual(odds.map((item) => item.slot), ["special", "special", "special"]);
+  assert.ok(odds.every((item) => Math.abs(item.probability - 1 / 3) < 1e-12));
+});

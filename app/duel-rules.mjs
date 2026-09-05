@@ -825,7 +825,35 @@ export function canDeckSearchTarget(sourceId, target) {
   return false;
 }
 
-export const competitiveCpuDeckLatestPackId = "promo-1999";
+export const GOD_CARD_IDS = Object.freeze(["g4-01-obelisk", "g4-02-slifer", "g4-03-ra"]);
+
+export function isGodCard(id) {
+  return GOD_CARD_IDS.includes(id);
+}
+
+export function requiredTributes(id, level = 0) {
+  if (isGodCard(id)) return 3;
+  return level >= 7 ? 2 : level >= 5 ? 1 : 0;
+}
+
+export function sliferDivineStats(handSize) {
+  const value = Math.max(0, handSize) * 1000;
+  return { atk: value, def: value };
+}
+
+export function raTributeStats(tributes) {
+  return tributes.reduce((stats, tribute) => ({
+    atk: stats.atk + Math.max(0, tribute.atk ?? 0),
+    def: stats.def + Math.max(0, tribute.def ?? 0),
+  }), { atk: 0, def: 0 });
+}
+
+export function raPointTransfer(lifePoints) {
+  const paid = Math.max(0, lifePoints - 1);
+  return { lifePoints: lifePoints - paid, attackBonus: paid };
+}
+
+export const competitiveCpuDeckLatestPackId = "dm4-god-cards";
 
 export const competitiveCpuFusionDeck = Object.freeze([
   "vol3-gaia-dragon-champion",
@@ -833,6 +861,7 @@ export const competitiveCpuFusionDeck = Object.freeze([
 ]);
 
 export const competitiveCpuDeck = Object.freeze([
+  "g4-01-obelisk",
   "mr-maha-vailo",
   "vol7-robbin-goblin",
   "vol5-white-magical-hat",
@@ -854,7 +883,6 @@ export const competitiveCpuDeck = Object.freeze([
   "vol7-rainbow-fish",
   "pr99-goddess-whim",
   "vol3-reaper-cards",
-  "vol2-curse-of-dragon",
   ...Array(2).fill("vol7-dark-elf"),
   "vol1-dark-hole",
   "vol1-fissure",

@@ -13,6 +13,7 @@ import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mj
 import { snatchStealStandbyGain } from "./duel-rules.mjs";
 import { curseOfFiendPosition } from "./duel-rules.mjs";
 import { blackPendantTriggerCounts, canPayChainEnergy, chainEnergyCost, monsterSentFromFieldToGrave } from "./duel-rules.mjs";
+import { isGodCard, raPointTransfer, raTributeStats, requiredTributes, sliferDivineStats } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -30,6 +31,7 @@ type PendingTribute = {
   required: number;
   selected: number[];
 };
+type PendingGodTribute = { kind: "obelisk" | "ra"; sourceIndex: number; selected: number[] };
 type CpuPlayback = {
   finalState: DuelState;
   messages: string[];
@@ -206,6 +208,17 @@ type ZoneCard = {
   battleAtkBonusValue?: number;
   battleDefBonusValue?: number;
   germStandbys?: number;
+  godBaseAtk?: number;
+  godBaseDef?: number;
+  godAtkBonus?: number;
+  godDefBonus?: number;
+  godAtkPenalty?: number;
+  godDefPenalty?: number;
+  godEffectUsedTurn?: number;
+  godInfiniteTurn?: number;
+  godPointUsedTurn?: number;
+  godPhoenixUsedTurn?: number;
+  godSpecialSummoned?: boolean;
 };
 
 type DuelState = {
@@ -307,6 +320,7 @@ export function DuelArena({
   const [pendingGaleDogra, setPendingGaleDogra] = useState<number | null>(null);
   const [pendingCyberStein, setPendingCyberStein] = useState<PendingCyberStein | null>(null);
   const [pendingAileSwordsman, setPendingAileSwordsman] = useState<number | null>(null);
+  const [pendingGodTribute, setPendingGodTribute] = useState<PendingGodTribute | null>(null);
   const [pendingYadoKaru, setPendingYadoKaru] = useState<PendingYadoKaru | null>(null);
   const [pendingGracefulCharity, setPendingGracefulCharity] = useState<number[] | null>(null);
   const [pendingCardInspection, setPendingCardInspection] = useState<PendingCardInspection | null>(null);
@@ -382,6 +396,7 @@ export function DuelArena({
     && pendingGaleDogra === null
     && pendingCyberStein === null
     && pendingAileSwordsman === null
+    && pendingGodTribute === null
     && pendingYadoKaru === null
     && pendingGracefulCharity === null
     && pendingCardInspection === null
@@ -484,6 +499,7 @@ export function DuelArena({
     setPendingGaleDogra(null);
     setPendingCyberStein(null);
     setPendingAileSwordsman(null);
+    setPendingGodTribute(null);
     setPendingYadoKaru(null);
     setPendingGracefulCharity(null);
     setPendingCardInspection(null);
@@ -573,6 +589,7 @@ export function DuelArena({
     const id = duel.playerHand[handIndex];
     const card = cardById.get(id);
     if (!card || card.cardType !== "monster" || !canNormalSummonMonster(card.id, card.fusion)) return;
+    if (isGodCard(card.id) && position === "defense") return;
     const tributes = tributeCount(card);
     if (duel.playerField.length < tributes || duel.playerField.length - tributes >= FIELD_LIMIT) return;
     if (tributes > 0) {
@@ -594,6 +611,9 @@ export function DuelArena({
     const playerTributes = tributedZones.filter((zone) => zone.controlReturn !== "cpu");
     const tributeNames = tributeIndexes.map((index) => cardById.get(duel.playerField[index].id)?.name).filter(Boolean);
     const nextField = duel.playerField.filter((_, index) => !tributeIndexes.includes(index));
+    const raStats = card.id === "g4-03-ra"
+      ? raTributeStats(tributedZones.map((zone) => ({ atk: effectiveAtk(zone, duel, "player"), def: effectiveDef(zone, duel, "player") })))
+      : null;
     const lockedByJar = isDragonCaptureJarLocked(card.kind, false, isDragonCaptureJarActive(duel));
     const summonPosition: Position = position === "attack" && lockedByJar ? "defense" : position;
     nextField.push({
@@ -604,6 +624,7 @@ export function DuelArena({
       equipped: [],
       summonedTurn: duel.turnNumber,
       positionChanged: false,
+      ...(raStats ? { godBaseAtk: raStats.atk, godBaseDef: raStats.def } : {}),
     });
     let nextState: DuelState = {
       ...duel,
@@ -621,8 +642,15 @@ export function DuelArena({
       nextState.log = appendLog(nextState.log, `魔力の枷によりプレイヤーが${duelChainEnergyCost(duel)}LPを支払った。`);
     }
     if (position === "attack") nextState = applyMysteriousPuppeteerGain(nextState);
+    nextState = applySliferSummonThunder(nextState, "player", nextState.playerField.length - 1);
+    const summonedSurvived = nextState.playerField.some((zone) => zone.id === card.id && zone.summonedTurn === duel.turnNumber);
+    if (!summonedSurvived) {
+      setDuel(applyDeckSearchTriggers(nextState, playerTributes, returnedTributes));
+      setPendingTribute(null);
+      return;
+    }
     const cpuTrapIndex = areTrapEffectsNegated(nextState) ? -1 : nextState.cpuSpellTrap.indexOf("vol1-trap-hole");
-    if (position === "attack" && (card.atk ?? 0) >= 1000 && cpuTrapIndex >= 0) {
+    if (!isGodCard(card.id) && position === "attack" && (card.atk ?? 0) >= 1000 && cpuTrapIndex >= 0) {
       const trappedMonster = nextState.playerField[nextState.playerField.length - 1];
       const sevenToolsIndex = nextState.playerSpellTrap.indexOf("vol6-seven-tools");
       if (trappedMonster && sevenToolsIndex >= 0 && canActivateSevenTools(nextState.playerLp, nextState.playerSpellTrap)) {
@@ -1093,13 +1121,13 @@ export function DuelArena({
       playerGraveyard: [...duel.playerGraveyard, card.id],
     };
     if (card.id === "vol1-dark-hole") {
-      const returnedMonsters = next.playerField.filter((zone) => zone.controlReturn === "cpu");
-      const playerMonsters = next.playerField.filter((zone) => zone.controlReturn !== "cpu");
-      const cpuMonsters = next.cpuField;
+      const returnedMonsters = next.playerField.filter((zone) => !isGodCard(zone.id) && zone.controlReturn === "cpu");
+      const playerMonsters = next.playerField.filter((zone) => !isGodCard(zone.id) && zone.controlReturn !== "cpu");
+      const cpuMonsters = next.cpuField.filter((zone) => !isGodCard(zone.id));
       next = {
         ...next,
-        playerField: [],
-        cpuField: [],
+        playerField: next.playerField.filter((zone) => isGodCard(zone.id)),
+        cpuField: next.cpuField.filter((zone) => isGodCard(zone.id)),
         playerSpellTrap: discardEquips(next.playerSpellTrap, playerMonsters),
         cpuSpellTrap: discardEquips(next.cpuSpellTrap, [...next.cpuField, ...returnedMonsters]),
         playerGraveyard: [...next.playerGraveyard, ...graveCards(playerMonsters)],
@@ -1171,12 +1199,12 @@ export function DuelArena({
         cpuActiveTraps: [],
       };
     } else if (card.id === "stb-raigeki") {
-      const destroyedCpu = next.cpuField;
+      const destroyedCpu = next.cpuField.filter((zone) => !isGodCard(zone.id));
       next = {
         ...next,
-        cpuField: [],
-        cpuSpellTrap: discardEquips(next.cpuSpellTrap, next.cpuField),
-        cpuGraveyard: [...next.cpuGraveyard, ...graveCards(next.cpuField)],
+        cpuField: next.cpuField.filter((zone) => isGodCard(zone.id)),
+        cpuSpellTrap: discardEquips(next.cpuSpellTrap, destroyedCpu),
+        cpuGraveyard: [...next.cpuGraveyard, ...graveCards(destroyedCpu)],
       };
       next = applyDeckSearchTriggers(next, [], destroyedCpu);
     } else if (raceDestructionKind(card.id)) {
@@ -1834,6 +1862,7 @@ export function DuelArena({
           summonedTurn: duel.turnNumber,
           positionChanged: false,
           revivedByMonsterReborn: true,
+          godSpecialSummoned: isGodCard(taken.cardId),
         },
       ],
       playerGraveyard: [
@@ -2266,6 +2295,82 @@ export function DuelArena({
     setDuel(resolved);
   }
 
+  function toggleGodTribute(targetIndex: number) {
+    setPendingGodTribute((current) => {
+      if (!current || targetIndex === current.sourceIndex) return current;
+      if (current.selected.includes(targetIndex)) return { ...current, selected: current.selected.filter((index) => index !== targetIndex) };
+      if (current.kind === "obelisk" && current.selected.length >= 2) return current;
+      return { ...current, selected: [...current.selected, targetIndex] };
+    });
+  }
+
+  function resolveGodTributeEffect() {
+    if (!duel || !pendingGodTribute || !isPlayerMainPhase) return;
+    const { kind, sourceIndex, selected } = pendingGodTribute;
+    const expectedId = kind === "obelisk" ? "g4-01-obelisk" : "g4-03-ra";
+    const source = duel.playerField[sourceIndex];
+    if (!source || source.id !== expectedId || source.faceDown || source.godEffectUsedTurn === duel.turnNumber) return;
+    if ((kind === "obelisk" && selected.length !== 2) || selected.length === 0 || selected.includes(sourceIndex)) return;
+    const tributes = duel.playerField.filter((_, index) => selected.includes(index));
+    const tributeStats = raTributeStats(tributes.map((zone) => ({ atk: effectiveAtk(zone, duel, "player"), def: effectiveDef(zone, duel, "player") })));
+    const returned = tributes.filter((zone) => zone.controlReturn === "cpu");
+    const owned = tributes.filter((zone) => zone.controlReturn !== "cpu");
+    let next: DuelState = {
+      ...duel,
+      playerField: duel.playerField
+        .map((zone, index) => index === sourceIndex ? {
+          ...zone,
+          godEffectUsedTurn: duel.turnNumber,
+          ...(kind === "obelisk"
+            ? { godInfiniteTurn: duel.turnNumber }
+            : { godAtkBonus: (zone.godAtkBonus ?? 0) + tributeStats.atk, godDefBonus: (zone.godDefBonus ?? 0) + tributeStats.def }),
+        } : zone)
+        .filter((_, index) => !selected.includes(index)),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, owned),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, returned),
+      playerGraveyard: [...duel.playerGraveyard, ...graveCards(owned)],
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(returned)],
+      log: appendLog(duel.log, kind === "obelisk"
+        ? "オベリスクの巨神兵が2体の魂を捧げ、ソウルエナジーMAXを発動。ターン終了まで攻撃力は∞。"
+        : `ラーの翼神竜に生け贄の力を集約。ATK＋${tributeStats.atk}／DEF＋${tributeStats.def}。`),
+    };
+    next = applyDeckSearchTriggers(next, owned, returned);
+    setPendingGodTribute(null);
+    setDuel(next);
+  }
+
+  function activateRaPointTransfer() {
+    if (!duel || !isPlayerMainPhase || duel.playerLp <= 1) return;
+    const sourceIndex = duel.playerField.findIndex((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godPointUsedTurn !== duel.turnNumber);
+    if (sourceIndex < 0) return;
+    const transfer = raPointTransfer(duel.playerLp);
+    setDuel({
+      ...duel,
+      playerLp: transfer.lifePoints,
+      playerField: duel.playerField.map((zone, index) => index === sourceIndex
+        ? { ...zone, godAtkBonus: (zone.godAtkBonus ?? 0) + transfer.attackBonus, godDefBonus: (zone.godDefBonus ?? 0) + transfer.attackBonus, godPointUsedTurn: duel.turnNumber }
+        : zone),
+      log: appendLog(duel.log, `ラーの翼神竜へLPを移した。LPを1にし、ATK・DEFを${transfer.attackBonus}アップ。`),
+    });
+  }
+
+  function activateRaGodPhoenix() {
+    if (!duel || !isPlayerMainPhase || duel.playerLp <= 1000) return;
+    const sourceIndex = duel.playerField.findIndex((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godPhoenixUsedTurn !== duel.turnNumber);
+    if (sourceIndex < 0 || duel.cpuField.length === 0) return;
+    const destroyed = duel.cpuField;
+    setDuel({
+      ...duel,
+      playerLp: duel.playerLp - 1000,
+      playerField: duel.playerField.map((zone, index) => index === sourceIndex ? { ...zone, godPhoenixUsedTurn: duel.turnNumber } : zone),
+      cpuField: [],
+      playerSpellTrap: discardEquips(duel.playerSpellTrap, destroyed),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, destroyed),
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(destroyed)],
+      log: appendLog(duel.log, `ラーの翼神竜のゴッドフェニックス。1000LPを払い、CPUモンスター${destroyed.length}体を焼き尽くした。`),
+    });
+  }
+
   function toggleYadoKaruCard(handIndex: number) {
     setPendingYadoKaru((current) => current
       ? {
@@ -2570,7 +2675,7 @@ export function DuelArena({
       setDuel(resolveBattle(duel, "player", attackerIndex, defenderIndex));
       return;
     }
-    const destroyedOnPlayerField = duel.playerField.filter((zone) => isMirrorForceDestructionTarget(zone.position));
+    const destroyedOnPlayerField = duel.playerField.filter((zone) => !isGodCard(zone.id) && isMirrorForceDestructionTarget(zone.position));
     const returnedCpu = destroyedOnPlayerField.filter((zone) => zone.controlReturn === "cpu");
     const destroyedPlayer = destroyedOnPlayerField.filter((zone) => zone.controlReturn !== "cpu");
     const attacker = duel.playerField[attackerIndex];
@@ -2584,7 +2689,7 @@ export function DuelArena({
       ...duel,
       playerLp: duel.playerLp - payment.lifeCost,
       playerDeck: duel.playerDeck.slice(payment.millCount),
-      playerField: duel.playerField.filter((zone) => !isMirrorForceDestructionTarget(zone.position)),
+      playerField: duel.playerField.filter((zone) => isGodCard(zone.id) || !isMirrorForceDestructionTarget(zone.position)),
       playerSpellTrap: discardEquips(duel.playerSpellTrap, destroyedPlayer),
       cpuSpellTrap: discardEquips(
         duel.cpuSpellTrap.filter((_, index) => index !== mirrorForceIndex),
@@ -2613,7 +2718,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "standby") {
@@ -2649,7 +2754,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -2714,7 +2819,7 @@ export function DuelArena({
   }
 
   function completePlayerEndTurn(playerEnd: DuelState) {
-    const clearedPlayerEnd = clearSwappedStats(playerEnd);
+    const clearedPlayerEnd = clearSwappedStats(cleanupSpecialSummonedGods(playerEnd, "player"));
     const cpuStart: DuelState = {
       ...clearedPlayerEnd,
       turn: "cpu",
@@ -3192,10 +3297,10 @@ export function DuelArena({
       log: appendLog(duel.log, marker),
     };
     if (activate) {
-      const destroyedCpu = resumed.cpuField.filter((zone) => isMirrorForceDestructionTarget(zone.position));
+      const destroyedCpu = resumed.cpuField.filter((zone) => !isGodCard(zone.id) && isMirrorForceDestructionTarget(zone.position));
       resumed = {
         ...resumed,
-        cpuField: resumed.cpuField.filter((zone) => !isMirrorForceDestructionTarget(zone.position)),
+        cpuField: resumed.cpuField.filter((zone) => isGodCard(zone.id) || !isMirrorForceDestructionTarget(zone.position)),
         cpuSpellTrap: discardEquips(resumed.cpuSpellTrap, destroyedCpu),
         playerSpellTrap: resumed.playerSpellTrap.filter((_, index) => index !== pending.trapIndex),
         cpuGraveyard: [...resumed.cpuGraveyard, ...graveCards(destroyedCpu)],
@@ -3673,7 +3778,7 @@ export function DuelArena({
         <p className="section-label">SINGLE DUEL</p>
         <h2>CPUデュエル</h2>
         <div className="duel-rule-card">
-          <strong>1999プロモ効果対応 強化CPU · BUILD 146</strong>
+          <strong>三幻神対応 強化CPU · BUILD 147</strong>
           <p>1999プロモまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
         </div>
         <dl>
@@ -4598,6 +4703,18 @@ export function DuelArena({
         {isPlayerMainPhase && duel.playerField.some((zone) => zone.id === "bo7-aile-swordsman" && !zone.faceDown) && (
           <button className="effect-action-button" onClick={() => setPendingAileSwordsman(duel.playerField.findIndex((zone) => zone.id === "bo7-aile-swordsman" && !zone.faceDown))}>アイルの小剣士の効果を使う</button>
         )}
+        {isPlayerMainPhase && duel.playerField.filter((zone) => zone.id !== "g4-01-obelisk").length >= 2 && duel.playerField.some((zone) => zone.id === "g4-01-obelisk" && !zone.faceDown && zone.godEffectUsedTurn !== duel.turnNumber) && (
+          <button className="effect-action-button" onClick={() => setPendingGodTribute({ kind: "obelisk", sourceIndex: duel.playerField.findIndex((zone) => zone.id === "g4-01-obelisk" && !zone.faceDown), selected: [] })}>オベリスク：ソウルエナジーMAX</button>
+        )}
+        {isPlayerMainPhase && duel.playerField.filter((zone) => zone.id !== "g4-03-ra").length > 0 && duel.playerField.some((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godEffectUsedTurn !== duel.turnNumber) && (
+          <button className="effect-action-button" onClick={() => setPendingGodTribute({ kind: "ra", sourceIndex: duel.playerField.findIndex((zone) => zone.id === "g4-03-ra" && !zone.faceDown), selected: [] })}>ラー：モンスターの力を集約</button>
+        )}
+        {isPlayerMainPhase && duel.playerLp > 1 && duel.playerField.some((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godPointUsedTurn !== duel.turnNumber) && (
+          <button className="effect-action-button" onClick={activateRaPointTransfer}>ラー：LPを1まで攻撃力へ変換</button>
+        )}
+        {isPlayerMainPhase && duel.playerLp > 1000 && duel.cpuField.length > 0 && duel.playerField.some((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godPhoenixUsedTurn !== duel.turnNumber) && (
+          <button className="effect-action-button" onClick={activateRaGodPhoenix}>ラー：ゴッドフェニックス（1000LP）</button>
+        )}
         {isPlayerMainPhase
           && duel.playerSpellTrap.includes("bo3-ultimate-offering")
           && canUseUltimateOffering(duel.playerLp, duel.normalSummoned, duel.playerField.length, hasUltimateOfferingSummonCandidate(duel), FIELD_LIMIT) && (
@@ -4760,6 +4877,25 @@ export function DuelArena({
               ))}
             </div>
             <button className="overlay-close" onClick={() => setPendingAileSwordsman(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
+      {pendingGodTribute && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">DIVINE EFFECT</p>
+            <h2>{pendingGodTribute.kind === "obelisk" ? "オベリスクの巨神兵" : "ラーの翼神竜"}</h2>
+            <p>{pendingGodTribute.kind === "obelisk" ? "神自身を除く2体を選んでください。ターン終了まで攻撃力が∞になります。" : "神自身を除き、力を取り込むモンスターを1体以上選んでください。"}</p>
+            <div className="target-list cannon-target-list">
+              {duel.playerField.map((zone, index) => index === pendingGodTribute.sourceIndex ? null : (
+                <button className={pendingGodTribute.selected.includes(index) ? "selected" : ""} key={`${zone.id}-${index}`} onClick={() => toggleGodTribute(index)}>
+                  <strong>{cardById.get(zone.id)?.name}</strong>
+                  <small>ATK {effectiveAtk(zone, duel, "player")} ／ DEF {effectiveDef(zone, duel, "player")}</small>
+                </button>
+              ))}
+            </div>
+            <button disabled={pendingGodTribute.kind === "obelisk" ? pendingGodTribute.selected.length !== 2 : pendingGodTribute.selected.length === 0} onClick={resolveGodTributeEffect}>選択したモンスターを捧げる</button>
+            <button className="overlay-close" onClick={() => setPendingGodTribute(null)}>キャンセル</button>
           </article>
         </div>
       )}
@@ -5160,7 +5296,7 @@ export function DuelArena({
                         </div>
                       </>
                     ) : (
-                      <div><button disabled={!canSummon} onClick={() => summon(index, "attack")}>召喚</button><button disabled={!canSummon} onClick={() => summon(index, "defense")}>セット</button></div>
+                      <div><button disabled={!canSummon} onClick={() => summon(index, "attack")}>召喚</button><button disabled={!canSummon || isGodCard(card.id)} onClick={() => summon(index, "defense")}>{isGodCard(card.id) ? "神はセット不可" : "セット"}</button></div>
                     )}
                     {card.id === "vol4-cocoon-evolution" && (
                       <button
@@ -5481,8 +5617,11 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     const tributeIndexes = lowestAttackIndexes(state.cpuField, tributes);
     const tributedZones = state.cpuField.filter((_, index) => tributeIndexes.includes(index));
     const nextField = state.cpuField.filter((_, index) => !tributeIndexes.includes(index));
-    const defensive = (summonChoice.card.def ?? 0) > (summonChoice.card.atk ?? 0)
-      || isDragonCaptureJarLocked(summonChoice.card.kind, false, isDragonCaptureJarActive(state));
+    const defensive = !isGodCard(summonChoice.card.id) && ((summonChoice.card.def ?? 0) > (summonChoice.card.atk ?? 0)
+      || isDragonCaptureJarLocked(summonChoice.card.kind, false, isDragonCaptureJarActive(state)));
+    const raStats = summonChoice.card.id === "g4-03-ra"
+      ? raTributeStats(tributedZones.map((zone) => ({ atk: effectiveAtk(zone, state, "cpu"), def: effectiveDef(zone, state, "cpu") })))
+      : null;
     nextField.push({
       id: summonChoice.card.id,
       position: defensive ? "defense" : "attack",
@@ -5491,6 +5630,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
       equipped: [],
       summonedTurn: state.turnNumber,
       positionChanged: false,
+      ...(raStats ? { godBaseAtk: raStats.atk, godBaseDef: raStats.def } : {}),
     });
     const paidState = applyChainEnergyPayment(state, "cpu");
     state = {
@@ -5508,8 +5648,11 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     };
     if (!defensive) state = applyMysteriousPuppeteerGain(state);
     state = applyDeckSearchTriggers(state, [], tributedZones);
+    state = applySliferSummonThunder(state, "cpu", state.cpuField.length - 1);
+    const summonedSurvived = state.cpuField.some((zone) => zone.id === summonChoice.card.id && zone.summonedTurn === state.turnNumber);
+    if (!summonedSurvived) return finishCpuTurn(state);
     const hornIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol6-horn-heaven");
-    if (!defensive && canActivateHornOfHeaven(state.playerField.length, state.playerSpellTrap) && hornIndex >= 0) {
+    if (!isGodCard(summonChoice.card.id) && !defensive && canActivateHornOfHeaven(state.playerField.length, state.playerSpellTrap) && hornIndex >= 0) {
       return {
         ...state,
         pendingHornOfHeaven: {
@@ -5521,7 +5664,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
       };
     }
     const solemnIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol6-solemn-judgment");
-    if (!defensive && solemnIndex >= 0) {
+    if (!isGodCard(summonChoice.card.id) && !defensive && solemnIndex >= 0) {
       return {
         ...state,
         pendingSolemnJudgment: {
@@ -5534,7 +5677,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
       };
     }
     const trapIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol1-trap-hole");
-    if (!defensive && (summonChoice.card.atk ?? 0) >= 1000 && trapIndex >= 0) {
+    if (!isGodCard(summonChoice.card.id) && !defensive && (summonChoice.card.atk ?? 0) >= 1000 && trapIndex >= 0) {
       return {
         ...state,
         pendingTrapResponse: {
@@ -6070,6 +6213,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   state = transferCpuMatangos(state);
   state = cleanupSpellbindingCircles(state);
   state = cleanupSnatchStealControl(state);
+  state = cleanupSpecialSummonedGods(state, "cpu");
   state = clearSwappedStats(state);
 
   const swords = advanceSwordsTurns(state.playerSwordsTurns);
@@ -6281,6 +6425,7 @@ function resolveCpuMonsterRebornEffect(state: DuelState): DuelState {
       summonedTurn: state.turnNumber,
       positionChanged: false,
       revivedByMonsterReborn: true,
+      godSpecialSummoned: isGodCard(taken.cardId),
     }],
     cpuGraveyard: choice.side === "cpu" ? taken.remaining : state.cpuGraveyard,
     playerGraveyard: choice.side === "player" ? taken.remaining : state.playerGraveyard,
@@ -6408,13 +6553,13 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
         pendingAntiRaigeki: { trapIndex: activated.playerSpellTrap.indexOf("vol5-anti-raigeki") },
       };
     }
-    const destroyedPlayer = activated.playerField;
+    const destroyedPlayer = activated.playerField.filter((zone) => !isGodCard(zone.id));
     state = {
       ...activated,
-      playerSpellTrap: discardEquips(activated.playerSpellTrap, activated.playerField),
-      playerGraveyard: [...activated.playerGraveyard, ...graveCards(activated.playerField)],
-      playerField: [],
-      log: appendLog(activated.log, "サンダー・ボルトでプレイヤーのモンスターをすべて破壊。"),
+      playerSpellTrap: discardEquips(activated.playerSpellTrap, destroyedPlayer),
+      playerGraveyard: [...activated.playerGraveyard, ...graveCards(destroyedPlayer)],
+      playerField: activated.playerField.filter((zone) => isGodCard(zone.id)),
+      log: appendLog(activated.log, `サンダー・ボルトでプレイヤーのモンスター${destroyedPlayer.length}体を破壊。神には効かない。`),
     };
     state = applyDeckSearchTriggers(state, destroyedPlayer);
   }
@@ -6436,17 +6581,17 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
       ...activated,
       pendingSpellSpecificTrap: { trapIndex: whiteHoleIndex, trapId: "bo4-white-hole", spellId: "vol1-dark-hole" },
     };
-    const destroyedPlayer = activated.playerField;
-    const destroyedCpu = activated.cpuField;
+    const destroyedPlayer = activated.playerField.filter((zone) => !isGodCard(zone.id));
+    const destroyedCpu = activated.cpuField.filter((zone) => !isGodCard(zone.id));
     state = {
       ...activated,
-      playerSpellTrap: discardEquips(activated.playerSpellTrap, activated.playerField),
-      cpuSpellTrap: discardEquips(activated.cpuSpellTrap, activated.cpuField),
-      playerGraveyard: [...activated.playerGraveyard, ...graveCards(activated.playerField)],
-      cpuGraveyard: [...activated.cpuGraveyard, ...graveCards(activated.cpuField)],
-      playerField: [],
-      cpuField: [],
-      log: appendLog(activated.log, "ブラック・ホールですべてのモンスターを破壊。"),
+      playerSpellTrap: discardEquips(activated.playerSpellTrap, destroyedPlayer),
+      cpuSpellTrap: discardEquips(activated.cpuSpellTrap, destroyedCpu),
+      playerGraveyard: [...activated.playerGraveyard, ...graveCards(destroyedPlayer)],
+      cpuGraveyard: [...activated.cpuGraveyard, ...graveCards(destroyedCpu)],
+      playerField: activated.playerField.filter((zone) => isGodCard(zone.id)),
+      cpuField: activated.cpuField.filter((zone) => isGodCard(zone.id)),
+      log: appendLog(activated.log, "ブラック・ホールで神以外のモンスターをすべて破壊。"),
     };
     state = applyDeckSearchTriggers(state, destroyedPlayer, destroyedCpu);
   }
@@ -7090,9 +7235,51 @@ function areTrapEffectsNegated(state: DuelState): boolean {
 }
 
 function isEffectTargetProtected(state: DuelState, side: Side, zone: ZoneCard): boolean {
+  if (!zone.faceDown && isGodCard(zone.id)) return true;
   const faceUpLordCount = [...state.playerField, ...state.cpuField]
     .filter((candidate) => candidate.id === "ex-084" && !candidate.faceDown).length;
   return dragonTargetProtected(cardById.get(zone.id)?.kind ?? "", zone.faceDown, faceUpLordCount);
+}
+
+function cleanupSpecialSummonedGods(state: DuelState, side: Side): DuelState {
+  const fieldKey = side === "player" ? "playerField" : "cpuField";
+  const graveKey = side === "player" ? "playerGraveyard" : "cpuGraveyard";
+  const leaving = state[fieldKey].filter((zone) => zone.godSpecialSummoned && isGodCard(zone.id));
+  if (leaving.length === 0) return state;
+  return {
+    ...state,
+    [fieldKey]: state[fieldKey].filter((zone) => !leaving.includes(zone)),
+    [graveKey]: [...state[graveKey], ...graveCards(leaving)],
+    log: appendLog(state.log, `特殊召喚された神${leaving.length}体がエンドフェイズに墓地へ戻った。`),
+  } as DuelState;
+}
+
+function applySliferSummonThunder(state: DuelState, summonedSide: Side, summonedIndex: number): DuelState {
+  const fieldKey = summonedSide === "player" ? "playerField" : "cpuField";
+  const graveKey = summonedSide === "player" ? "playerGraveyard" : "cpuGraveyard";
+  const opponentField = summonedSide === "player" ? state.cpuField : state.playerField;
+  const summoned = state[fieldKey][summonedIndex];
+  if (!summoned || summoned.faceDown || isGodCard(summoned.id) || !opponentField.some((zone) => zone.id === "g4-02-slifer" && !zone.faceDown)) return state;
+  const attackPosition = summoned.position === "attack";
+  const weakened = {
+    ...summoned,
+    godAtkPenalty: (summoned.godAtkPenalty ?? 0) + (attackPosition ? 2000 : 0),
+    godDefPenalty: (summoned.godDefPenalty ?? 0) + (attackPosition ? 0 : 2000),
+  };
+  const nextField = state[fieldKey].map((zone, index) => index === summonedIndex ? weakened : zone);
+  const value = attackPosition
+    ? effectiveAtk(weakened, { ...state, [fieldKey]: nextField } as DuelState, summonedSide)
+    : effectiveDef(weakened, { ...state, [fieldKey]: nextField } as DuelState, summonedSide);
+  const name = cardById.get(summoned.id)?.name ?? "召喚されたモンスター";
+  if (value > 0) {
+    return { ...state, [fieldKey]: nextField, log: appendLog(state.log, `オシリスの召雷弾。${name}の${attackPosition ? "ATK" : "DEF"}を2000ダウン。`) } as DuelState;
+  }
+  return {
+    ...state,
+    [fieldKey]: nextField.filter((_, index) => index !== summonedIndex),
+    [graveKey]: [...state[graveKey], ...graveCards([summoned])],
+    log: appendLog(state.log, `オシリスの召雷弾。${name}の${attackPosition ? "ATK" : "DEF"}を2000下げ、0になったため破壊。`),
+  } as DuelState;
 }
 
 function discardRandomHandCard(state: DuelState, side: Side, sourceName: string): DuelState {
@@ -7793,8 +7980,7 @@ function shuffle<T>(values: T[]) {
 }
 
 function tributeCount(card: Card) {
-  const level = card.level ?? 0;
-  return level >= 7 ? 2 : level >= 5 ? 1 : 0;
+  return requiredTributes(card.id, card.level ?? 0);
 }
 
 function ritualAvailableLevelTotal(state: DuelState, spellIndex: number, ritualIndex: number) {
@@ -7875,13 +8061,16 @@ function lowestFaceUpAttackIndex(field: ZoneCard[], state?: DuelState, side?: Si
 
 function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   const card = cardById.get(zone.id);
-  const original = hourglassOriginalStats(
+  let original = hourglassOriginalStats(
     zone.id,
     card?.atk ?? 0,
     card?.def ?? 0,
     zone.faceUpTurn ?? zone.summonedTurn,
     state?.turnNumber,
   );
+  if (state && side && !zone.faceDown && zone.id === "g4-02-slifer") original = sliferDivineStats(side === "player" ? state.playerHand.length : state.cpuHand.length);
+  if (!zone.faceDown && zone.id === "g4-03-ra") original = { atk: zone.godBaseAtk ?? 0, def: zone.godBaseDef ?? 0 };
+  if (state && zone.id === "g4-01-obelisk" && zone.godInfiniteTurn === state.turnNumber) return 999999;
   const base = swappedMonsterStats(original.atk, original.def, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
   const equipped = equippedMonsterStats(base.atk, base.def, zone.equipped);
   if (!state || !side || zone.faceDown || !card) return equipped.atk;
@@ -7905,11 +8094,13 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
   const adjusted = stats.atk
+    + (zone.godAtkBonus ?? 0)
     + timedFieldBonus(zone, state)
     + aileSwordsmanAttackBonus(zone.aileBoostTurn, zone.aileTributeCount, state.turnNumber)
     + temporaryBattleStatBonus(zone.battleAtkBonusTurn, state.turnNumber, zone.battleAtkBonusValue)
     - germInfectionPenalty(zone.equipped, zone.germStandbys)
-    - dopingPenalty(zone.equipped, zone.germStandbys);
+    - dopingPenalty(zone.equipped, zone.germStandbys)
+    - (zone.godAtkPenalty ?? 0);
   const coinAdjusted = zone.goddessMultiplierTurn === state.turnNumber
     ? Math.floor(adjusted * (zone.goddessMultiplier ?? 1))
     : adjusted;
@@ -7918,13 +8109,15 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
 
 function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
   const card = cardById.get(zone.id);
-  const original = hourglassOriginalStats(
+  let original = hourglassOriginalStats(
     zone.id,
     card?.atk ?? 0,
     card?.def ?? 0,
     zone.faceUpTurn ?? zone.summonedTurn,
     state?.turnNumber,
   );
+  if (state && side && !zone.faceDown && zone.id === "g4-02-slifer") original = sliferDivineStats(side === "player" ? state.playerHand.length : state.cpuHand.length);
+  if (!zone.faceDown && zone.id === "g4-03-ra") original = { atk: zone.godBaseAtk ?? 0, def: zone.godBaseDef ?? 0 };
   const base = swappedMonsterStats(original.atk, original.def, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
   const equipped = equippedMonsterStats(base.atk, base.def, zone.equipped);
   if (!state || !side || zone.faceDown || !card) return equipped.def;
@@ -7941,7 +8134,7 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
     auraIds: [],
     fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
-  const adjusted = stats.def + timedFieldBonus(zone, state) + temporaryBattleStatBonus(zone.battleDefBonusTurn, state.turnNumber, zone.battleDefBonusValue);
+  const adjusted = stats.def + (zone.godDefBonus ?? 0) + timedFieldBonus(zone, state) + temporaryBattleStatBonus(zone.battleDefBonusTurn, state.turnNumber, zone.battleDefBonusValue) - (zone.godDefPenalty ?? 0);
   return reverseAdjustedStat(base.def, adjusted, state.reverseTrapTurn === state.turnNumber);
 }
 

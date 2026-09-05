@@ -10,6 +10,7 @@ import { goddessWhimMultiplier, timeWizardCoinResult } from "../app/duel-rules.m
 import { canPayChainEnergy, chainEnergyCost } from "../app/duel-rules.mjs";
 import { blackPendantTriggerCounts } from "../app/duel-rules.mjs";
 import { monsterSentFromFieldToGrave } from "../app/duel-rules.mjs";
+import { isGodCard, raPointTransfer, raTributeStats, requiredTributes, sliferDivineStats } from "../app/duel-rules.mjs";
 
 test("遺言状の条件はフィールドから同じモンスターが墓地へ移った時だけ成立する", () => {
   assert.equal(monsterSentFromFieldToGrave(["a", "b"], ["b"], [], ["a"]), true);
@@ -776,8 +777,9 @@ test("強化CPUは40枚デッキを使い、2003年10月の制限枚数を守る
   assert.equal(counts["mr-forceful-sentry"], 1);
 });
 
-test("強化CPUは現在追加済みの1999プロモーションパックまで採用する", () => {
-  assert.equal(competitiveCpuDeckLatestPackId, "promo-1999");
+test("強化CPUは現在追加済みの三幻神プロモーションパックまで採用する", () => {
+  assert.equal(competitiveCpuDeckLatestPackId, "dm4-god-cards");
+  assert.equal(competitiveCpuDeck.filter((id) => id === "g4-01-obelisk").length, 1);
   assert.equal(competitiveCpuDeck.filter((id) => id === "mr-maha-vailo").length, 1);
   assert.equal(competitiveCpuDeck.filter((id) => id === "pr99-meteor-dragon").length, 1);
   assert.equal(competitiveCpuDeck.filter((id) => id === "pr99-seiyaryu").length, 1);
@@ -789,6 +791,14 @@ test("強化CPUは現在追加済みの1999プロモーションパックまで�
   assert.equal(competitiveCpuDeck.filter((id) => id === "vol7-tremendous-fire").length, 1);
   assert.ok(competitiveCpuDeck.some((id) => id.startsWith("vol5-")));
   assert.ok(competitiveCpuDeck.some((id) => id.startsWith("vol6-")));
+});
+
+test("三幻神は3体リリースで、固有能力値を計算する", () => {
+  assert.equal(isGodCard("g4-01-obelisk"), true);
+  assert.equal(requiredTributes("g4-02-slifer", 10), 3);
+  assert.deepEqual(sliferDivineStats(4), { atk: 4000, def: 4000 });
+  assert.deepEqual(raTributeStats([{ atk: 1200, def: 800 }, { atk: 1800, def: 1600 }, { atk: 2500, def: 2100 }]), { atk: 5500, def: 4500 });
+  assert.deepEqual(raPointTransfer(8000), { lifePoints: 1, attackBonus: 7999 });
 });
 
 test("強化CPUは天使の手鏡を実戦で確認できるよう対象を取る守備封じを採用する", () => {

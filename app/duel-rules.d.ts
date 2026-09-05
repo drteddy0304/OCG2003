@@ -18,7 +18,13 @@ export function goddessWhimMultiplier(heads: boolean): number;
 export function germInfectionPenalty(equippedIds: string[], standbyCount?: number): number;
 export function dopingPenalty(equippedIds: string[], standbyCount?: number): number;
 export function paralyzingPotionPreventsAttack(equippedIds: string[]): boolean;
-export const competitiveCpuDeckLatestPackId: "promo-1999";
+export const GOD_CARD_IDS: readonly string[];
+export function isGodCard(id: string): boolean;
+export function requiredTributes(id: string, level?: number): number;
+export function sliferDivineStats(handSize: number): { atk: number; def: number };
+export function raTributeStats(tributes: Array<{ atk?: number; def?: number }>): { atk: number; def: number };
+export function raPointTransfer(lifePoints: number): { lifePoints: number; attackBonus: number };
+export const competitiveCpuDeckLatestPackId: "dm4-god-cards";
 export const competitiveCpuDeck: readonly string[];
 export const competitiveCpuFusionDeck: readonly string[];
 

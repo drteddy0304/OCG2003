@@ -64,11 +64,14 @@ function packCards(pack: (typeof packs)[number]) {
 function drawPack(packId: string) {
   const pack = packs.find((item) => item.id === packId) ?? packs[0];
   const pool = packCards(pack);
+  const cardsPerPack = pack.cardsPerPack ?? 5;
+  if (cardsPerPack === 1) return pool.length ? [randomCard(pool)] : [];
   const normalPool = pool.filter((card) => card.rarity === "N");
   const rarityRoll = Math.random();
   const rareRarity: Rarity = rarityRoll < 0.02 ? "SE" : rarityRoll < 0.07 ? "UR" : rarityRoll < 0.22 ? "SR" : "R";
   const rarePool = pool.filter((card) => card.rarity === rareRarity);
-  const result = Array.from({ length: 4 }, () => randomCard(normalPool));
+  const normalDrawPool = normalPool.length ? normalPool : pool;
+  const result = Array.from({ length: Math.max(0, cardsPerPack - 1) }, () => randomCard(normalDrawPool));
   result.push(randomCard(rarePool.length ? rarePool : pool.filter((card) => card.rarity !== "N")));
   return result.sort(() => Math.random() - 0.5);
 }
@@ -113,8 +116,8 @@ export function GameHome() {
   const selectedRemaining = remainingByPack[selectedPackId] ?? DAILY_PACKS;
   const selectedPackCards = packCards(selectedPack);
   const detailCard = selectedPackCards.find((card) => card.id === detailCardId) ?? (detailCardId ? cardById.get(detailCardId) : null);
-  const selectedPackOdds = new Map(calculatePackCardOdds(selectedPackCards).map((item) => [item.cardId, item]));
-  const selectedRareOdds = calculateRareSlotOdds(selectedPackCards);
+  const selectedPackOdds = new Map(calculatePackCardOdds(selectedPackCards, selectedPack.cardsPerPack).map((item) => [item.cardId, item]));
+  const selectedRareOdds = calculateRareSlotOdds(selectedPackCards, selectedPack.cardsPerPack);
 
   function openPack() {
     const allowance = loadDailyAllowance();
@@ -171,7 +174,7 @@ export function GameHome() {
             <div className="pack">
               <div className="pack-lines" />
               <span className="pack-kicker">OFFICIAL CARD GAME</span>
-              <div className="pack-logo">Vol.<br /><b>{selectedPack.name.replace("Vol.", "")}</b></div>
+              <div className="pack-logo">{selectedPack.id === "dm4-god-cards" ? "GOD" : "Vol."}<br /><b>{selectedPack.id === "dm4-god-cards" ? "DM4" : selectedPack.name.replace("Vol.", "")}</b></div>
               <p>{selectedPack.releaseDate.replaceAll("-", ".")}</p>
             </div>
             <p className="pack-count">{selectedRemaining} / {DAILY_PACKS} PACKS</p>
@@ -196,12 +199,12 @@ export function GameHome() {
               ))}
             </div>
             <p>各パックを毎日10回まで開封できます。0:00（日本時間）にパックごとに回復します。カードは同名5枚まで所持でき、6枚目以降は自動で破棄されます。</p>
-            <p className="rarity-note">レア枠の基準：SE 2% ／ UR 5% ／ SR 15% ／ R 78%（未収録分は再配分）</p>
+            <p className="rarity-note">{selectedPack.cardsPerPack === 1 ? "特別パック：収録3種から均等に1枚" : "レア枠の基準：SE 2% ／ UR 5% ／ SR 15% ／ R 78%（未収録分は再配分）"}</p>
             <button className="pack-details-button" onClick={() => setShowPackDetails(true)}>
               収録カード・このパックの排出率を見る
             </button>
             <button className="primary" onClick={openPack} disabled={!ready || selectedRemaining === 0}>
-              {selectedRemaining > 0 ? "パックを開ける" : "このパックの本日分は終了"} <span>5枚</span>
+              {selectedRemaining > 0 ? "パックを開ける" : "このパックの本日分は終了"} <span>{selectedPack.cardsPerPack ?? 5}枚</span>
             </button>
           </div>
 
@@ -248,7 +251,7 @@ export function GameHome() {
               <div><p className="section-label">PACK CONTENTS</p><h2>{selectedPack.name}</h2></div>
               <button onClick={() => setShowPackDetails(false)}>閉じる</button>
             </div>
-            <p className="odds-help">1パックは通常枠4枚＋レア枠1枚です。表示率は、そのカードが1パックに1枚以上含まれる確率です。</p>
+            <p className="odds-help">{selectedPack.cardsPerPack === 1 ? "1パック1枚。三幻神3種はそれぞれ同じ確率で排出されます。" : "1パックは通常枠4枚＋レア枠1枚です。表示率は、そのカードが1パックに1枚以上含まれる確率です。"}</p>
             <div className="rarity-odds" aria-label="レア枠の排出率">
               {selectedRareOdds.filter((item) => item.probability > 0).map((item) => (
                 <div className={`odds-${item.rarity.toLowerCase()}`} key={item.rarity}>
@@ -290,7 +293,7 @@ export function GameHome() {
           </section>
         </div>
       )}
-      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 146</span></footer>
+      <footer><span>2003.12.31 RULESET</span><span>PHASE 2 · BUILD 147</span></footer>
     </main>
   );
 }
