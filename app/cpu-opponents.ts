@@ -39,6 +39,26 @@ const universalSupport = [
   "mr-forceful-sentry",
 ];
 
+const themeKeywords: Record<string, string[]> = {
+  "yami-yugi": ["ブラック・マジシャン", "クリボー", "ガイア", "オシリス"],
+  "seto-kaiba": ["青眼", "ブルーアイズ", "ドラゴン", "オベリスク"],
+  "joey-wheeler": ["真紅眼", "レッドアイズ", "時の魔術師", "戦士"],
+  "mai-valentine": ["ハーピィ", "アマゾネス"],
+  "weevil-underwood": ["昆虫", "モス", "インセクト"],
+  "rex-raptor": ["恐竜", "ザウルス", "レッドアイズ"],
+  "mako-tsunami": ["海", "フィッシュ", "シャーク", "クラーケン"],
+  "espa-roba": ["機械", "人造人間", "サイコ", "キャノン"],
+  arkana: ["ブラック・マジシャン", "魔術師", "マジシャン"],
+  "yami-bakura": ["ゴースト", "アンデット", "墓地", "オカルト"],
+  strings: ["オシリス", "手札", "スライム"],
+  "lumis-umbra": ["仮面", "マスク", "光", "闇"],
+  odion: ["罠", "神殿", "アポピス"],
+  "ishizu-ishtar": ["墓守", "天使", "聖なる", "墓地"],
+  "yami-marik": ["ラー", "拷問", "溶岩", "闇"],
+};
+
+const rarityScore = { SE: 5, UR: 4, SR: 3, R: 2, N: 1 } as const;
+
 const definitions: OpponentDefinition[] = [
   {
     id: "yami-yugi", name: "闇遊戯", title: "王の記憶を継ぐ決闘者", mark: "遊", difficulty: 5,
@@ -164,6 +184,8 @@ export function createCpuOpponents(cards: Card[]): CpuOpponent[] {
   const mainMonsters = cards.filter((card) => card.cardType === "monster" && !card.fusion && !card.ritual && !card.id.startsWith("g4-"));
 
   return definitions.map((definition) => {
+    const keywords = themeKeywords[definition.id] ?? [];
+    const matchesKeyword = (card: Card) => keywords.some((keyword) => card.name.includes(keyword));
     const monsters: string[] = [];
     definition.featured.forEach((id) => {
       const card = byId.get(id);
@@ -171,8 +193,8 @@ export function createCpuOpponents(cards: Card[]): CpuOpponent[] {
     });
 
     const themed = mainMonsters
-      .filter((card) => definition.kinds.includes(card.kind) || definition.attributes?.includes(card.attribute ?? ""))
-      .sort((a, b) => combatScore(b) - combatScore(a));
+      .filter((card) => definition.kinds.includes(card.kind) || definition.attributes?.includes(card.attribute ?? "") || matchesKeyword(card))
+      .sort((a, b) => combatScore(b) + (matchesKeyword(b) ? 1200 : 0) - combatScore(a) - (matchesKeyword(a) ? 1200 : 0));
     const lowLevel = themed.filter((card) => (card.level ?? 0) <= 4);
     const highLevel = themed.filter((card) => (card.level ?? 0) > 4);
     const fallback = mainMonsters.slice().sort((a, b) => combatScore(b) - combatScore(a));
@@ -186,7 +208,11 @@ export function createCpuOpponents(cards: Card[]): CpuOpponent[] {
     }
 
     const support: string[] = [];
-    for (const id of [...(definition.support ?? []), ...universalSupport]) {
+    const automaticThemeSupport = cards
+      .filter((card) => card.cardType !== "monster" && matchesKeyword(card))
+      .sort((a, b) => rarityScore[b.rarity] - rarityScore[a.rarity])
+      .map((card) => card.id);
+    for (const id of [...automaticThemeSupport, ...(definition.support ?? []), ...universalSupport]) {
       const card = byId.get(id);
       if (support.length >= 16) break;
       if (card && card.cardType !== "monster") addWithLimit(support, id);

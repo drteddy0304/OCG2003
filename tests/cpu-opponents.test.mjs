@@ -61,3 +61,13 @@ test("原作の切り札を対応するキャラクターが使用する", () =>
   assert.ok(deck("yami-marik").includes("g4-03-ra"));
 });
 
+test("今後追加されるテーマカードもデュエリストのデッキへ自動採用する", () => {
+  const futureCards = [
+    ...cardsById.values(),
+    { id: "future-harpie-support", name: "ハーピィの新戦術", cardType: "spell", kind: "通常魔法", rarity: "UR" },
+  ];
+  const updated = createCpuOpponents(futureCards);
+  const mai = updated.find((entry) => entry.id === "mai-valentine");
+  assert.ok(mai.deck.includes("future-harpie-support"));
+  assert.equal(mai.deck.length, 40);
+});
