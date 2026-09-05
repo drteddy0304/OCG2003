@@ -4,6 +4,19 @@ import test from "node:test";
 
 const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+const opponents = await readFile(new URL("../app/cpu-opponents.ts", import.meta.url), "utf8");
+
+test("バトルシティ編の主要デュエリストを選択して専用デッキと戦える", () => {
+  for (const name of ["闇遊戯", "海馬瀬人", "城之内克也", "孔雀舞", "インセクター羽蛾", "ダイナソー竜崎", "梶木漁太", "エスパー絽場", "パンドラ", "闇バクラ", "人形", "光の仮面＆闇の仮面", "リシド", "イシズ・イシュタール", "闇マリク"]) {
+    assert.match(opponents, new RegExp(`name: "${name}"`));
+  }
+  assert.match(arena, /className="opponent-roster"/);
+  assert.match(arena, /setSelectedOpponentId/);
+  assert.match(arena, /opponent\.deck/);
+  assert.match(arena, /opponent\.fusionDeck/);
+  assert.match(opponents, /deck\.length !== 40/);
+  assert.match(opponents, /count > 3/);
+});
 
 test("黒いペンダントは全ての盤面更新で墓地送りと500ダメージを確認する", () => {
   assert.match(arena, /applyBlackPendantGraveTriggers/);
@@ -98,7 +111,7 @@ test("効果・デッキ検索・融合・儀式の選択画面は共通の読�
 });
 
 test("CPUの行動は処理済みの結果一覧としてまとめて表示する", () => {
-  assert.match(arena, /CPU ACTION RESULT/);
+  assert.match(arena, /OPPONENT ACTION RESULT/);
   assert.match(arena, /以下はすべて盤面へ反映済みです/);
   assert.match(arena, /className="cpu-result-list"/);
   assert.doesNotMatch(arena, />次の行動</);

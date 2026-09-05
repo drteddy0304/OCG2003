@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { cardById, type Card } from "./card-data";
+import { cardById, cards, type Card } from "./card-data";
+import { createCpuOpponents } from "./cpu-opponents";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuFusionDeck, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -281,8 +282,6 @@ type DuelState = {
   log: string[];
 };
 
-const CPU_DECK = [...competitiveCpuDeck];
-const CPU_FUSION_DECK = [...competitiveCpuFusionDeck];
 const EQUIP_RULES = equipRules;
 const FIELD_SPELL_IDS = ["stb-forest", "stb-wasteland", "stb-mountain", "stb-sogen", "stb-umi", "stb-yami", "mr-chorus-sanctuary"];
 
@@ -294,6 +293,9 @@ export function DuelArena({
   onReward: (cardId: string) => boolean;
 }) {
   const [duel, rawSetDuel] = useState<DuelState | null>(null);
+  const opponents = useMemo(() => createCpuOpponents(cards), []);
+  const [selectedOpponentId, setSelectedOpponentId] = useState("yami-yugi");
+  const opponent = opponents.find((entry) => entry.id === selectedOpponentId) ?? opponents[0];
 
   function setDuel(next: DuelState | null) {
     rawSetDuel((previous) => previous && next
@@ -461,11 +463,11 @@ export function DuelArena({
   useEffect(() => {
     if (duel?.result !== "win" || rewarded.current) return;
     rewarded.current = true;
-    const rewardId = CPU_DECK[Math.floor(Math.random() * CPU_DECK.length)];
+    const rewardId = opponent.deck[Math.floor(Math.random() * opponent.deck.length)];
     const kept = onReward(rewardId);
     setRewardName(cardById.get(rewardId)?.name ?? null);
     setRewardDiscarded(!kept);
-  }, [duel?.result, onReward]);
+  }, [duel?.result, onReward, opponent.deck]);
 
   function startDuel() {
     unlockDuelAudio(soundEnabled);
@@ -476,7 +478,7 @@ export function DuelArena({
     if (playerCards.length < MIN_DECK_SIZE) return;
 
     const shuffledPlayer = shuffle(playerCards);
-    const shuffledCpu = shuffle(CPU_DECK);
+    const shuffledCpu = shuffle(opponent.deck);
     const playerDraw = shuffledPlayer.slice(0, 6);
     const cpuDraw = shuffledCpu.slice(0, 5);
     rewarded.current = false;
@@ -516,7 +518,7 @@ export function DuelArena({
       playerDeck: shuffledPlayer.slice(6),
       playerFusionDeck: playerFusionCards,
       cpuDeck: shuffledCpu.slice(5),
-      cpuFusionDeck: [...CPU_FUSION_DECK],
+      cpuFusionDeck: [...opponent.fusionDeck],
       playerHand: playerDraw,
       cpuHand: cpuDraw,
       playerField: [],
@@ -569,7 +571,7 @@ export function DuelArena({
       pendingMultiTarget: null,
       pendingDeckReorder: null,
       pendingDeckSearch: null,
-      log: ["デュエル開始。先攻プレイヤーは6枚でスタート。", "第1ターンは攻撃できません。"],
+      log: [`${opponent.name}とのデュエル開始。先攻プレイヤーは6枚でスタート。`, "第1ターンは攻撃できません。"],
     });
   }
 
@@ -3775,19 +3777,44 @@ export function DuelArena({
   if (!duel) {
     return (
       <section className="duel-lobby">
-        <p className="section-label">SINGLE DUEL</p>
-        <h2>CPUデュエル</h2>
+        <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
+        <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>三幻神対応 強化CPU · BUILD 147</strong>
-          <p>1999プロモまでのカードを使う40枚デッキで、勝てる戦闘・効果カード・融合召喚を優先します。</p>
+          <strong>15 DUELISTS · BUILD 148</strong>
+          <p>バトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
+        <div className="opponent-roster" aria-label="対戦相手一覧">
+          {opponents.map((entry) => (
+            <button
+              type="button"
+              className={`opponent-chip${entry.id === opponent.id ? " selected" : ""}`}
+              key={entry.id}
+              onClick={() => setSelectedOpponentId(entry.id)}
+              aria-pressed={entry.id === opponent.id}
+            >
+              <span aria-hidden="true">{entry.mark}</span>
+              <b>{entry.name}</b>
+              <small>{"★".repeat(entry.difficulty)}</small>
+            </button>
+          ))}
+        </div>
+        <article className="opponent-profile">
+          <div className="opponent-portrait" aria-hidden="true">{opponent.mark}</div>
+          <div>
+            <p>{opponent.title}</p>
+            <h3>{opponent.name}</h3>
+            <strong>ACE · {opponent.ace}</strong>
+            <span>{opponent.strategy}</span>
+          </div>
+        </article>
         <dl>
           <div><dt>自分のデッキ</dt><dd>{savedDeck.length}枚</dd></div>
-          <div><dt>融合デッキ</dt><dd>{savedFusionDeck.length}枚</dd></div>
-          <div><dt>勝利報酬</dt><dd>CPUデッキから1枚</dd></div>
+          <div><dt>自分の融合デッキ</dt><dd>{savedFusionDeck.length}枚</dd></div>
+          <div><dt>相手のデッキ</dt><dd>{opponent.deck.length}枚</dd></div>
+          <div><dt>勝利報酬</dt><dd>{opponent.name}のデッキから1枚</dd></div>
         </dl>
         <button className="duel-start" disabled={savedDeck.length < MIN_DECK_SIZE} onClick={startDuel}>
-          {savedDeck.length >= MIN_DECK_SIZE ? "デュエル開始" : `あと${MIN_DECK_SIZE - savedDeck.length}枚必要`}
+          {savedDeck.length >= MIN_DECK_SIZE ? `${opponent.name}とデュエル` : `あと${MIN_DECK_SIZE - savedDeck.length}枚必要`}
         </button>
         <button className="sound-toggle lobby-sound-toggle" onClick={toggleSound}>音声・BGM {soundEnabled ? "ON" : "OFF"}</button>
       </section>
@@ -3797,8 +3824,8 @@ export function DuelArena({
   return (
     <section className={`duel-screen${activeFeedback ? ` action-${activeFeedback.kind}` : ""}`}>
       <div className="duel-hud">
-        <div><span>CPU</span><strong>{Math.max(0, duel.cpuLp)}</strong><small>LP</small></div>
-        <div className="turn-badge">TURN {duel.turnNumber}<b>{duel.turn === "player" ? "YOUR TURN" : "CPU TURN"}</b><button className="sound-toggle" onClick={toggleSound} aria-label={`音声とBGMを${soundEnabled ? "オフ" : "オン"}にする`}>{soundEnabled ? "BGM ON" : "BGM OFF"}</button></div>
+        <div><span>{opponent.name}</span><strong>{Math.max(0, duel.cpuLp)}</strong><small>LP</small></div>
+        <div className="turn-badge">TURN {duel.turnNumber}<b>{duel.turn === "player" ? "YOUR TURN" : `${opponent.name} TURN`}</b><button className="sound-toggle" onClick={toggleSound} aria-label={`音声とBGMを${soundEnabled ? "オフ" : "オン"}にする`}>{soundEnabled ? "BGM ON" : "BGM OFF"}</button></div>
         <div><span>PLAYER</span><strong>{Math.max(0, duel.playerLp)}</strong><small>LP</small></div>
       </div>
       {activeFeedback && (
@@ -3862,8 +3889,8 @@ export function DuelArena({
       {cpuPlayback && (
         <div className="cpu-playback" aria-live="polite">
           <div>
-            <p className="section-label">CPU ACTION RESULT</p>
-            <h2>CPUの行動結果</h2>
+            <p className="section-label">OPPONENT ACTION RESULT</p>
+            <h2>{opponent.name}の行動結果</h2>
             <p className="cpu-result-note">以下はすべて盤面へ反映済みです。</p>
             <ol className="cpu-result-list">
               {cpuPlayback.messages.map((message, index) => <li key={`${index}-${message}`}><b>{index + 1}</b><span>{message}</span></li>)}
