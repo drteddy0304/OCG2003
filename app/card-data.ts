@@ -12,6 +12,7 @@ import { exCards, exPack } from "./ex-data";
 import { magicRulerCards, magicRulerPack } from "./magic-ruler-data";
 import { promo1999Cards, promo1999Pack } from "./promo-1999-data";
 import { godCards, godCardsPack } from "./god-cards-data";
+import { pharaohsServantCards, pharaohsServantPack } from "./pharaohs-servant-data";
 
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
@@ -235,6 +236,7 @@ export const cards: Card[] = [
   ...magicRulerCards,
   ...promo1999Cards,
   ...godCards,
+  ...pharaohsServantCards,
 ];
 
 export const packs: Pack[] = [
@@ -298,6 +300,7 @@ export const packs: Pack[] = [
   magicRulerPack,
   promo1999Pack,
   godCardsPack,
+  pharaohsServantPack,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));

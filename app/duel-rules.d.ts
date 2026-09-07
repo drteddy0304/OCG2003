@@ -188,6 +188,14 @@ export function kotodamaDuplicateIndexes(faceUpNames?: string[]): number[];
 export function messengerOfPeacePreventsAttack(attack: number, activeSpellTrapIds?: string[]): boolean;
 export function messengerOfPeaceStandbyCost(activeCount?: number): number;
 export function shouldCpuKeepMessengerOfPeace(lifePoints: number, activeCount: number, strongestOwnAttack: number, strongestOpponentAttack: number): boolean;
+export function toonSummonTributeCount(id: string): number | null;
+export function canSpecialSummonToon(id: string, hasToonWorld: boolean, availableTributes: number, fieldCount: number, fieldLimit?: number): boolean;
+export function toonAttackDeclaration(id: string, summonedTurn: number, currentTurn: number, lifePoints: number, hasToonWorld: boolean, opponentToonCount?: number): { lifeCost: number; directAttack: boolean; mustAttackToon: boolean } | null;
+export function toonDestroyedWithWorld(id: string, toonWorldDestroyed: boolean): boolean;
+export function timeBomberEffect(id: string, wasReversed: boolean, phase: string, ownMonsterAttacks?: number[]): { destroyCount: number; damage: number } | null;
+export function destroyEquippedMonsterIndexes(zones?: Array<{ equipped?: string[] }>): number[];
+export function cyberJarReveal(cards?: Array<{ id: string; cardType: "monster" | "spell" | "trap"; level?: number; fusion?: boolean }>, fieldSpaces?: number): { revealedCount: number; summonCards: Array<{ id: string }>; handCards: Array<{ id: string }> };
+export function toonWorldActivationCost(id: string, lifePoints: number): number | null;
 export function wormBeastReturns(id: string, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
 export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[], cpuAttributes?: string[], opponentAttributes?: string[]): string | null;
 export function monsterSentFromFieldToGrave(previousFieldIds: string[], nextFieldIds: string[], previousGraveIds: string[], nextGraveIds: string[]): boolean;
@@ -207,7 +215,7 @@ export function blackPendantTriggerCounts(previousPlayerSpellTrapIds: string[], 
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle" | "swap-control";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle" | "swap-control" | "cyber-jar";
 
 export function flipEffect(id: string): FlipEffect | null;
 export function controlChangeLifeEffect(id: string): { newControllerDamage: number; originalOwnerGain: number } | null;

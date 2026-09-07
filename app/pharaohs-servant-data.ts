@@ -1,6 +1,6 @@
 import type { Card, Pack } from "./card-data";
 
-// 次弾準備データ。効果処理が揃うまで card-data.ts には登録しない。
+// 2000年7月13日発売時の全52種類。
 export const pharaohsServantCards: Card[] = [
   { id: "ps-00", name: "ブルーアイズ・トゥーン・ドラゴン", cardType: "monster", kind: "ドラゴン族", attribute: "光", level: 8, atk: 3000, def: 2500, rarity: "SE", effect: true },
   { id: "ps-01", name: "オクトバーサー", cardType: "monster", kind: "水族", attribute: "水", level: 5, atk: 1600, def: 1400, rarity: "N" },
@@ -56,7 +56,7 @@ export const pharaohsServantCards: Card[] = [
   { id: "ps-51", name: "平和の使者", cardType: "spell", kind: "永続魔法", rarity: "SR" },
 ];
 
-export const pharaohsServantPackDraft: Pack = {
+export const pharaohsServantPack: Pack = {
   id: "pharaohs-servant",
   name: "Pharaoh's Servant －ファラオのしもべ－",
   releaseDate: "2000-07-13",
@@ -64,11 +64,12 @@ export const pharaohsServantPackDraft: Pack = {
   cardIds: pharaohsServantCards.map((card) => card.id),
 };
 
-// 効果処理とCPU判断まで完了したカード。全カード完了時にパックを一括公開する。
+// 効果処理とCPU判断まで完了した全52種類。
 export const pharaohsServantReadyCardIds = [
   "ps-01", "ps-02", "ps-04", "ps-06", "ps-07", "ps-16", "ps-17", "ps-18", "ps-19", "ps-24",
   "ps-28", "ps-29", "ps-30", "ps-32", "ps-37", "ps-39", "ps-40", "ps-42", "ps-43",
   "ps-31", "ps-33", "ps-34", "ps-35", "ps-36", "ps-38",
   "ps-03", "ps-08", "ps-10", "ps-13", "ps-14", "ps-27", "ps-41", "ps-44", "ps-51",
   "ps-45", "ps-46", "ps-47", "ps-48", "ps-49", "ps-50",
+  "ps-00", "ps-05", "ps-09", "ps-11", "ps-12", "ps-15", "ps-20", "ps-21", "ps-22", "ps-23", "ps-25", "ps-26",
 ] as const;

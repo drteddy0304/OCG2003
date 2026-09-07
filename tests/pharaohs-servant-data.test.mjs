@@ -18,7 +18,11 @@ test("Pharaoh's Servant準備データのカード種別内訳を固定する", 
   assert.equal(cards.filter((line) => line.includes('ritual: true')).length, 3);
 });
 
-test("未実装効果を既存パックへ混ぜず、準備データとして保持する", () => {
-  assert.match(source, /効果処理が揃うまで card-data\.ts には登録しない/);
-  assert.match(source, /pharaohsServantPackDraft/);
+test("全52種類を完成版パックとして公開する", async () => {
+  assert.match(source, /export const pharaohsServantPack:/);
+  assert.match(source, /pharaohsServantReadyCardIds = \[/);
+  assert.doesNotMatch(source, /PackDraft/);
+  const cardDataSource = await readFile(new URL("../app/card-data.ts", import.meta.url), "utf8");
+  assert.match(cardDataSource, /pharaohsServantCards/);
+  assert.match(cardDataSource, /pharaohsServantPack/);
 });

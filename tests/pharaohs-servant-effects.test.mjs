@@ -10,9 +10,12 @@ import {
   bestCpuDarkFamiliaTargetIndex,
   boarSoldierDestroyedOnSummon,
   ceremonyBellRevealsHands,
+  canSpecialSummonToon,
+  cyberJarReveal,
   continuousMonsterStats,
   darkFamiliaReviveTarget,
   darkZebraStandbyPosition,
+  destroyEquippedMonsterIndexes,
   equippedMonsterStats,
   hornOfUnicornReturnsToDeckTop,
   karateManAttack,
@@ -27,6 +30,11 @@ import {
   sameNameBattleRecruitEffect,
   summonRitualSearchKind,
   shouldCpuKeepMessengerOfPeace,
+  timeBomberEffect,
+  toonAttackDeclaration,
+  toonDestroyedWithWorld,
+  toonSummonTributeCount,
+  toonWorldActivationCost,
 } from "../app/duel-rules.mjs";
 
 const byId = new Map(pharaohsServantCards.map((card) => [card.id, card]));
@@ -127,9 +135,29 @@ test("平和の使者はATK1500以上を止め、CPUは劣勢時だけ維持す�
   assert.equal(shouldCpuKeepMessengerOfPeace(800, 1, 2000, 1200), false);
 });
 
-test("ファラオのしもべは完了カードだけを公開待ち一覧へ追加する", () => {
-  ["ps-03", "ps-08", "ps-10", "ps-13", "ps-14", "ps-27", "ps-28", "ps-29", "ps-30", "ps-31", "ps-32", "ps-33", "ps-34", "ps-35", "ps-36", "ps-37", "ps-38", "ps-39", "ps-40", "ps-41", "ps-42", "ps-43", "ps-44", "ps-51"].forEach((id) => {
-    assert.equal(pharaohsServantReadyCardIds.includes(id), true);
-  });
-  assert.equal(pharaohsServantReadyCardIds.includes("ps-00"), false);
+test("トゥーン4体はトゥーン・ワールド、召喚酔い、500LP、直接攻撃を正しく扱う", () => {
+  assert.equal(toonSummonTributeCount("ps-00"), 2);
+  assert.equal(toonSummonTributeCount("ps-21"), 0);
+  assert.equal(canSpecialSummonToon("ps-22", true, 1, 5), true);
+  assert.equal(canSpecialSummonToon("ps-22", false, 5, 1), false);
+  assert.equal(toonAttackDeclaration("ps-20", 2, 2, 4000, true, 0), null);
+  assert.deepEqual(toonAttackDeclaration("ps-20", 2, 3, 4000, true, 0), { lifeCost: 500, directAttack: true, mustAttackToon: false });
+  assert.deepEqual(toonAttackDeclaration("ps-20", 2, 3, 4000, true, 1), { lifeCost: 500, directAttack: false, mustAttackToon: true });
+  assert.equal(toonDestroyedWithWorld("ps-00", true), true);
+  assert.equal(toonWorldActivationCost("ps-25", 1001), 1000);
+  assert.equal(toonWorldActivationCost("ps-25", 1000), null);
+});
+
+test("タイム・ボマー、サイバーポッド、撲滅の使徒を解決する", () => {
+  assert.deepEqual(timeBomberEffect("ps-23", true, "standby", [1000, 450]), { destroyCount: 2, damage: 725 });
+  assert.equal(timeBomberEffect("ps-23", false, "standby", [1000]), null);
+  assert.deepEqual(destroyEquippedMonsterIndexes([{ equipped: [] }, { equipped: ["ps-03"] }]), [1]);
+  const revealed = [byId.get("ps-02"), byId.get("ps-05"), byId.get("ps-11"), byId.get("ps-21"), byId.get("ps-26")];
+  assert.deepEqual(cyberJarReveal(revealed, 5).summonCards.map((card) => card.id), ["ps-02", "ps-26"]);
+  assert.deepEqual(cyberJarReveal(revealed, 5).handCards.map((card) => card.id), ["ps-05", "ps-11", "ps-21"]);
+});
+
+test("ファラオのしもべ全52種類が公開一覧に揃う", () => {
+  assert.equal(pharaohsServantReadyCardIds.length, 52);
+  pharaohsServantCards.forEach((card) => assert.equal(pharaohsServantReadyCardIds.includes(card.id), true));
 });

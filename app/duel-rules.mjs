@@ -71,6 +71,7 @@ export const equipRules = Object.freeze({
   "pr99-kunai-chain": "全モンスター",
   "ps-03": "全モンスター",
   "ps-08": "迷宮壁",
+  "ps-10": "全モンスター",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -485,6 +486,7 @@ const flipEffects = Object.freeze({
   "bo6-doppelganger": "destroy-two-set-spell-traps",
   "bo6-penguin-soldier": "return-two-monsters",
   "ex-033": "inspect-all-set",
+  "ps-26": "cyber-jar",
 });
 
 export function flipEffect(id) {
@@ -616,6 +618,11 @@ export function canNormalSummonMonster(id, fusion = false) {
     "pr99-black-chaos-magician",
     "pr99-skull-rider",
     "pr99-perfect-moth",
+    "ps-00",
+    "ps-05",
+    "ps-20",
+    "ps-21",
+    "ps-22",
   ]).has(id);
 }
 
@@ -703,7 +710,7 @@ export function fakeTrapCanProtect(trapIds, targetIndex) {
 export function equippedMonsterStats(atk, defense, equippedIds) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
   const modifiers = equippedIds.reduce((result, id) => {
-    if (id === "vol4-cocoon-evolution" || id === "vol7-germ-infection" || id === "vol7-paralyzing-potion" || id === "mr-snatch-steal") return result;
+    if (id === "vol4-cocoon-evolution" || id === "vol7-germ-infection" || id === "vol7-paralyzing-potion" || id === "mr-snatch-steal" || id === "ps-08" || id === "ps-10") return result;
     if (id === "vol7-sword-deep-seated") return { atk: result.atk + 500, def: result.def + 500 };
     if (id === "bo7-magnetic-ring") return { atk: result.atk - 500, def: result.def - 500 };
     if (id === "bo7-doping") return { atk: result.atk + 700, def: result.def };
@@ -921,6 +928,58 @@ export function messengerOfPeaceStandbyCost(activeCount = 0) {
 export function shouldCpuKeepMessengerOfPeace(lifePoints, activeCount, strongestOwnAttack, strongestOpponentAttack) {
   const cost = messengerOfPeaceStandbyCost(activeCount);
   return lifePoints > cost && strongestOpponentAttack >= 1500 && strongestOpponentAttack > strongestOwnAttack;
+}
+
+const toonSummonTributes = Object.freeze({
+  "ps-00": 2,
+  "ps-20": 2,
+  "ps-21": 0,
+  "ps-22": 1,
+});
+
+export function toonSummonTributeCount(id) {
+  return toonSummonTributes[id] ?? null;
+}
+
+export function canSpecialSummonToon(id, hasToonWorld, availableTributes, fieldCount, fieldLimit = 5) {
+  const required = toonSummonTributeCount(id);
+  return required !== null && hasToonWorld && availableTributes >= required && fieldCount - required < fieldLimit;
+}
+
+export function toonAttackDeclaration(id, summonedTurn, currentTurn, lifePoints, hasToonWorld, opponentToonCount = 0) {
+  if (toonSummonTributeCount(id) === null || !hasToonWorld || summonedTurn === currentTurn || lifePoints <= 500) return null;
+  return { lifeCost: 500, directAttack: opponentToonCount === 0, mustAttackToon: opponentToonCount > 0 };
+}
+
+export function toonDestroyedWithWorld(id, toonWorldDestroyed) {
+  return toonSummonTributeCount(id) !== null && toonWorldDestroyed;
+}
+
+export function timeBomberEffect(id, wasReversed, phase, ownMonsterAttacks = []) {
+  if (id !== "ps-23" || !wasReversed || phase !== "standby") return null;
+  return { destroyCount: ownMonsterAttacks.length, damage: Math.floor(ownMonsterAttacks.reduce((sum, attack) => sum + Math.max(0, attack), 0) / 2) };
+}
+
+export function destroyEquippedMonsterIndexes(zones = []) {
+  return zones.map((zone, index) => ({ zone, index })).filter(({ zone }) => (zone.equipped?.length ?? 0) > 0).map(({ index }) => index);
+}
+
+export function cyberJarReveal(cards = [], fieldSpaces = 5) {
+  const revealed = cards.slice(0, 5);
+  const summonable = revealed
+    .map((card, index) => ({ card, index }))
+    .filter(({ card }) => card?.cardType === "monster" && (card.level ?? 0) <= 4 && canNormalSummonMonster(card.id, card.fusion))
+    .slice(0, Math.max(0, fieldSpaces));
+  const summonIndexes = new Set(summonable.map(({ index }) => index));
+  return {
+    revealedCount: revealed.length,
+    summonCards: summonable.map(({ card }) => card),
+    handCards: revealed.filter((_, index) => !summonIndexes.has(index)),
+  };
+}
+
+export function toonWorldActivationCost(id, lifePoints) {
+  return id === "ps-25" && lifePoints > 1000 ? 1000 : null;
 }
 
 export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds, cpuAttributes = [], opponentAttributes = []) {
