@@ -796,6 +796,48 @@ export function ritualSummonDefinition(spellId) {
   return rituals[spellId] ?? null;
 }
 
+const attributeRecruiters = Object.freeze({
+  "ps-28": "地",
+  "ps-30": "炎",
+  "ps-37": "光",
+  "ps-39": "水",
+  "ps-40": "風",
+  "ps-43": "闇",
+});
+
+export function attributeRecruiterAttribute(id) {
+  return attributeRecruiters[id] ?? null;
+}
+
+export function canAttributeRecruiterTarget(sourceId, target) {
+  const attribute = attributeRecruiterAttribute(sourceId);
+  return Boolean(attribute && target?.cardType === "monster" && target.attribute === attribute && (target.atk ?? 0) <= 1500);
+}
+
+export function bestCpuAttributeRecruitTargetIndex(sourceId, deckCards = []) {
+  return deckCards
+    .map((card, index) => ({ card, index }))
+    .filter(({ card }) => canAttributeRecruiterTarget(sourceId, card))
+    .sort((a, b) => (b.card.atk ?? 0) - (a.card.atk ?? 0))[0]?.index ?? null;
+}
+
+export function summonRitualSearchKind(id) {
+  if (id === "ps-29") return "ritual-monster";
+  if (id === "ps-42") return "ritual-spell";
+  return null;
+}
+
+export function canSummonRitualSearchTarget(sourceId, target) {
+  const kind = summonRitualSearchKind(sourceId);
+  if (kind === "ritual-monster") return Boolean(target?.cardType === "monster" && target.ritual);
+  if (kind === "ritual-spell") return Boolean(target?.cardType === "spell" && target.kind === "儀式魔法");
+  return false;
+}
+
+export function karateManAttack(id, originalAtk, effectActive = false) {
+  return id === "ps-32" && effectActive ? originalAtk * 2 : originalAtk;
+}
+
 export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds, cpuAttributes = [], opponentAttributes = []) {
   return fieldSpellIds
     .map((id) => ({

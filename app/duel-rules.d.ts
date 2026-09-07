@@ -164,6 +164,12 @@ export function fieldSpellStatModifier(kind: string, fieldSpellIds?: string[], a
 export function crushCardVirusEligibleTribute(card?: { cardType: "monster" | "spell" | "trap"; attribute?: string; atk?: number }, currentAtk?: number): boolean;
 export function crushCardVirusDestroys(card?: { cardType: "monster" | "spell" | "trap"; atk?: number }, currentAtk?: number): boolean;
 export function ritualSummonDefinition(spellId: string): { monsterId: string; level: number } | null;
+export function attributeRecruiterAttribute(id: string): string | null;
+export function canAttributeRecruiterTarget(sourceId: string, target?: { cardType: "monster" | "spell" | "trap"; attribute?: string; atk?: number }): boolean;
+export function bestCpuAttributeRecruitTargetIndex(sourceId: string, deckCards?: Array<{ cardType: "monster" | "spell" | "trap"; attribute?: string; atk?: number }>): number | null;
+export function summonRitualSearchKind(id: string): "ritual-monster" | "ritual-spell" | null;
+export function canSummonRitualSearchTarget(sourceId: string, target?: { cardType: "monster" | "spell" | "trap"; kind?: string; ritual?: boolean }): boolean;
+export function karateManAttack(id: string, originalAtk: number, effectActive?: boolean): number;
 export function wormBeastReturns(id: string, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
 export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[], cpuAttributes?: string[], opponentAttributes?: string[]): string | null;
 export function monsterSentFromFieldToGrave(previousFieldIds: string[], nextFieldIds: string[], previousGraveIds: string[], nextGraveIds: string[]): boolean;
