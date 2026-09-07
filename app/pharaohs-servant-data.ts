@@ -69,5 +69,6 @@ export const pharaohsServantReadyCardIds = [
   "ps-01", "ps-02", "ps-04", "ps-06", "ps-07", "ps-16", "ps-17", "ps-18", "ps-19", "ps-24",
   "ps-28", "ps-29", "ps-30", "ps-32", "ps-37", "ps-39", "ps-40", "ps-42", "ps-43",
   "ps-31", "ps-33", "ps-34", "ps-35", "ps-36", "ps-38",
+  "ps-03", "ps-08", "ps-10", "ps-13", "ps-14", "ps-27", "ps-41", "ps-44", "ps-51",
   "ps-45", "ps-46", "ps-47", "ps-48", "ps-49", "ps-50",
 ] as const;

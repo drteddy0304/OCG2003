@@ -3,18 +3,30 @@ import test from "node:test";
 import { pharaohsServantCards, pharaohsServantReadyCardIds } from "../app/pharaohs-servant-data.ts";
 import {
   attributeRecruiterAttribute,
+  banisherRedirectsToExile,
   bestCpuAttributeRecruitTargetIndex,
   canAttributeRecruiterTarget,
   canSummonRitualSearchTarget,
   bestCpuDarkFamiliaTargetIndex,
   boarSoldierDestroyedOnSummon,
+  ceremonyBellRevealsHands,
   continuousMonsterStats,
   darkFamiliaReviveTarget,
   darkZebraStandbyPosition,
+  equippedMonsterStats,
+  hornOfUnicornReturnsToDeckTop,
   karateManAttack,
+  kotodamaDuplicateIndexes,
+  magicalLabyrinthCanEquip,
+  magicalLabyrinthSummonIndex,
+  megamorphAttack,
+  messengerOfPeacePreventsAttack,
+  messengerOfPeaceStandbyCost,
+  pharaohSummonResponseTrap,
   sameNameBattleRecruitCount,
   sameNameBattleRecruitEffect,
   summonRitualSearchKind,
+  shouldCpuKeepMessengerOfPeace,
 } from "../app/duel-rules.mjs";
 
 const byId = new Map(pharaohsServantCards.map((card) => [card.id, card]));
@@ -75,8 +87,48 @@ test("ダークファミリアは自身以外を蘇生し、CPUは最高ATKを�
   assert.equal(bestCpuDarkFamiliaTargetIndex([byId.get("ps-02"), byId.get("ps-24"), byId.get("ps-36")], 2), 1);
 });
 
+test("一角獣のホーンはATK・DEFを700上げ、フィールドを離れるとデッキトップへ戻る", () => {
+  assert.deepEqual(equippedMonsterStats(1000, 800, ["ps-03"]), { atk: 1700, def: 1500 });
+  assert.equal(hornOfUnicornReturnsToDeckTop(["ps-03"], []), true);
+  assert.equal(hornOfUnicornReturnsToDeckTop(["ps-03"], ["ps-03"]), false);
+});
+
+test("迷宮変化は迷宮壁だけに装備し、デッキのウォール・シャドウを呼ぶ", () => {
+  assert.equal(magicalLabyrinthCanEquip("ps-04"), true);
+  assert.equal(magicalLabyrinthCanEquip("ps-07"), false);
+  assert.equal(magicalLabyrinthSummonIndex(["ps-02", "ps-05"], true), 1);
+  assert.equal(magicalLabyrinthSummonIndex(["ps-05"], false), -1);
+});
+
+test("巨大化はLP差に応じて元々のATKを倍・半分・等倍にする", () => {
+  assert.equal(megamorphAttack(2000, 3000, 4000), 4000);
+  assert.equal(megamorphAttack(2000, 5000, 4000), 1000);
+  assert.equal(megamorphAttack(2000, 4000, 4000), 2000);
+});
+
+test("粘着テープの家とねずみ取りは召喚・反転召喚時だけ対応能力値を確認する", () => {
+  assert.equal(pharaohSummonResponseTrap(["ps-13"], { atk: 2000, def: 500 }, "normal"), "ps-13");
+  assert.equal(pharaohSummonResponseTrap(["ps-14"], { atk: 500, def: 2000 }, "flip"), "ps-14");
+  assert.equal(pharaohSummonResponseTrap(["ps-13", "ps-14"], { atk: 500, def: 500 }, "special"), null);
+});
+
+test("光の追放者・セレモニーベル・コトダマの永続条件を判定する", () => {
+  assert.equal(banisherRedirectsToExile(["ps-27"]), true);
+  assert.equal(ceremonyBellRevealsHands(["ps-41"]), true);
+  assert.deepEqual(kotodamaDuplicateIndexes(["青眼の白龍", "デーモンの召喚", "青眼の白龍"]), [0, 2]);
+});
+
+test("平和の使者はATK1500以上を止め、CPUは劣勢時だけ維持する", () => {
+  assert.equal(messengerOfPeacePreventsAttack(1500, ["ps-51"]), true);
+  assert.equal(messengerOfPeacePreventsAttack(1499, ["ps-51"]), false);
+  assert.equal(messengerOfPeaceStandbyCost(2), 200);
+  assert.equal(shouldCpuKeepMessengerOfPeace(800, 1, 1200, 2000), true);
+  assert.equal(shouldCpuKeepMessengerOfPeace(100, 1, 1200, 2000), false);
+  assert.equal(shouldCpuKeepMessengerOfPeace(800, 1, 2000, 1200), false);
+});
+
 test("ファラオのしもべは完了カードだけを公開待ち一覧へ追加する", () => {
-  ["ps-28", "ps-29", "ps-30", "ps-31", "ps-32", "ps-33", "ps-34", "ps-35", "ps-36", "ps-37", "ps-38", "ps-39", "ps-40", "ps-42", "ps-43"].forEach((id) => {
+  ["ps-03", "ps-08", "ps-10", "ps-13", "ps-14", "ps-27", "ps-28", "ps-29", "ps-30", "ps-31", "ps-32", "ps-33", "ps-34", "ps-35", "ps-36", "ps-37", "ps-38", "ps-39", "ps-40", "ps-41", "ps-42", "ps-43", "ps-44", "ps-51"].forEach((id) => {
     assert.equal(pharaohsServantReadyCardIds.includes(id), true);
   });
   assert.equal(pharaohsServantReadyCardIds.includes("ps-00"), false);

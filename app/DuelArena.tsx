@@ -3959,7 +3959,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>15 DUELISTS · BUILD 152</strong>
+          <strong>15 DUELISTS · BUILD 153</strong>
           <p>バトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -8509,11 +8509,13 @@ function timedFieldBonus(zone: ZoneCard, state: DuelState) {
 
 function canEquip(spellId: string, monster: Card) {
   if (spellId === "pr99-cyber-bondage") return monster.id === "vol4-harpie-lady" || monster.id === "vol4-harpie-sisters";
+  if (spellId === "ps-08") return monster.id === "ps-04";
   if (spellId === "vol4-cocoon-evolution") return monster.id === "vol4-petit-moth";
   if (spellId === "vol7-germ-infection" || spellId === "vol7-paralyzing-potion") return monster.cardType === "monster" && monster.kind !== "機械族";
   if (spellId === "vol7-sword-deep-seated") return monster.cardType === "monster";
   if (spellId === "bo7-magnetic-ring" || spellId === "bo7-doping") return monster.cardType === "monster";
   if (["mr-axe-despair", "mr-black-pendant", "mr-horn-light", "mr-malevolent-nuzzler", "mr-snatch-steal"].includes(spellId)) return monster.cardType === "monster";
+  if (EQUIP_RULES[spellId] === "全モンスター") return monster.cardType === "monster";
   if (EQUIP_RULES[spellId]?.endsWith("属性")) return monster.cardType === "monster" && `${monster.attribute}属性` === EQUIP_RULES[spellId];
   return monster.cardType === "monster" && EQUIP_RULES[spellId] === monster.kind;
 }

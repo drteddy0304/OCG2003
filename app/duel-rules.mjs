@@ -69,6 +69,8 @@ export const equipRules = Object.freeze({
   "pr99-salamandra": "炎属性",
   "pr99-shine-palace": "光属性",
   "pr99-kunai-chain": "全モンスター",
+  "ps-03": "全モンスター",
+  "ps-08": "迷宮壁",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -709,6 +711,8 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
     if (id === "mr-black-pendant") return { atk: result.atk + 500, def: result.def };
     if (id === "mr-horn-light") return { atk: result.atk, def: result.def + 800 };
     if (id === "mr-malevolent-nuzzler") return { atk: result.atk + 700, def: result.def };
+    if (id === "ps-03") return { atk: result.atk + 700, def: result.def + 700 };
+    if (id === "ps-08") return result;
     if (id === "pr99-insect-armor" || id === "pr99-salamandra" || id === "pr99-shine-palace") return { atk: result.atk + 700, def: result.def };
     if (id === "pr99-cyber-bondage" || id === "pr99-kunai-chain") return { atk: result.atk + 500, def: result.def };
     if (id.startsWith("bo2-")) return { atk: result.atk + 400, def: result.def - 200 };
@@ -866,6 +870,57 @@ export function boarSoldierDestroyedOnSummon(id, summonKind) {
 
 export function darkZebraStandbyPosition(id, otherControlledCardCount) {
   return id === "ps-33" && otherControlledCardCount === 0 ? "defense" : null;
+}
+
+export function hornOfUnicornReturnsToDeckTop(previousFieldIds = [], nextFieldIds = []) {
+  return previousFieldIds.includes("ps-03") && !nextFieldIds.includes("ps-03");
+}
+
+export function magicalLabyrinthCanEquip(targetId) {
+  return targetId === "ps-04";
+}
+
+export function magicalLabyrinthSummonIndex(deckIds = [], fieldHasEquippedWall = false) {
+  return fieldHasEquippedWall ? deckIds.indexOf("ps-05") : -1;
+}
+
+export function megamorphAttack(originalAtk, controllerLife, opponentLife) {
+  if (controllerLife < opponentLife) return originalAtk * 2;
+  if (controllerLife > opponentLife) return Math.floor(originalAtk / 2);
+  return originalAtk;
+}
+
+export function pharaohSummonResponseTrap(trapIds = [], summonedCard, summonKind) {
+  if (!summonedCard || !["normal", "flip"].includes(summonKind)) return null;
+  if (trapIds.includes("ps-13") && (summonedCard.def ?? 0) <= 500) return "ps-13";
+  if (trapIds.includes("ps-14") && (summonedCard.atk ?? 0) <= 500) return "ps-14";
+  return null;
+}
+
+export function banisherRedirectsToExile(faceUpMonsterIds = []) {
+  return faceUpMonsterIds.includes("ps-27");
+}
+
+export function ceremonyBellRevealsHands(faceUpMonsterIds = []) {
+  return faceUpMonsterIds.includes("ps-41");
+}
+
+export function kotodamaDuplicateIndexes(faceUpNames = []) {
+  const counts = faceUpNames.reduce((result, name) => result.set(name, (result.get(name) ?? 0) + 1), new Map());
+  return faceUpNames.map((name, index) => ({ name, index })).filter(({ name }) => counts.get(name) > 1).map(({ index }) => index);
+}
+
+export function messengerOfPeacePreventsAttack(attack, activeSpellTrapIds = []) {
+  return activeSpellTrapIds.includes("ps-51") && attack >= 1500;
+}
+
+export function messengerOfPeaceStandbyCost(activeCount = 0) {
+  return Math.max(0, activeCount) * 100;
+}
+
+export function shouldCpuKeepMessengerOfPeace(lifePoints, activeCount, strongestOwnAttack, strongestOpponentAttack) {
+  const cost = messengerOfPeaceStandbyCost(activeCount);
+  return lifePoints > cost && strongestOpponentAttack >= 1500 && strongestOpponentAttack > strongestOwnAttack;
 }
 
 export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds, cpuAttributes = [], opponentAttributes = []) {

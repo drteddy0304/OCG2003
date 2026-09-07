@@ -177,6 +177,17 @@ export function darkFamiliaReviveTarget(card?: { id: string; cardType: "monster"
 export function bestCpuDarkFamiliaTargetIndex(graveyardCards?: Array<{ id: string; cardType: "monster" | "spell" | "trap"; atk?: number }>, sourceIndex?: number): number | null;
 export function boarSoldierDestroyedOnSummon(id: string, summonKind: "normal" | "flip" | "special"): boolean;
 export function darkZebraStandbyPosition(id: string, otherControlledCardCount: number): "defense" | null;
+export function hornOfUnicornReturnsToDeckTop(previousFieldIds?: string[], nextFieldIds?: string[]): boolean;
+export function magicalLabyrinthCanEquip(targetId: string): boolean;
+export function magicalLabyrinthSummonIndex(deckIds?: string[], fieldHasEquippedWall?: boolean): number;
+export function megamorphAttack(originalAtk: number, controllerLife: number, opponentLife: number): number;
+export function pharaohSummonResponseTrap(trapIds: string[], summonedCard: { atk?: number; def?: number } | undefined, summonKind: "normal" | "flip" | "special"): string | null;
+export function banisherRedirectsToExile(faceUpMonsterIds?: string[]): boolean;
+export function ceremonyBellRevealsHands(faceUpMonsterIds?: string[]): boolean;
+export function kotodamaDuplicateIndexes(faceUpNames?: string[]): number[];
+export function messengerOfPeacePreventsAttack(attack: number, activeSpellTrapIds?: string[]): boolean;
+export function messengerOfPeaceStandbyCost(activeCount?: number): number;
+export function shouldCpuKeepMessengerOfPeace(lifePoints: number, activeCount: number, strongestOwnAttack: number, strongestOpponentAttack: number): boolean;
 export function wormBeastReturns(id: string, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
 export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[], cpuAttributes?: string[], opponentAttributes?: string[]): string | null;
 export function monsterSentFromFieldToGrave(previousFieldIds: string[], nextFieldIds: string[], previousGraveIds: string[], nextGraveIds: string[]): boolean;
