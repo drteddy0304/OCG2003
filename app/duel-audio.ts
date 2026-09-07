@@ -7,59 +7,39 @@ let bgmTimer: number | null = null;
 let bgmNextStart = 0;
 const bgmSources = new Set<OscillatorNode | AudioBufferSourceNode>();
 
-type SongSection = {
-  melody: readonly (number | null)[];
-  chords: readonly (readonly number[])[];
-  bass: readonly number[];
-  energy: 1 | 2 | 3;
+export type DuelBgmThemeId = "yami-yugi" | "seto-kaiba" | "joey-wheeler" | "mai-valentine" | "weevil-underwood" | "rex-raptor" | "mako-tsunami" | "espa-roba" | "arkana" | "yami-bakura" | "strings" | "lumis-umbra" | "odion" | "ishizu-ishtar" | "yami-marik";
+
+type DuelBgmTheme = {
+  title: string;
+  bpm: number;
+  root: number;
+  minor: boolean;
+  lead: OscillatorType;
+  motif: readonly (number | null)[];
+  progression: readonly number[];
+  groove: 0 | 1 | 2;
 };
 
-const MODERN_JPOP_CHIP_SONG: readonly SongSection[] = [
-  {
-    // Intro: 短いフックを提示し、後半からリズム隊が入る。
-    melody: [
-      76, null, 78, 80, null, 83, 80, null, 78, null, 76, 75, 76, null, 71, null,
-      76, 78, 80, null, 83, null, 85, 83, 80, 78, 76, null, 75, 76, 78, null,
-    ],
-    chords: [[57, 60, 64, 68], [55, 59, 62, 66], [52, 56, 59, 64], [54, 57, 61, 64]],
-    bass: [33, 31, 28, 30],
-    energy: 1,
-  },
-  {
-    // Verse: シンコペーションを増やし、カードを切るような細かい旋律にする。
-    melody: [
-      73, null, 76, 78, null, 76, 80, null, 78, null, 76, null, 73, 71, null, 73,
-      null, 76, 78, null, 80, 78, 76, null, 71, 73, null, 76, 75, null, 71, null,
-      73, 76, null, 78, 80, null, 83, 80, null, 78, 76, 75, null, 76, 78, null,
-      80, null, 83, 85, 83, null, 80, 78, 76, null, 75, 73, 71, 73, 75, null,
-    ],
-    chords: [[57, 60, 64, 68], [52, 56, 59, 64], [55, 59, 62, 66], [54, 57, 61, 64], [57, 60, 64, 68], [52, 56, 59, 64], [55, 59, 62, 66], [59, 62, 66, 69]],
-    bass: [33, 28, 31, 30, 33, 28, 31, 35],
-    energy: 2,
-  },
-  {
-    // Pre-chorus: 音域と和音を段階的に上げてサビへ接続。
-    melody: [
-      76, null, 78, null, 80, null, 83, null, 78, null, 80, null, 83, null, 85, null,
-      80, 81, 83, null, 85, 83, 88, null, 85, 83, 81, 80, 78, 80, 83, 85,
-    ],
-    chords: [[50, 54, 57, 61], [52, 56, 59, 64], [54, 57, 61, 64], [55, 59, 62, 66]],
-    bass: [26, 28, 30, 31],
-    energy: 2,
-  },
-  {
-    // Chorus: 跳躍のある主旋律と高速アルペジオで解放感を作る。
-    melody: [
-      85, 83, 80, null, 88, null, 85, 83, 81, 80, 78, null, 80, 83, 85, null,
-      83, 80, 78, 76, null, 80, 83, 85, 88, null, 85, 83, 80, 78, 76, null,
-      85, 83, 80, null, 88, 90, 88, 85, 83, null, 81, 80, 78, 80, 83, null,
-      85, 88, 90, null, 88, 85, 83, 80, 81, 83, 80, 78, 76, null, 73, null,
-    ],
-    chords: [[57, 60, 64, 68], [55, 59, 62, 66], [52, 56, 59, 64], [54, 57, 61, 64], [57, 60, 64, 68], [55, 59, 62, 66], [52, 56, 59, 64], [59, 62, 66, 69]],
-    bass: [33, 31, 28, 30, 33, 31, 28, 35],
-    energy: 3,
-  },
-] as const;
+// 既存作品の旋律は使わず、キャラクターの戦い方を音色・速度・和声で表現した15曲。
+export const DUEL_BGM_THEMES: Record<DuelBgmThemeId, DuelBgmTheme> = {
+  "yami-yugi": { title: "王の逆転劇", bpm: 152, root: 57, minor: true, lead: "square", motif: [0, null, 3, 7, 10, 7, 12, null, 10, 7, 3, 5, 7, null, 2, null], progression: [0, -2, -5, -3], groove: 1 },
+  "seto-kaiba": { title: "蒼眼オーバードライブ", bpm: 170, root: 59, minor: true, lead: "sawtooth", motif: [0, 12, 7, 15, 14, 10, 7, null, 3, 7, 10, 15, 14, 12, 7, 10], progression: [0, -5, -2, 2], groove: 2 },
+  "joey-wheeler": { title: "炎のラストチャンス", bpm: 158, root: 60, minor: false, lead: "square", motif: [0, 4, 7, null, 9, 7, 4, 2, 0, null, 4, 7, 12, 9, 7, null], progression: [0, -5, -3, -7], groove: 1 },
+  "mai-valentine": { title: "ハーピィ・ハイウェイ", bpm: 166, root: 62, minor: false, lead: "triangle", motif: [7, 9, 12, 11, 9, 7, 4, null, 7, 12, 14, 12, 11, 9, 7, 4], progression: [0, -3, -5, 2], groove: 2 },
+  "weevil-underwood": { title: "インセクト・グリッチ", bpm: 144, root: 55, minor: true, lead: "square", motif: [0, 1, 7, null, 6, 3, 1, 0, 12, 7, 6, 3, 1, null, -2, null], progression: [0, 1, -5, -1], groove: 2 },
+  "rex-raptor": { title: "ジュラシック・ストンプ", bpm: 134, root: 52, minor: true, lead: "sawtooth", motif: [0, 0, 7, null, 3, 3, 10, null, 7, 5, 3, 0, -2, 0, null, null], progression: [0, -2, -5, -7], groove: 0 },
+  "mako-tsunami": { title: "ディープブルー・カレント", bpm: 138, root: 57, minor: false, lead: "triangle", motif: [0, null, 2, 7, 9, null, 7, 4, 2, 4, 7, 11, 9, 7, 4, null], progression: [0, -5, 2, -3], groove: 1 },
+  "espa-roba": { title: "サイキック・サーキット", bpm: 174, root: 58, minor: true, lead: "square", motif: [0, 7, 3, 10, 5, 12, 7, 14, 12, 10, 7, 5, 3, 1, 0, -2], progression: [0, 3, -2, 5], groove: 2 },
+  arkana: { title: "クリムゾン・イリュージョン", bpm: 148, root: 56, minor: true, lead: "sawtooth", motif: [0, null, 6, 7, 3, 10, 9, null, 7, 3, 1, 6, 7, 12, 10, null], progression: [0, 1, -4, -1], groove: 1 },
+  "yami-bakura": { title: "オカルト・クロック", bpm: 126, root: 54, minor: true, lead: "square", motif: [0, null, 1, null, 7, 6, 3, null, 0, 10, 7, 6, 1, null, -1, null], progression: [0, -1, -5, 1], groove: 0 },
+  strings: { title: "サイレント・パペット", bpm: 120, root: 50, minor: true, lead: "triangle", motif: [0, null, null, 7, 3, null, 10, null, 7, null, 3, 1, 0, null, -2, null], progression: [0, -5, -3, -1], groove: 0 },
+  "lumis-umbra": { title: "マスクド・パラドックス", bpm: 162, root: 58, minor: true, lead: "square", motif: [0, 7, 1, 6, 3, 10, 5, 12, 7, 6, 3, 1, 0, 3, -1, null], progression: [0, 6, -1, 5], groove: 2 },
+  odion: { title: "トラップ・テンプル", bpm: 136, root: 53, minor: true, lead: "sawtooth", motif: [0, null, 3, 5, 7, null, 6, 3, 0, 1, 3, null, 10, 7, 5, null], progression: [0, -5, 1, -2], groove: 0 },
+  "ishizu-ishtar": { title: "未来の記憶", bpm: 130, root: 57, minor: false, lead: "triangle", motif: [0, 2, 4, null, 9, 7, 4, null, 2, 4, 7, 11, 9, 7, 4, 2], progression: [0, 2, -3, -5], groove: 1 },
+  "yami-marik": { title: "太陽神マッドネス", bpm: 178, root: 55, minor: true, lead: "sawtooth", motif: [0, 12, 6, 13, 7, 15, 10, 14, 12, 7, 6, 3, 1, 0, -1, -5], progression: [0, 1, 6, -2], groove: 2 },
+};
+
+let activeBgmTheme: DuelBgmThemeId | null = null;
 
 function context() {
   if (typeof window === "undefined") return null;
@@ -168,41 +148,55 @@ function chipNoise(ctx: AudioContext, start: number, duration: number, volume: n
   source.start(start);
 }
 
-function scheduleSongSection(ctx: AudioContext, start: number, section: SongSection) {
-  const step = 60 / 158 / 4;
-  section.melody.forEach((note, index) => {
+function scheduleCharacterSong(ctx: AudioContext, start: number, theme: DuelBgmTheme) {
+  const step = 60 / theme.bpm / 4;
+  const sectionEnergy = [1, 2, 2, 3] as const;
+  const chordShape = theme.minor ? [0, 3, 7, 10] : [0, 4, 7, 11];
+  const sectionLength = theme.motif.length * 2;
+  const totalSteps = sectionLength * sectionEnergy.length;
+  for (let index = 0; index < totalSteps; index += 1) {
+    const section = Math.floor(index / sectionLength);
+    const local = index % sectionLength;
+    const energy = sectionEnergy[section];
     const at = start + index * step;
-    const chordIndex = Math.floor(index / 8) % section.chords.length;
-    const chord = section.chords[chordIndex];
-    if (note !== null) {
-      chipNote(ctx, at, step * (section.energy === 3 ? 1.7 : 1.25), note, "square", section.energy === 3 ? 0.16 : 0.13);
-      if (section.energy === 3 && index % 4 === 0) chipNote(ctx, at, step * 2.8, note - 12, "triangle", 0.055);
+    const progressionRoot = theme.root + theme.progression[Math.floor(local / 4) % theme.progression.length];
+    const motif = theme.motif[(local + section * 3) % theme.motif.length];
+    const octave = section === 3 ? 12 : section === 0 ? -12 : 0;
+    if (motif !== null && !(section === 0 && local % 2 === 1)) {
+      chipNote(ctx, at, step * (energy === 3 ? 1.65 : 1.15), theme.root + motif + octave, theme.lead, 0.1 + energy * 0.018);
+      if (energy === 3 && local % 4 === 0) chipNote(ctx, at, step * 2.6, theme.root + motif, "triangle", 0.045);
     }
-    const arpRate = section.energy === 1 ? 2 : 1;
-    if (index % arpRate === 0) chipNote(ctx, at, step * 0.78, chord[index % chord.length], "triangle", 0.055 + section.energy * 0.012);
-    if (index % 8 === 0) chipNote(ctx, at, step * 7.1, section.bass[chordIndex], "square", 0.105 + section.energy * 0.016);
-    if (index % 4 === 0 && (section.energy > 1 || index >= 16)) chipNote(ctx, at, step * 0.9, 29, "sine", 0.16 + section.energy * 0.025);
-    if (index % 8 === 4 && (section.energy > 1 || index >= 16)) chipNoise(ctx, at, step * 1.8, 0.045 + section.energy * 0.018, 1800);
-    if (section.energy === 3 && index % 2 === 1) chipNoise(ctx, at, step * 0.36, 0.018, 5400);
-    if (section.energy === 2 && index % 4 === 2) chipNoise(ctx, at, step * 0.28, 0.014, 5000);
-  });
-  return section.melody.length * step;
+    if (local % (energy === 1 ? 2 : 1) === 0) {
+      chipNote(ctx, at, step * 0.72, progressionRoot + chordShape[local % chordShape.length], "triangle", 0.045 + energy * 0.01);
+    }
+    if (local % 4 === 0) chipNote(ctx, at, step * 3.5, progressionRoot - 24, theme.groove === 0 ? "triangle" : "square", 0.09 + energy * 0.012);
+    const kickRate = theme.groove === 2 ? 2 : 4;
+    if (local % kickRate === 0 && (section > 0 || local >= 8)) chipNote(ctx, at, step * 0.82, 28 + theme.groove, "sine", 0.14 + energy * 0.02);
+    if (local % 4 === 2 && section > 0) chipNoise(ctx, at, step * 0.75, 0.035 + energy * 0.012, theme.groove === 0 ? 1300 : 2200);
+    if (energy === 3 && theme.groove > 0 && local % 2 === 1) chipNoise(ctx, at, step * 0.28, 0.014, 5200);
+  }
+  return totalSteps * step;
 }
 
-function scheduleChipSong(ctx: AudioContext, start: number) {
-  return MODERN_JPOP_CHIP_SONG.reduce((elapsed, section) => elapsed + scheduleSongSection(ctx, start + elapsed, section), 0);
+export function duelBgmTitle(themeId: string) {
+  return DUEL_BGM_THEMES[themeId as DuelBgmThemeId]?.title ?? DUEL_BGM_THEMES["yami-yugi"].title;
 }
 
-export function startDuelBgm(enabled: boolean) {
-  if (!enabled || bgmTimer !== null) return;
+export function startDuelBgm(enabled: boolean, themeId: string = "yami-yugi") {
+  if (!enabled) return;
+  const resolvedTheme = (themeId in DUEL_BGM_THEMES ? themeId : "yami-yugi") as DuelBgmThemeId;
+  if (bgmTimer !== null && activeBgmTheme === resolvedTheme) return;
+  if (bgmTimer !== null) stopDuelBgm();
   const ctx = context();
   if (!ctx || !masterInput) return;
+  activeBgmTheme = resolvedTheme;
+  const theme = DUEL_BGM_THEMES[resolvedTheme];
   bgmInput ??= ctx.createGain();
   bgmInput.gain.value = 0.2;
   bgmInput.connect(masterInput);
   bgmNextStart = ctx.currentTime + 0.06;
   const scheduleAhead = () => {
-    while (bgmNextStart < ctx.currentTime + 2.2) bgmNextStart += scheduleChipSong(ctx, bgmNextStart);
+    while (bgmNextStart < ctx.currentTime + 2.2) bgmNextStart += scheduleCharacterSong(ctx, bgmNextStart, theme);
   };
   scheduleAhead();
   bgmTimer = window.setInterval(scheduleAhead, 700);
@@ -211,6 +205,7 @@ export function startDuelBgm(enabled: boolean) {
 export function stopDuelBgm() {
   if (bgmTimer !== null) window.clearInterval(bgmTimer);
   bgmTimer = null;
+  activeBgmTheme = null;
   bgmSources.forEach((source) => {
     try { source.stop(); } catch { /* already stopped */ }
   });
