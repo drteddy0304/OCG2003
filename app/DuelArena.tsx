@@ -3959,7 +3959,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>15 DUELISTS · BUILD 151</strong>
+          <strong>15 DUELISTS · BUILD 152</strong>
           <p>バトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -8431,6 +8431,7 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     atk: equipped.atk,
     def: equipped.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
+    opponentMonsterCount: side === "player" ? state.cpuField.length : state.playerField.length,
     graveyardMonsterCount: (side === "player" ? state.playerGraveyard : state.cpuGraveyard)
       .filter((id) => cardById.get(id)?.cardType === "monster").length,
     faceUpPlantCount: [...state.playerField, ...state.cpuField]
@@ -8478,6 +8479,7 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
     atk: equipped.atk,
     def: equipped.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
+    opponentMonsterCount: side === "player" ? state.cpuField.length : state.playerField.length,
     graveyardMonsterCount: 0,
     equipCount: zone.equipped.length,
     auraIds: [],

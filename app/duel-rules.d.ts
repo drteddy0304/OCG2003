@@ -151,6 +151,7 @@ export function continuousMonsterStats(input: {
   atk: number;
   def: number;
   handSize?: number;
+  opponentMonsterCount?: number;
   graveyardMonsterCount?: number;
   faceUpPlantCount?: number;
   faceUpMachineCount?: number;
@@ -170,6 +171,12 @@ export function bestCpuAttributeRecruitTargetIndex(sourceId: string, deckCards?:
 export function summonRitualSearchKind(id: string): "ritual-monster" | "ritual-spell" | null;
 export function canSummonRitualSearchTarget(sourceId: string, target?: { cardType: "monster" | "spell" | "trap"; kind?: string; ritual?: boolean }): boolean;
 export function karateManAttack(id: string, originalAtk: number, effectActive?: boolean): number;
+export function sameNameBattleRecruitEffect(id: string): { damageToOpponent: number; lifeGain: number; summonId: string; position: "attack" | "defense" } | null;
+export function sameNameBattleRecruitCount(id: string, copiesInDeck: number, availableZones?: number): number;
+export function darkFamiliaReviveTarget(card?: { id: string; cardType: "monster" | "spell" | "trap" }, isSourceCard?: boolean): boolean;
+export function bestCpuDarkFamiliaTargetIndex(graveyardCards?: Array<{ id: string; cardType: "monster" | "spell" | "trap"; atk?: number }>, sourceIndex?: number): number | null;
+export function boarSoldierDestroyedOnSummon(id: string, summonKind: "normal" | "flip" | "special"): boolean;
+export function darkZebraStandbyPosition(id: string, otherControlledCardCount: number): "defense" | null;
 export function wormBeastReturns(id: string, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
 export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[], cpuAttributes?: string[], opponentAttributes?: string[]): string | null;
 export function monsterSentFromFieldToGrave(previousFieldIds: string[], nextFieldIds: string[], previousGraveIds: string[], nextGraveIds: string[]): boolean;

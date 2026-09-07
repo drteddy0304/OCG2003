@@ -838,6 +838,36 @@ export function karateManAttack(id, originalAtk, effectActive = false) {
   return id === "ps-32" && effectActive ? originalAtk * 2 : originalAtk;
 }
 
+export function sameNameBattleRecruitEffect(id) {
+  if (id === "ps-34") return { damageToOpponent: 500, lifeGain: 0, summonId: id, position: "attack" };
+  if (id === "ps-35") return { damageToOpponent: 0, lifeGain: 1000, summonId: id, position: "defense" };
+  return null;
+}
+
+export function sameNameBattleRecruitCount(id, copiesInDeck, availableZones = 5) {
+  if (!sameNameBattleRecruitEffect(id)) return 0;
+  return Math.min(Math.max(0, copiesInDeck), Math.max(0, availableZones));
+}
+
+export function darkFamiliaReviveTarget(card, isSourceCard = false) {
+  return Boolean(card?.cardType === "monster" && !isSourceCard);
+}
+
+export function bestCpuDarkFamiliaTargetIndex(graveyardCards = [], sourceIndex = -1) {
+  return graveyardCards
+    .map((card, index) => ({ card, index }))
+    .filter(({ card, index }) => darkFamiliaReviveTarget(card, index === sourceIndex))
+    .sort((a, b) => (b.card.atk ?? 0) - (a.card.atk ?? 0))[0]?.index ?? null;
+}
+
+export function boarSoldierDestroyedOnSummon(id, summonKind) {
+  return id === "ps-38" && summonKind === "normal";
+}
+
+export function darkZebraStandbyPosition(id, otherControlledCardCount) {
+  return id === "ps-33" && otherControlledCardCount === 0 ? "defense" : null;
+}
+
 export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds, cpuAttributes = [], opponentAttributes = []) {
   return fieldSpellIds
     .map((id) => ({
@@ -865,7 +895,7 @@ export function monsterSentFromFieldToGrave(previousFieldIds, nextFieldIds, prev
   });
 }
 
-export function continuousMonsterStats({ id, attribute, kind = "", position = "attack", atk, def: defense, handSize = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, equipCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
+export function continuousMonsterStats({ id, attribute, kind = "", position = "attack", atk, def: defense, handSize = 0, opponentMonsterCount = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, equipCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;
   if (id === "vol6-shadow-ghoul") nextAtk += graveyardMonsterCount * 100;
@@ -878,6 +908,11 @@ export function continuousMonsterStats({ id, attribute, kind = "", position = "a
   if (id === "vol7-barbarian-1") nextAtk += allyIds.filter((allyId) => allyId === "vol7-barbarian-2").length * 500;
   if (id === "vol7-barbarian-2") nextAtk += allyIds.filter((allyId) => allyId === "vol7-barbarian-1").length * 500;
   if (id === "mr-maha-vailo") nextAtk += Math.max(0, equipCount) * 500;
+  if (id === "ps-31") {
+    nextAtk -= Math.max(0, handSize) * 400;
+    nextDef -= Math.max(0, handSize) * 400;
+  }
+  if (id === "ps-38" && opponentMonsterCount > 0) nextAtk -= 1000;
   auraIds.forEach((auraId) => {
     const aura = attributeAuraEffects[auraId];
     if (aura?.boost === attribute) nextAtk += 500;

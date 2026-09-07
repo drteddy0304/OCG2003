@@ -6,7 +6,14 @@ import {
   bestCpuAttributeRecruitTargetIndex,
   canAttributeRecruiterTarget,
   canSummonRitualSearchTarget,
+  bestCpuDarkFamiliaTargetIndex,
+  boarSoldierDestroyedOnSummon,
+  continuousMonsterStats,
+  darkFamiliaReviveTarget,
+  darkZebraStandbyPosition,
   karateManAttack,
+  sameNameBattleRecruitCount,
+  sameNameBattleRecruitEffect,
   summonRitualSearchKind,
 } from "../app/duel-rules.mjs";
 
@@ -42,8 +49,34 @@ test("カラテマンは効果使用ターンだけ元々のATKが倍になる",
   assert.equal(karateManAttack("ps-32", 1000, false), 1000);
 });
 
+test("秒殺の暗殺者は手札1枚ごとにATK・DEFが400下がる", () => {
+  assert.deepEqual(continuousMonsterStats({ id: "ps-31", atk: 2000, def: 2000, handSize: 3 }), { atk: 800, def: 800 });
+});
+
+test("ダークゼブラとボアソルジャーの表示・破壊・弱体化条件を判定する", () => {
+  assert.equal(darkZebraStandbyPosition("ps-33", 0), "defense");
+  assert.equal(darkZebraStandbyPosition("ps-33", 1), null);
+  assert.equal(boarSoldierDestroyedOnSummon("ps-38", "normal"), true);
+  assert.equal(boarSoldierDestroyedOnSummon("ps-38", "special"), false);
+  assert.deepEqual(continuousMonsterStats({ id: "ps-38", atk: 2000, def: 500, opponentMonsterCount: 1 }), { atk: 1000, def: 500 });
+});
+
+test("ジャイアントウィルスと素早いモモンガは空き枠まで同名カードを呼ぶ", () => {
+  assert.deepEqual(sameNameBattleRecruitEffect("ps-34"), { damageToOpponent: 500, lifeGain: 0, summonId: "ps-34", position: "attack" });
+  assert.deepEqual(sameNameBattleRecruitEffect("ps-35"), { damageToOpponent: 0, lifeGain: 1000, summonId: "ps-35", position: "defense" });
+  assert.equal(sameNameBattleRecruitCount("ps-34", 2, 1), 1);
+  assert.equal(sameNameBattleRecruitCount("ps-35", 2, 3), 2);
+});
+
+test("ダークファミリアは自身以外を蘇生し、CPUは最高ATKを選ぶ", () => {
+  assert.equal(darkFamiliaReviveTarget(byId.get("ps-36"), true), false);
+  assert.equal(darkFamiliaReviveTarget(byId.get("ps-36"), false), true);
+  assert.equal(darkFamiliaReviveTarget(byId.get("ps-24")), true);
+  assert.equal(bestCpuDarkFamiliaTargetIndex([byId.get("ps-02"), byId.get("ps-24"), byId.get("ps-36")], 2), 1);
+});
+
 test("ファラオのしもべは完了カードだけを公開待ち一覧へ追加する", () => {
-  ["ps-28", "ps-29", "ps-30", "ps-32", "ps-37", "ps-39", "ps-40", "ps-42", "ps-43"].forEach((id) => {
+  ["ps-28", "ps-29", "ps-30", "ps-31", "ps-32", "ps-33", "ps-34", "ps-35", "ps-36", "ps-37", "ps-38", "ps-39", "ps-40", "ps-42", "ps-43"].forEach((id) => {
     assert.equal(pharaohsServantReadyCardIds.includes(id), true);
   });
   assert.equal(pharaohsServantReadyCardIds.includes("ps-00"), false);
