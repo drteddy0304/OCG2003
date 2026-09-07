@@ -14,7 +14,7 @@ import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mj
 import { snatchStealStandbyGain } from "./duel-rules.mjs";
 import { curseOfFiendPosition } from "./duel-rules.mjs";
 import { blackPendantTriggerCounts, canPayChainEnergy, chainEnergyCost, monsterSentFromFieldToGrave } from "./duel-rules.mjs";
-import { isGodCard, raPointTransfer, raTributeStats, requiredTributes, ritualSummonDefinition, sliferDivineStats } from "./duel-rules.mjs";
+import { cpuRaEffectPlan, isGodCard, raPointTransfer, raTributeStats, requiredTributes, ritualSummonDefinition, sliferDivineStats } from "./duel-rules.mjs";
 import { banisherRedirectsToExile, canSpecialSummonToon, ceremonyBellRevealsHands, cyberJarReveal, destroyEquippedMonsterIndexes, kotodamaDuplicateIndexes, megamorphAttack, messengerOfPeacePreventsAttack, messengerOfPeaceStandbyCost, pharaohSummonResponseTrap, shouldCpuKeepMessengerOfPeace, timeBomberEffect, toonAttackDeclaration, toonSummonTributeCount, toonWorldActivationCost } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
@@ -2022,6 +2022,7 @@ export function DuelArena({
           positionChanged: false,
           revivedByMonsterReborn: true,
           godSpecialSummoned: isGodCard(taken.cardId),
+          ...(taken.cardId === "g4-03-ra" ? { godBaseAtk: 0, godBaseDef: 0 } : {}),
         },
       ],
       playerGraveyard: [
@@ -2029,7 +2030,7 @@ export function DuelArena({
         "vol2-monster-reborn",
       ],
       cpuGraveyard: graveSide === "cpu" ? taken.remaining : duel.cpuGraveyard,
-      log: appendLog(duel.log, `死者蘇生を発動。${monster.name}を${revivePosition === "attack" ? "攻撃" : "守備"}表示で特殊召喚。`),
+      log: appendLog(duel.log, `死者蘇生を発動。${monster.name}を${revivePosition === "attack" ? "攻撃" : "守備"}表示で特殊召喚。${taken.cardId === "g4-03-ra" ? "ラーはATK・DEF 0で復活し、神の効果を使用できます。" : ""}`),
     });
     setPendingReborn(null);
   }
@@ -2464,7 +2465,7 @@ export function DuelArena({
   }
 
   function resolveGodTributeEffect() {
-    if (!duel || !pendingGodTribute || !isPlayerMainPhase) return;
+    if (!duel || !pendingGodTribute || duel.turn !== "player" || !["main1", "main2"].includes(duel.phase)) return;
     const { kind, sourceIndex, selected } = pendingGodTribute;
     const expectedId = kind === "obelisk" ? "g4-01-obelisk" : "g4-03-ra";
     const source = duel.playerField[sourceIndex];
@@ -2518,16 +2519,21 @@ export function DuelArena({
     const sourceIndex = duel.playerField.findIndex((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godPhoenixUsedTurn !== duel.turnNumber);
     if (sourceIndex < 0 || duel.cpuField.length === 0) return;
     const destroyed = duel.cpuField;
-    setDuel({
+    const returnedPlayer = destroyed.filter((zone) => zone.controlReturn === "player");
+    const cpuOwned = destroyed.filter((zone) => zone.controlReturn !== "player");
+    let resolved: DuelState = {
       ...duel,
       playerLp: duel.playerLp - 1000,
       playerField: duel.playerField.map((zone, index) => index === sourceIndex ? { ...zone, godPhoenixUsedTurn: duel.turnNumber } : zone),
       cpuField: [],
       playerSpellTrap: discardEquips(duel.playerSpellTrap, destroyed),
       cpuSpellTrap: discardEquips(duel.cpuSpellTrap, destroyed),
-      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(destroyed)],
+      playerGraveyard: [...duel.playerGraveyard, ...graveCards(returnedPlayer)],
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(cpuOwned)],
       log: appendLog(duel.log, `ラーの翼神竜のゴッドフェニックス。1000LPを払い、CPUモンスター${destroyed.length}体を焼き尽くした。`),
-    });
+    };
+    resolved = applyDeckSearchTriggers(resolved, returnedPlayer, cpuOwned);
+    setDuel(resolved);
   }
 
   function toggleYadoKaruCard(handIndex: number) {
@@ -4063,7 +4069,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>15 DUELISTS · BUILD 155</strong>
+          <strong>15 DUELISTS · BUILD 156</strong>
           <p>バトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -5080,15 +5086,31 @@ export function DuelArena({
         {isPlayerMainPhase && duel.playerField.filter((zone) => zone.id !== "g4-01-obelisk").length >= 2 && duel.playerField.some((zone) => zone.id === "g4-01-obelisk" && !zone.faceDown && zone.godEffectUsedTurn !== duel.turnNumber) && (
           <button className="effect-action-button" onClick={() => setPendingGodTribute({ kind: "obelisk", sourceIndex: duel.playerField.findIndex((zone) => zone.id === "g4-01-obelisk" && !zone.faceDown), selected: [] })}>オベリスク：ソウルエナジーMAX</button>
         )}
-        {isPlayerMainPhase && duel.playerField.filter((zone) => zone.id !== "g4-03-ra").length > 0 && duel.playerField.some((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godEffectUsedTurn !== duel.turnNumber) && (
-          <button className="effect-action-button" onClick={() => setPendingGodTribute({ kind: "ra", sourceIndex: duel.playerField.findIndex((zone) => zone.id === "g4-03-ra" && !zone.faceDown), selected: [] })}>ラー：モンスターの力を集約</button>
-        )}
-        {isPlayerMainPhase && duel.playerLp > 1 && duel.playerField.some((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godPointUsedTurn !== duel.turnNumber) && (
-          <button className="effect-action-button" onClick={activateRaPointTransfer}>ラー：LPを1まで攻撃力へ変換</button>
-        )}
-        {isPlayerMainPhase && duel.playerLp > 1000 && duel.cpuField.length > 0 && duel.playerField.some((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godPhoenixUsedTurn !== duel.turnNumber) && (
-          <button className="effect-action-button" onClick={activateRaGodPhoenix}>ラー：ゴッドフェニックス（1000LP）</button>
-        )}
+        {isPlayerMainPhase && duel.playerField.some((zone) => zone.id === "g4-03-ra" && !zone.faceDown) && (() => {
+          const ra = duel.playerField.find((zone) => zone.id === "g4-03-ra" && !zone.faceDown);
+          const otherMonsterCount = duel.playerField.filter((zone) => zone !== ra).length;
+          const tributeUsed = ra?.godEffectUsedTurn === duel.turnNumber;
+          const pointUsed = ra?.godPointUsedTurn === duel.turnNumber;
+          const phoenixUsed = ra?.godPhoenixUsedTurn === duel.turnNumber;
+          return (
+            <div className="divine-effect-actions">
+              <small>ラーの効果は条件を満たしたボタンから選べます。</small>
+              <button
+                className="effect-action-button"
+                disabled={tributeUsed || otherMonsterCount === 0}
+                onClick={() => setPendingGodTribute({ kind: "ra", sourceIndex: duel.playerField.indexOf(ra!), selected: [] })}
+              >
+                {tributeUsed ? "ラー：力の集約（このターン使用済み）" : otherMonsterCount === 0 ? "ラー：力の集約（他のモンスターが必要）" : "ラー：モンスターの力を集約"}
+              </button>
+              <button className="effect-action-button" disabled={pointUsed || duel.playerLp <= 1} onClick={activateRaPointTransfer}>
+                {pointUsed ? "ラー：LP変換（このターン使用済み）" : duel.playerLp <= 1 ? "ラー：LP変換（LPが足りません）" : "ラー：LPを1まで攻撃力へ変換"}
+              </button>
+              <button className="effect-action-button" disabled={phoenixUsed || duel.playerLp <= 1000 || duel.cpuField.length === 0} onClick={activateRaGodPhoenix}>
+                {phoenixUsed ? "ラー：ゴッドフェニックス（このターン使用済み）" : duel.playerLp <= 1000 ? "ラー：ゴッドフェニックス（LP1001以上が必要）" : duel.cpuField.length === 0 ? "ラー：ゴッドフェニックス（相手モンスターなし）" : "ラー：ゴッドフェニックス（1000LP）"}
+              </button>
+            </div>
+          );
+        })()}
         {isPlayerMainPhase
           && duel.playerSpellTrap.includes("bo3-ultimate-offering")
           && canUseUltimateOffering(duel.playerLp, duel.normalSummoned, duel.playerField.length, hasUltimateOfferingSummonCandidate(duel), FIELD_LIMIT) && (
@@ -6594,6 +6616,8 @@ function resolveIronScorpionEndPhase(state: DuelState): DuelState {
 function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   let state: DuelState = { ...initial, pendingTrapResponse: null };
   if (!resumeBattle) {
+    state = useCpuRaEffects(state);
+    if (state.result || state.pendingDeckSearch) return state;
     state = useCpuPromoCoinEffects(state);
     if (state.result || state.pendingDeckSearch) return state;
     state = useCpuBarrelDragon(state);
@@ -6942,10 +6966,11 @@ function resolveCpuMonsterRebornEffect(state: DuelState): DuelState {
       positionChanged: false,
       revivedByMonsterReborn: true,
       godSpecialSummoned: isGodCard(taken.cardId),
+      ...(taken.cardId === "g4-03-ra" ? { godBaseAtk: 0, godBaseDef: 0 } : {}),
     }],
     cpuGraveyard: choice.side === "cpu" ? taken.remaining : state.cpuGraveyard,
     playerGraveyard: choice.side === "player" ? taken.remaining : state.playerGraveyard,
-    log: appendLog(state.log, `死者蘇生の効果でCPUが${monster.name}を特殊召喚。`),
+    log: appendLog(state.log, `死者蘇生の効果でCPUが${monster.name}を特殊召喚。${taken.cardId === "g4-03-ra" ? "ラーはATK・DEF 0で復活。" : ""}`),
   };
 }
 
@@ -8947,6 +8972,60 @@ function useCpuCannonSoldierForLethal(state: DuelState): DuelState {
   };
   resolved = applyDeckSearchTriggers(resolved, [], [target]);
   return resolved;
+}
+
+function useCpuRaEffects(initial: DuelState): DuelState {
+  const sourceIndex = initial.cpuField.findIndex((zone) => zone.id === "g4-03-ra" && !zone.faceDown);
+  if (sourceIndex < 0) return initial;
+  const source = initial.cpuField[sourceIndex];
+  const plan = cpuRaEffectPlan(
+    initial.cpuLp,
+    effectiveAtk(source, initial, "cpu"),
+    initial.playerLp,
+    initial.playerField.length,
+  );
+  let state = initial;
+
+  if (plan.usePhoenix && source.godPhoenixUsedTurn !== state.turnNumber) {
+    const destroyed = state.playerField;
+    const returnedCpu = destroyed.filter((zone) => zone.controlReturn === "cpu");
+    const playerOwned = destroyed.filter((zone) => zone.controlReturn !== "cpu");
+    state = {
+      ...state,
+      cpuLp: state.cpuLp - 1000,
+      cpuField: state.cpuField.map((zone, index) => index === sourceIndex
+        ? { ...zone, godPhoenixUsedTurn: state.turnNumber }
+        : zone),
+      playerField: [],
+      playerSpellTrap: discardEquips(state.playerSpellTrap, destroyed),
+      cpuSpellTrap: discardEquips(state.cpuSpellTrap, destroyed),
+      playerGraveyard: [...state.playerGraveyard, ...graveCards(playerOwned)],
+      cpuGraveyard: [...state.cpuGraveyard, ...graveCards(returnedCpu)],
+      log: appendLog(state.log, `CPUのラーの翼神竜がゴッドフェニックスを発動。1000LPを払い、プレイヤーのモンスター${destroyed.length}体を焼き尽くした。`),
+    };
+    state = applyDeckSearchTriggers(state, playerOwned, returnedCpu);
+  }
+
+  if (plan.usePointTransfer && !state.pendingDeckSearch) {
+    const currentRaIndex = state.cpuField.findIndex((zone) => zone.id === "g4-03-ra" && !zone.faceDown && zone.godPointUsedTurn !== state.turnNumber);
+    if (currentRaIndex >= 0) {
+      const transfer = raPointTransfer(state.cpuLp);
+      state = {
+        ...state,
+        cpuLp: transfer.lifePoints,
+        cpuField: state.cpuField.map((zone, index) => index === currentRaIndex
+          ? {
+              ...zone,
+              godAtkBonus: (zone.godAtkBonus ?? 0) + transfer.attackBonus,
+              godDefBonus: (zone.godDefBonus ?? 0) + transfer.attackBonus,
+              godPointUsedTurn: state.turnNumber,
+            }
+          : zone),
+        log: appendLog(state.log, `CPUがLPを1残してラーの翼神竜へ移し、ATK・DEFを${transfer.attackBonus}アップ。`),
+      };
+    }
+  }
+  return state;
 }
 
 function useCpuPromoCoinEffects(initial: DuelState): DuelState {

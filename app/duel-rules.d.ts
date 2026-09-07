@@ -24,6 +24,7 @@ export function requiredTributes(id: string, level?: number): number;
 export function sliferDivineStats(handSize: number): { atk: number; def: number };
 export function raTributeStats(tributes: Array<{ atk?: number; def?: number }>): { atk: number; def: number };
 export function raPointTransfer(lifePoints: number): { lifePoints: number; attackBonus: number };
+export function cpuRaEffectPlan(lifePoints: number, currentAttack: number, opponentLifePoints: number, opponentMonsterCount: number): { usePhoenix: boolean; usePointTransfer: boolean };
 export const competitiveCpuDeckLatestPackId: "dm4-god-cards";
 export const competitiveCpuDeck: readonly string[];
 export const competitiveCpuFusionDeck: readonly string[];

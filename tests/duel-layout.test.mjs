@@ -230,3 +230,11 @@ test("デュエル詳細は共通の正式なカード説明を使い、未対�
   assert.match(arena, /return card \? cardDescription\(card\) : ""/);
   assert.doesNotMatch(arena, /効果処理は次の更新で対応/);
 });
+
+test("ラーの効果選択中も確定でき、CPUと死者蘇生にも専用処理がある", () => {
+  assert.match(arena, /resolveGodTributeEffect\(\)[\s\S]+?duel\.turn !== "player"[\s\S]+?!\["main1", "main2"\]\.includes\(duel\.phase\)/);
+  assert.doesNotMatch(arena, /resolveGodTributeEffect\(\)[\s\S]{0,180}!isPlayerMainPhase/);
+  assert.match(arena, /function useCpuRaEffects/);
+  assert.match(arena, /state = useCpuRaEffects\(state\)/);
+  assert.match(arena, /taken\.cardId === "g4-03-ra" \? \{ godBaseAtk: 0, godBaseDef: 0 \}/);
+});

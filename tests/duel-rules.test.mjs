@@ -10,7 +10,7 @@ import { goddessWhimMultiplier, timeWizardCoinResult } from "../app/duel-rules.m
 import { canPayChainEnergy, chainEnergyCost } from "../app/duel-rules.mjs";
 import { blackPendantTriggerCounts } from "../app/duel-rules.mjs";
 import { monsterSentFromFieldToGrave } from "../app/duel-rules.mjs";
-import { isGodCard, raPointTransfer, raTributeStats, requiredTributes, sliferDivineStats } from "../app/duel-rules.mjs";
+import { cpuRaEffectPlan, isGodCard, raPointTransfer, raTributeStats, requiredTributes, sliferDivineStats } from "../app/duel-rules.mjs";
 
 test("遺言状の条件はフィールドから同じモンスターが墓地へ移った時だけ成立する", () => {
   assert.equal(monsterSentFromFieldToGrave(["a", "b"], ["b"], [], ["a"]), true);
@@ -820,6 +820,13 @@ test("三幻神は3体リリースで、固有能力値を計算する", () => {
   assert.deepEqual(sliferDivineStats(4), { atk: 4000, def: 4000 });
   assert.deepEqual(raTributeStats([{ atk: 1200, def: 800 }, { atk: 1800, def: 1600 }, { atk: 2500, def: 2100 }]), { atk: 5500, def: 4500 });
   assert.deepEqual(raPointTransfer(8000), { lifePoints: 1, attackBonus: 7999 });
+});
+
+test("CPUのラーは相手モンスターを焼き、勝ち切れる時だけLPを攻撃力へ移す", () => {
+  assert.deepEqual(cpuRaEffectPlan(8000, 0, 4000, 2), { usePhoenix: true, usePointTransfer: true });
+  assert.deepEqual(cpuRaEffectPlan(2000, 0, 4000, 0), { usePhoenix: false, usePointTransfer: false });
+  assert.deepEqual(cpuRaEffectPlan(1000, 4000, 3000, 1), { usePhoenix: false, usePointTransfer: true });
+  assert.deepEqual(cpuRaEffectPlan(1, 8000, 3000, 1), { usePhoenix: false, usePointTransfer: false });
 });
 
 test("強化CPUは天使の手鏡を実戦で確認できるよう対象を取る守備封じを採用する", () => {

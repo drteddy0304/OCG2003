@@ -1073,6 +1073,17 @@ export function raPointTransfer(lifePoints) {
   return { lifePoints: lifePoints - paid, attackBonus: paid };
 }
 
+export function cpuRaEffectPlan(lifePoints, currentAttack, opponentLifePoints, opponentMonsterCount) {
+  const usePhoenix = opponentMonsterCount > 0 && lifePoints > 1000;
+  const lifeAfterPhoenix = usePhoenix ? lifePoints - 1000 : lifePoints;
+  const transferBonus = Math.max(0, lifeAfterPhoenix - 1);
+  return {
+    usePhoenix,
+    usePointTransfer: lifeAfterPhoenix > 1
+      && currentAttack + transferBonus >= opponentLifePoints,
+  };
+}
+
 export const competitiveCpuDeckLatestPackId = "dm4-god-cards";
 
 export const competitiveCpuFusionDeck = Object.freeze([
