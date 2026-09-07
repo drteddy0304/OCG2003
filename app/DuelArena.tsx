@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { cardById, cards, type Card } from "./card-data";
 import { createCpuOpponents } from "./cpu-opponents";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -14,7 +14,7 @@ import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mj
 import { snatchStealStandbyGain } from "./duel-rules.mjs";
 import { curseOfFiendPosition } from "./duel-rules.mjs";
 import { blackPendantTriggerCounts, canPayChainEnergy, chainEnergyCost, monsterSentFromFieldToGrave } from "./duel-rules.mjs";
-import { isGodCard, raPointTransfer, raTributeStats, requiredTributes, sliferDivineStats } from "./duel-rules.mjs";
+import { isGodCard, raPointTransfer, raTributeStats, requiredTributes, ritualSummonDefinition, sliferDivineStats } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -238,6 +238,8 @@ type DuelState = {
   cpuSpellTrap: string[];
   cpuFieldSpell: string | null;
   cpuSwordsTurns: number[];
+  playerCrushVirusTurns: number;
+  cpuCrushVirusTurns: number;
   playerExtraBattles: number;
   cpuExtraBattles: number;
   playerGraveyard: string[];
@@ -285,7 +287,7 @@ type DuelState = {
 };
 
 const EQUIP_RULES = equipRules;
-const FIELD_SPELL_IDS = ["stb-forest", "stb-wasteland", "stb-mountain", "stb-sogen", "stb-umi", "stb-yami", "mr-chorus-sanctuary"];
+const FIELD_SPELL_IDS = ["stb-forest", "stb-wasteland", "stb-mountain", "stb-sogen", "stb-umi", "stb-yami", "mr-chorus-sanctuary", "ps-45", "ps-46", "ps-47", "ps-48", "ps-49", "ps-50"];
 
 export function DuelArena({
   collection,
@@ -334,6 +336,7 @@ export function DuelArena({
   const [pendingTemporaryStat, setPendingTemporaryStat] = useState<PendingTemporaryStat | null>(null);
   const [pendingSpellbindingCircle, setPendingSpellbindingCircle] = useState<number | null>(null);
   const [pendingAcidTrapHole, setPendingAcidTrapHole] = useState<number | null>(null);
+  const [pendingCrushVirus, setPendingCrushVirus] = useState<number | null>(null);
   const [pendingPainfulChoice, setPendingPainfulChoice] = useState<PendingPainfulChoice | null>(null);
   const [pendingDarknessApproaches, setPendingDarknessApproaches] = useState<PendingDarknessApproaches | null>(null);
   const [pendingTailor, setPendingTailor] = useState<PendingTailor | null>(null);
@@ -412,6 +415,7 @@ export function DuelArena({
     && pendingTemporaryStat === null
     && pendingSpellbindingCircle === null
     && pendingAcidTrapHole === null
+    && pendingCrushVirus === null
     && pendingPainfulChoice === null
     && pendingDarknessApproaches === null
     && pendingTailor === null
@@ -517,6 +521,7 @@ export function DuelArena({
     setPendingStopAttack(null);
     setPendingSpellbindingCircle(null);
     setPendingAcidTrapHole(null);
+    setPendingCrushVirus(null);
     setCpuPlayback(null);
     setFeedbackQueue([]);
     setActiveFeedback(null);
@@ -535,6 +540,8 @@ export function DuelArena({
       cpuSpellTrap: [],
       cpuFieldSpell: null,
       cpuSwordsTurns: [],
+      playerCrushVirusTurns: 0,
+      cpuCrushVirusTurns: 0,
       playerExtraBattles: 0,
       cpuExtraBattles: 0,
       playerGraveyard: [],
@@ -785,9 +792,10 @@ export function DuelArena({
     const curseOfFiendStandby = card.id === "mr-curse-fiend" && duel.phase === "standby";
     if (!isPlayerMainPhase && !curseOfFiendStandby) return;
     if (!canPayDuelChainEnergy(duel, "player")) return;
-    if (card.id === "pr99-skull-rider-ritual") {
-      const ritualIndex = duel.playerHand.findIndex((id, index) => id === "pr99-skull-rider" && index !== handIndex);
-      if (ritualIndex < 0 || ritualAvailableLevelTotal(duel, handIndex, ritualIndex) < 6) return;
+    const ritualDefinition = ritualSummonDefinition(card.id);
+    if (ritualDefinition) {
+      const ritualIndex = duel.playerHand.findIndex((id, index) => id === ritualDefinition.monsterId && index !== handIndex);
+      if (ritualIndex < 0 || ritualAvailableLevelTotal(duel, handIndex, ritualIndex) < ritualDefinition.level) return;
       setPendingRitual({ spellIndex: handIndex, ritualIndex, selected: [] });
       setSelectedAttacker(null);
       setSelectedEquip(null);
@@ -1407,6 +1415,39 @@ export function DuelArena({
     setPendingAcidTrapHole(null);
   }
 
+  function beginCrushVirus(trapIndex: number) {
+    if (!duel || !isPlayerMainPhase || areTrapEffectsNegated(duel) || duel.playerSpellTrap[trapIndex] !== "pr99-crush-card") return;
+    if (!duel.playerField.some((zone) => crushCardVirusEligibleTribute(cardById.get(zone.id), effectiveAtk(zone, duel, "player")))) return;
+    setPendingCrushVirus(trapIndex);
+    setSelectedAttacker(null);
+    setSelectedEquip(null);
+  }
+
+  function resolveCrushVirus(tributeIndex: number) {
+    if (!duel || pendingCrushVirus === null || duel.playerSpellTrap[pendingCrushVirus] !== "pr99-crush-card") return;
+    const tribute = duel.playerField[tributeIndex];
+    if (!tribute || !crushCardVirusEligibleTribute(cardById.get(tribute.id), effectiveAtk(tribute, duel, "player"))) return;
+    const destroyedField = duel.cpuField.filter((zone) => !isEffectTargetProtected(duel, "cpu", zone)
+      && crushCardVirusDestroys(cardById.get(zone.id), zone.faceDown ? cardById.get(zone.id)?.atk : effectiveAtk(zone, duel, "cpu")));
+    const destroyedHand = duel.cpuHand.filter((id) => crushCardVirusDestroys(cardById.get(id)));
+    const tributeName = cardById.get(tribute.id)?.name ?? "モンスター";
+    let resolved: DuelState = {
+      ...duel,
+      playerField: duel.playerField.filter((_, index) => index !== tributeIndex),
+      cpuField: duel.cpuField.filter((zone) => !destroyedField.includes(zone)),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap.filter((_, index) => index !== pendingCrushVirus), [tribute]),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, destroyedField),
+      cpuHand: duel.cpuHand.filter((id) => !destroyedHand.includes(id)),
+      playerGraveyard: [...duel.playerGraveyard, "pr99-crush-card", ...graveCards([tribute])],
+      cpuGraveyard: [...duel.cpuGraveyard, ...destroyedHand, ...graveCards(destroyedField)],
+      cpuCrushVirusTurns: 3,
+      log: appendLog(duel.log, `死のデッキ破壊ウイルスを発動。${tributeName}をリリースし、CPUの場・手札からATK1500以上を${destroyedField.length + destroyedHand.length}枚破壊。今後CPUの3ターンのドローも確認します。`),
+    };
+    resolved = applyDeckSearchTriggers(resolved, [tribute], destroyedField);
+    setDuel(resolved);
+    setPendingCrushVirus(null);
+  }
+
   function resolveTemporaryStat(side: Side, targetIndex: number) {
     if (!duel || !pendingTemporaryStat) return;
     const field = side === "player" ? duel.playerField : duel.cpuField;
@@ -1733,9 +1774,11 @@ export function DuelArena({
 
   function resolveSkullRiderRitual(position: Position) {
     if (!duel || !pendingRitual) return;
-    if (duel.playerHand[pendingRitual.spellIndex] !== "pr99-skull-rider-ritual" || duel.playerHand[pendingRitual.ritualIndex] !== "pr99-skull-rider") return;
+    const spellId = duel.playerHand[pendingRitual.spellIndex];
+    const ritualDefinition = ritualSummonDefinition(spellId);
+    if (!ritualDefinition || duel.playerHand[pendingRitual.ritualIndex] !== ritualDefinition.monsterId) return;
     const levels = pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0);
-    if (ritualMaterialLevelTotal(levels) < 6) return;
+    if (ritualMaterialLevelTotal(levels) < ritualDefinition.level) return;
     const handIndexes = new Set([
       pendingRitual.spellIndex,
       pendingRitual.ritualIndex,
@@ -1752,18 +1795,18 @@ export function DuelArena({
       playerHand: duel.playerHand.filter((_, index) => !handIndexes.has(index)),
       playerField: [
         ...duel.playerField.filter((_, index) => !fieldIndexes.has(index)),
-        { id: "pr99-skull-rider", position, faceDown: false, attacked: false, equipped: [], summonedTurn: duel.turnNumber, positionChanged: false },
+        { id: ritualDefinition.monsterId, position, faceDown: false, attacked: false, equipped: [], summonedTurn: duel.turnNumber, positionChanged: false },
       ],
       playerSpellTrap: discardEquips(duel.playerSpellTrap, playerMaterials),
       cpuSpellTrap: discardEquips(duel.cpuSpellTrap, returnedMaterials),
       playerGraveyard: [
         ...duel.playerGraveyard,
-        "pr99-skull-rider-ritual",
+        spellId,
         ...pendingRitual.selected.filter((choice) => choice.source === "hand").map((choice) => choice.id),
         ...graveCards(playerMaterials),
       ],
       cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(returnedMaterials)],
-      log: appendLog(paidState.log, `スカルライダーの復活を発動。素材のレベル合計${ritualMaterialLevelTotal(levels)}でスカルライダーを儀式召喚。`),
+      log: appendLog(paidState.log, `${cardById.get(spellId)?.name ?? "儀式魔法"}を発動。素材のレベル合計${ritualMaterialLevelTotal(levels)}で${cardById.get(ritualDefinition.monsterId)?.name ?? "儀式モンスター"}を儀式召喚。`),
     };
     next = applyDeckSearchTriggers(next, playerMaterials, returnedMaterials);
     next = applyMysteriousPuppeteerGain(next);
@@ -3916,7 +3959,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>15 DUELISTS · BUILD 149</strong>
+          <strong>15 DUELISTS · BUILD 150</strong>
           <p>バトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -4480,6 +4523,24 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingCrushVirus !== null && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">NORMAL TRAP</p>
+            <h2>死のデッキ破壊ウイルス</h2>
+            <p>リリースする闇属性・ATK1000以下の自分モンスターを選んでください。</p>
+            <div className="spell-target-list">
+              {duel.playerField.map((zone, index) => !crushCardVirusEligibleTribute(cardById.get(zone.id), effectiveAtk(zone, duel, "player")) ? null : (
+                <button key={`${zone.id}-${index}`} onClick={() => resolveCrushVirus(index)}>
+                  <strong>{cardById.get(zone.id)?.name}</strong>
+                  <small>ATK {effectiveAtk(zone, duel, "player")}・{zone.faceDown ? "裏側守備表示" : "表側表示"}</small>
+                </button>
+              ))}
+            </div>
+            <button className="secondary" onClick={() => setPendingCrushVirus(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {pendingTemporaryStat && (
         <div className="card-overlay spell-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -4931,6 +4992,9 @@ export function DuelArena({
         ) : null)}
         {isPlayerMainPhase && !areTrapEffectsNegated(duel) && duel.cpuField.some((zone) => zone.faceDown && !isEffectTargetProtected(duel, "cpu", zone)) && duel.playerSpellTrap.map((id, index) => id === "pr99-acid-trap-hole" ? (
           <button className="effect-action-button" key={`acid-trap-hole-${index}`} onClick={() => beginAcidTrapHole(index)}>硫酸のたまった落とし穴を発動する</button>
+        ) : null)}
+        {isPlayerMainPhase && !areTrapEffectsNegated(duel) && duel.playerField.some((zone) => crushCardVirusEligibleTribute(cardById.get(zone.id), effectiveAtk(zone, duel, "player"))) && duel.playerSpellTrap.map((id, index) => id === "pr99-crush-card" ? (
+          <button className="effect-action-button" key={`crush-virus-${index}`} onClick={() => beginCrushVirus(index)}>死のデッキ破壊ウイルスを発動する</button>
         ) : null)}
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
@@ -5394,8 +5458,8 @@ export function DuelArena({
         <div className="card-overlay">
           <article className="effect-choice-panel">
             <p className="section-label">RITUAL SUMMON</p>
-            <h2>スカルライダーの儀式召喚</h2>
-            <p>手札・フィールドからモンスターを選び、レベルの合計を6以上にしてください。</p>
+            <h2>{cardById.get(duel.playerHand[pendingRitual.ritualIndex])?.name}の儀式召喚</h2>
+            <p>手札・フィールドからモンスターを選び、レベルの合計を{ritualSummonDefinition(duel.playerHand[pendingRitual.spellIndex])?.level ?? 0}以上にしてください。</p>
             <p><strong>選択中のレベル合計：{ritualMaterialLevelTotal(pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0))}</strong></p>
             <h3>手札の素材</h3>
             <div className="target-list">
@@ -5425,8 +5489,8 @@ export function DuelArena({
               })}
             </div>
             <div className="overlay-actions">
-              <button disabled={ritualMaterialLevelTotal(pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0)) < 6 || duel.playerField.length - pendingRitual.selected.filter((choice) => choice.source === "field").length >= FIELD_LIMIT} onClick={() => resolveSkullRiderRitual("attack")}>攻撃表示で儀式召喚</button>
-              <button disabled={ritualMaterialLevelTotal(pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0)) < 6 || duel.playerField.length - pendingRitual.selected.filter((choice) => choice.source === "field").length >= FIELD_LIMIT} onClick={() => resolveSkullRiderRitual("defense")}>守備表示で儀式召喚</button>
+              <button disabled={ritualMaterialLevelTotal(pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0)) < (ritualSummonDefinition(duel.playerHand[pendingRitual.spellIndex])?.level ?? 99) || duel.playerField.length - pendingRitual.selected.filter((choice) => choice.source === "field").length >= FIELD_LIMIT} onClick={() => resolveSkullRiderRitual("attack")}>攻撃表示で儀式召喚</button>
+              <button disabled={ritualMaterialLevelTotal(pendingRitual.selected.map((choice) => cardById.get(choice.id)?.level ?? 0)) < (ritualSummonDefinition(duel.playerHand[pendingRitual.spellIndex])?.level ?? 99) || duel.playerField.length - pendingRitual.selected.filter((choice) => choice.source === "field").length >= FIELD_LIMIT} onClick={() => resolveSkullRiderRitual("defense")}>守備表示で儀式召喚</button>
             </div>
             <button onClick={() => setPendingRitual(null)}>キャンセル</button>
           </article>
@@ -5786,12 +5850,19 @@ function FieldRow({
 }
 
 function runCpuTurn(initial: DuelState): DuelState {
-  let state = { ...initial, log: appendLog(initial.log, "CPUが1枚ドロー。") };
+  let state = initial;
   if (state.cpuDeck.length === 0) return { ...state, result: "win" };
+  const drawnId = state.cpuDeck[0];
+  const virusDestroyed = state.cpuCrushVirusTurns > 0 && crushCardVirusDestroys(cardById.get(drawnId));
   state = {
     ...state,
-    cpuHand: [...state.cpuHand, state.cpuDeck[0]],
+    cpuHand: virusDestroyed ? state.cpuHand : [...state.cpuHand, drawnId],
     cpuDeck: state.cpuDeck.slice(1),
+    cpuGraveyard: virusDestroyed ? [...state.cpuGraveyard, drawnId] : state.cpuGraveyard,
+    cpuCrushVirusTurns: Math.max(0, state.cpuCrushVirusTurns - (state.cpuCrushVirusTurns > 0 ? 1 : 0)),
+    log: appendLog(state.log, virusDestroyed
+      ? `CPUが1枚ドロー。死のデッキ破壊ウイルスが${cardById.get(drawnId)?.name ?? "モンスター"}を破壊。`
+      : "CPUが1枚ドロー。"),
   };
   state = applySnatchStealStandby(state, "cpu");
   state = applyMatangoStandby(state, "cpu");
@@ -5806,7 +5877,9 @@ function runCpuTurn(initial: DuelState): DuelState {
 }
 
 function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
-  let state = useCpuCannonSoldierForLethal(initial);
+  let state = useCpuCrushVirus(initial);
+  if (state.pendingDeckSearch) return state;
+  state = useCpuCannonSoldierForLethal(state);
   if (state.result) return state;
   state = useCpuGateGuardian(state);
   state = useCpuMothEvolution(state);
@@ -5896,6 +5969,36 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     }
   }
   return finishCpuTurn(state);
+}
+
+function useCpuCrushVirus(initial: DuelState): DuelState {
+  if (areTrapEffectsNegated(initial)) return initial;
+  const trapIndex = initial.cpuSpellTrap.indexOf("pr99-crush-card");
+  if (trapIndex < 0) return initial;
+  const tributeIndex = initial.cpuField
+    .map((zone, index) => ({ zone, index }))
+    .filter(({ zone }) => crushCardVirusEligibleTribute(cardById.get(zone.id), effectiveAtk(zone, initial, "cpu")))
+    .sort((a, b) => effectiveAtk(a.zone, initial, "cpu") - effectiveAtk(b.zone, initial, "cpu"))[0]?.index;
+  if (tributeIndex === undefined) return initial;
+  const destroyedField = initial.playerField.filter((zone) => !isEffectTargetProtected(initial, "player", zone)
+    && crushCardVirusDestroys(cardById.get(zone.id), zone.faceDown ? cardById.get(zone.id)?.atk : effectiveAtk(zone, initial, "player")));
+  const destroyedHand = initial.playerHand.filter((id) => crushCardVirusDestroys(cardById.get(id)));
+  if (destroyedField.length + destroyedHand.length === 0) return initial;
+  const tribute = initial.cpuField[tributeIndex];
+  let next: DuelState = {
+    ...initial,
+    cpuField: initial.cpuField.filter((_, index) => index !== tributeIndex),
+    playerField: initial.playerField.filter((zone) => !destroyedField.includes(zone)),
+    cpuSpellTrap: discardEquips(initial.cpuSpellTrap.filter((_, index) => index !== trapIndex), [tribute]),
+    playerSpellTrap: discardEquips(initial.playerSpellTrap, destroyedField),
+    playerHand: initial.playerHand.filter((id) => !destroyedHand.includes(id)),
+    cpuGraveyard: [...initial.cpuGraveyard, "pr99-crush-card", ...graveCards([tribute])],
+    playerGraveyard: [...initial.playerGraveyard, ...destroyedHand, ...graveCards(destroyedField)],
+    playerCrushVirusTurns: 3,
+    log: appendLog(initial.log, `CPUが死のデッキ破壊ウイルスを発動。${cardById.get(tribute.id)?.name ?? "モンスター"}をリリースし、あなたの場・手札からATK1500以上を${destroyedField.length + destroyedHand.length}枚破壊。今後3ターンのドローも確認されます。`),
+  };
+  next = applyDeckSearchTriggers(next, destroyedField, [tribute]);
+  return next;
 }
 
 function useCpuGateGuardian(initial: DuelState): DuelState {
@@ -6451,16 +6554,22 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   if (state.playerDeck.length === 0) {
     return { ...state, result: "lose", log: appendLog(state.log, "デッキからカードを引けず敗北。") };
   }
+  const playerDrawId = state.playerDeck[0];
+  const playerDrawDestroyed = state.playerCrushVirusTurns > 0 && crushCardVirusDestroys(cardById.get(playerDrawId));
   let playerStart: DuelState = {
     ...state,
-    playerHand: [...state.playerHand, state.playerDeck[0]],
+    playerHand: playerDrawDestroyed ? state.playerHand : [...state.playerHand, playerDrawId],
     playerDeck: state.playerDeck.slice(1),
+    playerGraveyard: playerDrawDestroyed ? [...state.playerGraveyard, playerDrawId] : state.playerGraveyard,
+    playerCrushVirusTurns: Math.max(0, state.playerCrushVirusTurns - (state.playerCrushVirusTurns > 0 ? 1 : 0)),
     playerField: state.playerField.map((zone) => ({ ...zone, attacked: false, positionChanged: false })),
     turn: "player",
     turnNumber: state.turnNumber + 1,
     phase: "standby",
     normalSummoned: false,
-    log: appendLog(state.log, "あなたのターン。1枚ドロー。"),
+    log: appendLog(state.log, playerDrawDestroyed
+      ? `あなたのターン。1枚ドロー。死のデッキ破壊ウイルスが${cardById.get(playerDrawId)?.name ?? "モンスター"}を破壊。`
+      : "あなたのターン。1枚ドロー。"),
   };
   playerStart = applySnatchStealStandby(playerStart, "player");
   playerStart = applyMatangoStandby(playerStart, "player");
@@ -6472,17 +6581,22 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
 
 function cpuFieldSpellChoice(state: DuelState) {
   const fieldSpellIds = state.cpuHand.filter((id) => FIELD_SPELL_IDS.includes(id) && id !== state.cpuFieldSpell);
-  const cpuKinds = [
-    ...state.cpuField.filter((zone) => !zone.faceDown).map((zone) => cardById.get(zone.id)?.kind ?? ""),
+  const cpuMonsters = [
+    ...state.cpuField.filter((zone) => !zone.faceDown).map((zone) => cardById.get(zone.id)),
     ...state.cpuHand
       .map((id) => cardById.get(id))
-      .filter((card) => card?.cardType === "monster")
-      .map((card) => card?.kind ?? ""),
+      .filter((card) => card?.cardType === "monster"),
   ];
-  const opponentKinds = state.playerField
+  const opponentMonsters = state.playerField
     .filter((zone) => !zone.faceDown)
-    .map((zone) => cardById.get(zone.id)?.kind ?? "");
-  return bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds);
+    .map((zone) => cardById.get(zone.id));
+  return bestCpuFieldSpell(
+    fieldSpellIds,
+    cpuMonsters.map((card) => card?.kind ?? ""),
+    opponentMonsters.map((card) => card?.kind ?? ""),
+    cpuMonsters.map((card) => card?.attribute ?? ""),
+    opponentMonsters.map((card) => card?.attribute ?? ""),
+  );
 }
 
 function playCpuFieldSpell(initial: DuelState): DuelState {

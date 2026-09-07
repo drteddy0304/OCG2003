@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuDeckLatestPackId, competitiveCpuFusionDeck, continuousMonsterStats, darkCastleUndeadBoost, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
+import { advanceSwordsTurns, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonLarvaeMoth, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, catapultTurtleDamage, cockroachKnightReturns, competitiveCpuDeck, competitiveCpuDeckLatestPackId, competitiveCpuFusionDeck, continuousMonsterStats, crushCardVirusDestroys, crushCardVirusEligibleTribute, darkCastleUndeadBoost, deSpellDestroys, dimensionalWarriorBanishes, dopingPenalty, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, fieldSpellStatModifier, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMonsterRebornBlocked, isRaceDestructionTarget, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, ritualMaterialLevelTotal, ritualSummonDefinition, robbinGoblinCanTrigger, royalDecreeNegatesTraps, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, thunderDragonSearchIndexes, toggleLimitedSelection } from "../app/duel-rules.mjs";
 import { attackDeclarationPayment, resolveDelinquentDuo, resolveHandDisruption } from "../app/duel-rules.mjs";
 import { isMirrorForceDestructionTarget } from "../app/duel-rules.mjs";
 import { wormBeastReturns } from "../app/duel-rules.mjs";
@@ -715,6 +715,27 @@ test("フィールド魔法6種は対象種族を200強化し海と闇は対象�
 test("CPUは相手より自分への恩恵が大きいフィールド魔法だけを選ぶ", () => {
   assert.equal(bestCpuFieldSpell(["stb-mountain", "stb-umi"], ["ドラゴン族", "鳥獣族"], ["戦士族"]), "stb-mountain");
   assert.equal(bestCpuFieldSpell(["stb-mountain"], ["戦士族"], ["ドラゴン族"]), null);
+});
+
+test("ファラオのしもべの属性フィールド魔法は該当属性のATKを500上げDEFを400下げる", () => {
+  assert.equal(fieldSpellStatModifier("戦士族", ["ps-45"], "地"), 500);
+  assert.equal(fieldSpellStatModifier("戦士族", ["ps-45"], "地", "def"), -400);
+  assert.equal(fieldSpellStatModifier("戦士族", ["ps-45"], "風"), 0);
+  assert.equal(fieldSpellStatModifier("水族", ["ps-46"], "水"), 500);
+  assert.deepEqual(continuousMonsterStats({ id: "target", kind: "戦士族", attribute: "地", atk: 1000, def: 1000, fieldSpellIds: ["ps-45"] }), { atk: 1500, def: 600 });
+});
+
+test("死のデッキ破壊ウイルスは闇属性ATK1000以下をコストにしATK1500以上を破壊する", () => {
+  assert.equal(crushCardVirusEligibleTribute({ cardType: "monster", attribute: "闇", atk: 1000 }), true);
+  assert.equal(crushCardVirusEligibleTribute({ cardType: "monster", attribute: "光", atk: 500 }), false);
+  assert.equal(crushCardVirusDestroys({ cardType: "monster", atk: 1500 }), true);
+  assert.equal(crushCardVirusDestroys({ cardType: "monster", atk: 1499 }), false);
+});
+
+test("儀式魔法から2000年7月の儀式モンスターと必要レベルを特定できる", () => {
+  assert.deepEqual(ritualSummonDefinition("ps-11"), { monsterId: "ps-16", level: 6 });
+  assert.deepEqual(ritualSummonDefinition("ps-12"), { monsterId: "ps-17", level: 6 });
+  assert.deepEqual(ritualSummonDefinition("ps-15"), { monsterId: "ps-18", level: 8 });
 });
 
 test("Vol.4の種族破壊魔法5枚を判定し、CPUは相手の損失が大きい時だけ使う", () => {

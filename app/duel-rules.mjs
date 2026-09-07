@@ -758,21 +758,50 @@ const fieldSpellRaceEffects = Object.freeze({
   "stb-yami": { boost: ["魔法使い族", "悪魔族"], weaken: ["天使族"] },
 });
 
-export function fieldSpellStatModifier(kind, fieldSpellIds = []) {
+const fieldSpellAttributeEffects = Object.freeze({
+  "ps-45": "地",
+  "ps-46": "水",
+  "ps-47": "炎",
+  "ps-48": "風",
+  "ps-49": "光",
+  "ps-50": "闇",
+});
+
+export function fieldSpellStatModifier(kind, fieldSpellIds = [], attribute = "", stat = "atk") {
   return fieldSpellIds.reduce((modifier, id) => {
     const effect = fieldSpellRaceEffects[id];
     if (effect?.boost.includes(kind)) return modifier + 200;
     if (effect?.weaken.includes(kind)) return modifier - 200;
+    const boostedAttribute = fieldSpellAttributeEffects[id];
+    if (boostedAttribute && boostedAttribute === attribute) return modifier + (stat === "def" ? -400 : 500);
     return modifier;
   }, 0);
 }
 
-export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds) {
+export function crushCardVirusEligibleTribute(card, currentAtk = card?.atk ?? 0) {
+  return Boolean(card?.cardType === "monster" && card.attribute === "闇" && currentAtk <= 1000);
+}
+
+export function crushCardVirusDestroys(card, currentAtk = card?.atk ?? 0) {
+  return Boolean(card?.cardType === "monster" && currentAtk >= 1500);
+}
+
+export function ritualSummonDefinition(spellId) {
+  const rituals = {
+    "pr99-skull-rider-ritual": { monsterId: "pr99-skull-rider", level: 6 },
+    "ps-11": { monsterId: "ps-16", level: 6 },
+    "ps-12": { monsterId: "ps-17", level: 6 },
+    "ps-15": { monsterId: "ps-18", level: 8 },
+  };
+  return rituals[spellId] ?? null;
+}
+
+export function bestCpuFieldSpell(fieldSpellIds, cpuKinds, opponentKinds, cpuAttributes = [], opponentAttributes = []) {
   return fieldSpellIds
     .map((id) => ({
       id,
-      score: cpuKinds.reduce((sum, kind) => sum + fieldSpellStatModifier(kind, [id]), 0)
-        - opponentKinds.reduce((sum, kind) => sum + fieldSpellStatModifier(kind, [id]), 0),
+      score: cpuKinds.reduce((sum, kind, index) => sum + fieldSpellStatModifier(kind, [id], cpuAttributes[index] ?? ""), 0)
+        - opponentKinds.reduce((sum, kind, index) => sum + fieldSpellStatModifier(kind, [id], opponentAttributes[index] ?? ""), 0),
     }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)[0]?.id ?? null;
@@ -812,9 +841,8 @@ export function continuousMonsterStats({ id, attribute, kind = "", position = "a
     if (aura?.boost === attribute) nextAtk += 500;
     if (aura?.weaken === attribute) nextAtk -= 400;
   });
-  const fieldModifier = fieldSpellStatModifier(kind, fieldSpellIds);
-  nextAtk += fieldModifier;
-  nextDef += fieldModifier;
+  nextAtk += fieldSpellStatModifier(kind, fieldSpellIds, attribute, "atk");
+  nextDef += fieldSpellStatModifier(kind, fieldSpellIds, attribute, "def");
   if (position === "defense" && fieldSpellIds.includes("mr-chorus-sanctuary")) nextDef += 500;
   return { atk: Math.max(0, nextAtk), def: Math.max(0, nextDef) };
 }

@@ -160,9 +160,12 @@ export function continuousMonsterStats(input: {
   fieldSpellIds?: string[];
 }): { atk: number; def: number };
 
-export function fieldSpellStatModifier(kind: string, fieldSpellIds?: string[]): number;
+export function fieldSpellStatModifier(kind: string, fieldSpellIds?: string[], attribute?: string, stat?: "atk" | "def"): number;
+export function crushCardVirusEligibleTribute(card?: { cardType: "monster" | "spell" | "trap"; attribute?: string; atk?: number }, currentAtk?: number): boolean;
+export function crushCardVirusDestroys(card?: { cardType: "monster" | "spell" | "trap"; atk?: number }, currentAtk?: number): boolean;
+export function ritualSummonDefinition(spellId: string): { monsterId: string; level: number } | null;
 export function wormBeastReturns(id: string, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
-export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[]): string | null;
+export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[], cpuAttributes?: string[], opponentAttributes?: string[]): string | null;
 export function monsterSentFromFieldToGrave(previousFieldIds: string[], nextFieldIds: string[], previousGraveIds: string[], nextGraveIds: string[]): boolean;
 
 export function canDeckSearchTarget(sourceId: string, target?: {
