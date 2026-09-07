@@ -811,9 +811,11 @@ test("1999プロモの装備魔法と羽根帚への専用罠を判定する", (
   assert.equal(equipRules["pr99-cyber-bondage"], "ハーピィ");
   assert.equal(equipRules["pr99-salamandra"], "炎属性");
   assert.equal(equipRules["pr99-shine-palace"], "光属性");
+  assert.equal(equipRules["pr99-kunai-chain"], "全モンスター");
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["pr99-insect-armor"]), { atk: 1700, def: 1000 });
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["pr99-cyber-bondage"]), { atk: 1500, def: 1000 });
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["pr99-salamandra", "pr99-shine-palace"]), { atk: 2400, def: 1000 });
+  assert.deepEqual(equippedMonsterStats(1000, 1000, ["pr99-kunai-chain"]), { atk: 1500, def: 1000 });
   assert.equal(spellSpecificTrapResponse(["bo7-griffin-wing"], "pr99-feather-duster"), "bo7-griffin-wing");
 });
 

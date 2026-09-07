@@ -68,6 +68,7 @@ export const equipRules = Object.freeze({
   "pr99-cyber-bondage": "ハーピィ",
   "pr99-salamandra": "炎属性",
   "pr99-shine-palace": "光属性",
+  "pr99-kunai-chain": "全モンスター",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -709,7 +710,7 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
     if (id === "mr-horn-light") return { atk: result.atk, def: result.def + 800 };
     if (id === "mr-malevolent-nuzzler") return { atk: result.atk + 700, def: result.def };
     if (id === "pr99-insect-armor" || id === "pr99-salamandra" || id === "pr99-shine-palace") return { atk: result.atk + 700, def: result.def };
-    if (id === "pr99-cyber-bondage") return { atk: result.atk + 500, def: result.def };
+    if (id === "pr99-cyber-bondage" || id === "pr99-kunai-chain") return { atk: result.atk + 500, def: result.def };
     if (id.startsWith("bo2-")) return { atk: result.atk + 400, def: result.def - 200 };
     return { atk: result.atk + 300, def: result.def + 300 };
   }, { atk: 0, def: 0 });
