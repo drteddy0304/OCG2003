@@ -655,10 +655,11 @@ export function DuelArena({
     nextField.push({
       id,
       position: summonPosition,
-      faceDown: special ? false : position === "defense",
+      faceDown: special ? false : position === "defense" && !isLightOfInterventionActive(duel),
       attacked: false,
       equipped: [],
       summonedTurn: duel.turnNumber,
+      ...(position === "defense" && isLightOfInterventionActive(duel) ? { faceUpTurn: duel.turnNumber } : {}),
       positionChanged: false,
       ...(raStats ? { godBaseAtk: raStats.atk, godBaseDef: raStats.def } : {}),
     });
@@ -674,7 +675,7 @@ export function DuelArena({
       normalSummoned: special ? duel.normalSummoned : true,
       log: appendLog(duel.log, special
         ? `${card.name}を${summonPosition === "attack" ? "攻撃" : "守備"}表示で特殊召喚。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`
-        : `${card.name}を${position === "attack" ? lockedByJar ? "召喚し、封印の壺で守備表示" : "攻撃表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
+        : `${card.name}を${position === "attack" ? lockedByJar ? "召喚し、封印の壺で守備表示" : "攻撃表示で召喚" : isLightOfInterventionActive(duel) ? "表側守備表示で召喚" : "裏側守備表示でセット"}。${tributeNames.length ? `（${tributeNames.join("、")}をリリース）` : ""}`),
     };
     if (duelChainEnergyCost(duel) > 0) {
       nextState.log = appendLog(nextState.log, `魔力の枷によりプレイヤーが${duelChainEnergyCost(duel)}LPを支払った。`);
@@ -2798,7 +2799,7 @@ export function DuelArena({
       });
       return;
     }
-    if (card.id === "bo5-royal-decree" || card.id === "bo6-magic-thorn") {
+    if (["bo5-royal-decree", "bo6-magic-thorn", "ca-10", "ca-31", "ca-32"].includes(card.id)) {
       const next = removeHandCard(duel, handIndex);
       setDuel({
         ...next,
@@ -4119,7 +4120,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>15 DUELISTS · BUILD 158</strong>
+          <strong>15 DUELISTS · BUILD 159</strong>
           <p>バトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -5027,15 +5028,15 @@ export function DuelArena({
           <span>CPU HAND</span><b>{duel.cpuHand.length}</b><span>DECK</span><b>{duel.cpuDeck.length}</b>
           <button className="grave-button" onClick={() => setGraveyardView("cpu")}>CPU墓地 {duel.cpuGraveyard.length}</button>
         </div>
-        {ceremonyBellRevealsHands([...duel.playerField, ...duel.cpuField].filter((zone) => !zone.faceDown).map((zone) => zone.id)) && (
-          <div className="effect-status enemy-effect-status">セレモニーベル：CPU手札 {duel.cpuHand.map((id) => cardById.get(id)?.name ?? id).join("／") || "なし"}</div>
+        {isCpuHandRevealed(duel) && (
+          <div className="effect-status enemy-effect-status">公開中：CPU手札 {duel.cpuHand.map((id) => cardById.get(id)?.name ?? id).join("／") || "なし"}</div>
         )}
         <div className="spell-trap-row cpu-spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
             <div className={duel.cpuSpellTrap[index] ? "set-card" : "empty-zone"} key={index}>
               {duel.cpuSpellTrap[index]
-                ? cardById.get(duel.cpuSpellTrap[index])?.cardType === "trap"
-                  ? "SET"
+                  ? cardById.get(duel.cpuSpellTrap[index])?.cardType === "trap"
+                    ? duel.cpuActiveTraps.includes(duel.cpuSpellTrap[index]) ? cardById.get(duel.cpuSpellTrap[index])?.name : "SET"
                   : cardById.get(duel.cpuSpellTrap[index])?.name
                 : "MAGIC / TRAP"}
             </div>
@@ -6087,6 +6088,8 @@ function runCpuTurn(initial: DuelState): DuelState {
       : "CPUが1枚ドロー。"),
   };
   if (!virusDestroyed) state = resolveParasiteDraw(state, "cpu", drawnId);
+  state = activateCpuContinuousTraps(state);
+  state = applyEyeOfTruthStandby(state, "cpu");
   state = applySnatchStealStandby(state, "cpu");
   state = applyMessengerStandby(state, "cpu");
   state = applyMatangoStandby(state, "cpu");
@@ -6161,10 +6164,11 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     nextField.push({
       id: summonChoice.card.id,
       position: defensive ? "defense" : "attack",
-      faceDown: defensive,
+      faceDown: defensive && !isLightOfInterventionActive(state),
       attacked: true,
       equipped: [],
       summonedTurn: state.turnNumber,
+      ...(defensive && isLightOfInterventionActive(state) ? { faceUpTurn: state.turnNumber } : {}),
       positionChanged: false,
       ...(raStats ? { godBaseAtk: raStats.atk, godBaseDef: raStats.def } : {}),
     });
@@ -6178,11 +6182,11 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
       log: appendLog(
         paidState.log,
         defensive
-          ? "CPUがモンスターをセット。"
+          ? isLightOfInterventionActive(state) ? `CPUが${summonChoice.card.name}を表側守備表示で召喚。` : "CPUがモンスターをセット。"
           : `CPUが${summonChoice.card.name}を召喚。`,
       ),
     };
-    if (!defensive) state = applyMysteriousPuppeteerGain(state);
+    if (!defensive || isLightOfInterventionActive(state)) state = applyMysteriousPuppeteerGain(state);
     state = applyDeckSearchTriggers(state, [], tributedZones);
     state = applySliferSummonThunder(state, "cpu", state.cpuField.length - 1);
     const summonedSurvived = state.cpuField.some((zone) => zone.id === summonChoice.card.id && zone.summonedTurn === state.turnNumber);
@@ -6707,6 +6711,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     state = useCpuBarrelDragon(state);
     if (state.result || state.pendingDeckSearch) return state;
     state = setCpuTrapAndEquips(state);
+    state = activateCpuContinuousTraps(state);
     state = {
       ...state,
       cpuField: state.cpuField.map((zone) => ({ ...zone, attacked: false })),
@@ -6865,6 +6870,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       : "あなたのターン。1枚ドロー。"),
   };
   if (!playerDrawDestroyed) playerStart = resolveParasiteDraw(playerStart, "player", playerDrawId);
+  playerStart = applyEyeOfTruthStandby(playerStart, "player");
   playerStart = applySnatchStealStandby(playerStart, "player");
   playerStart = applyMessengerStandby(playerStart, "player");
   playerStart = applyMatangoStandby(playerStart, "player");
@@ -7517,6 +7523,15 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     };
   }
 
+  for (const trapId of ["ca-10", "ca-31", "ca-32"]) {
+    if (state.cpuSpellTrap.length >= FIELD_LIMIT || !state.cpuHand.includes(trapId) || !canPayDuelChainEnergy(state, "cpu")) continue;
+    state = {
+      ...removeCpuHandCard(state, trapId),
+      cpuSpellTrap: [...state.cpuSpellTrap, trapId],
+      log: appendLog(state.log, "CPUが永続罠カードを1枚セット。"),
+    };
+  }
+
   while (state.cpuSpellTrap.length < FIELD_LIMIT && canPayDuelChainEnergy(state, "cpu")) {
     const choice = state.cpuHand
       .map((id) => cardById.get(id))
@@ -7885,6 +7900,53 @@ function areTrapEffectsNegated(state: DuelState): boolean {
   const faceUp = (field: ZoneCard[]) => field.filter((zone) => !zone.faceDown).map((zone) => zone.id);
   return royalDecreeNegatesTraps(state.playerActiveTraps, state.cpuActiveTraps)
     || jinzoNegatesTraps(faceUp(state.playerField), faceUp(state.cpuField));
+}
+
+function isLightOfInterventionActive(state: DuelState): boolean {
+  return !areTrapEffectsNegated(state)
+    && [...state.playerActiveTraps, ...state.cpuActiveTraps].includes("ca-31");
+}
+
+function isCpuHandRevealed(state: DuelState): boolean {
+  const faceUpMonsters = [...state.playerField, ...state.cpuField]
+    .filter((zone) => !zone.faceDown)
+    .map((zone) => zone.id);
+  if (ceremonyBellRevealsHands(faceUpMonsters)) return true;
+  if (areTrapEffectsNegated(state)) return false;
+  return state.playerActiveTraps.includes("ca-10")
+    || state.playerActiveTraps.includes("ca-32")
+    || state.cpuActiveTraps.includes("ca-32");
+}
+
+function activateCpuContinuousTraps(state: DuelState): DuelState {
+  if (areTrapEffectsNegated(state)) return state;
+  const activating = state.cpuSpellTrap.filter((id) => ["ca-10", "ca-31", "ca-32"].includes(id));
+  const nextActive = [...new Set([...state.cpuActiveTraps, ...activating])];
+  if (nextActive.length === state.cpuActiveTraps.length) return state;
+  const names = activating
+    .filter((id) => !state.cpuActiveTraps.includes(id))
+    .map((id) => cardById.get(id)?.name ?? id);
+  return {
+    ...state,
+    cpuActiveTraps: nextActive,
+    log: appendLog(state.log, `CPUが${names.join("、")}を発動。`),
+  };
+}
+
+function applyEyeOfTruthStandby(state: DuelState, standbySide: Side): DuelState {
+  if (areTrapEffectsNegated(state)) return state;
+  const opposingActiveTraps = standbySide === "player" ? state.cpuActiveTraps : state.playerActiveTraps;
+  const copies = opposingActiveTraps.filter((id) => id === "ca-10").length;
+  if (copies === 0) return state;
+  const hand = standbySide === "player" ? state.playerHand : state.cpuHand;
+  if (!hand.some((id) => cardById.get(id)?.cardType === "spell")) return state;
+  const gain = copies * 1000;
+  const lifeKey = standbySide === "player" ? "playerLp" : "cpuLp";
+  return {
+    ...state,
+    [lifeKey]: state[lifeKey] + gain,
+    log: appendLog(state.log, `真実の眼の効果で${standbySide === "player" ? "あなた" : "CPU"}が${gain}LP回復。`),
+  } as DuelState;
 }
 
 function isEffectTargetProtected(state: DuelState, side: Side, zone: ZoneCard): boolean {
@@ -9394,7 +9456,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "ca-06" || id === "ca-09" || id === "ca-30" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
+  return id === "ca-06" || id === "ca-09" || id === "ca-10" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {

@@ -152,14 +152,14 @@ const definitions: OpponentDefinition[] = [
     ace: "罠カード連鎖", strategy: "多数の罠で召喚・攻撃・魔法を止め、反撃の隙を作る。",
     featured: ["vol4-mask-darkness", "vol4-mask-darkness", "vol3-giant-soldier-stone", "bo2-stone-ghost", "vol3-reaper-cards"],
     kinds: ["岩石族", "悪魔族", "魔法使い族"], attributes: ["地", "闇"],
-    support: ["vol6-solemn-judgment", "vol6-magic-jammer", "vol6-seven-tools", "vol6-horn-heaven", "vol7-mirror-force", "vol1-trap-hole", "pr99-acid-trap-hole", "stb-two-pronged-attack", "ex-040", "mr-snake-fang"],
+    support: ["ca-10", "vol6-solemn-judgment", "vol6-magic-jammer", "vol6-seven-tools", "vol6-horn-heaven", "vol7-mirror-force", "vol1-trap-hole", "pr99-acid-trap-hole", "stb-two-pronged-attack", "ex-040", "mr-snake-fang"],
   },
   {
     id: "ishizu-ishtar", name: "イシズ・イシュタール", title: "未来を見通す守護者", mark: "命", difficulty: 5,
     ace: "聖なる魔術師／ホーリー・エルフ", strategy: "高守備の光属性と墓地操作で耐え、確実な反撃を狙う。",
     featured: ["vol4-magician-faith", "vol4-magician-faith", "vol2-holy-elf", "vol2-spirit-harp", "vol6-witch-black-forest", "pr99-goddess-whim"],
     kinds: ["天使族", "魔法使い族"], attributes: ["光"],
-    support: ["mr-chorus-sanctuary", "vol5-soul-release", "mr-painful-choice", "bo4-graceful-charity", "mr-fairys-hand-mirror"],
+    support: ["ca-31", "ca-32", "mr-chorus-sanctuary", "vol5-soul-release", "mr-painful-choice", "bo4-graceful-charity", "mr-fairys-hand-mirror"],
   },
   {
     id: "yami-marik", name: "闇マリク", title: "闇のゲームの支配者", mark: "闇", difficulty: 5,

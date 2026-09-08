@@ -57,9 +57,20 @@ test("寄生虫パラサイドと3種類の罠は対戦画面へ接続される"
   assert.match(arena, /停戦協定を発動する/);
 });
 
+test("真実の眼・聖なる輝き・正々堂々は永続罠として対戦へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /isCpuHandRevealed/);
+  assert.match(arena, /applyEyeOfTruthStandby/);
+  assert.match(arena, /isLightOfInterventionActive/);
+  assert.match(arena, /"ca-10", "ca-31", "ca-32"/);
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-10"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-31"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-32"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-51"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-03"), false);
 });

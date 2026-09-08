@@ -71,3 +71,10 @@ test("今後追加されるテーマカードもデュエリストのデッキ�
   assert.ok(mai.deck.includes("future-harpie-support"));
   assert.equal(mai.deck.length, 40);
 });
+
+test("Curse of Anubisの永続罠をリシドとイシズが使用する", () => {
+  const deck = (id) => opponents.find((entry) => entry.id === id).deck;
+  assert.ok(deck("odion").includes("ca-10"));
+  assert.ok(deck("ishizu-ishtar").includes("ca-31"));
+  assert.ok(deck("ishizu-ishtar").includes("ca-32"));
+});
