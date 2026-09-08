@@ -7,7 +7,7 @@ let bgmTimer: number | null = null;
 let bgmNextStart = 0;
 const bgmSources = new Set<OscillatorNode | AudioBufferSourceNode>();
 
-export type DuelBgmThemeId = "yami-yugi" | "seto-kaiba" | "joey-wheeler" | "mai-valentine" | "weevil-underwood" | "rex-raptor" | "mako-tsunami" | "espa-roba" | "arkana" | "yami-bakura" | "strings" | "lumis-umbra" | "odion" | "ishizu-ishtar" | "yami-marik";
+export type DuelBgmThemeId = "yami-yugi" | "seto-kaiba" | "joey-wheeler" | "mai-valentine" | "weevil-underwood" | "rex-raptor" | "mako-tsunami" | "espa-roba" | "arkana" | "yami-bakura" | "strings" | "lumis-umbra" | "odion" | "ishizu-ishtar" | "yami-marik" | "pegasus" | "bandit-keith";
 
 type DuelBgmTheme = {
   title: string;
@@ -20,7 +20,7 @@ type DuelBgmTheme = {
   groove: 0 | 1 | 2;
 };
 
-// 既存作品の旋律は使わず、キャラクターの戦い方を音色・速度・和声で表現した15曲。
+// 既存作品の旋律は使わず、キャラクターの戦い方を音色・速度・和声で表現した17曲。
 export const DUEL_BGM_THEMES: Record<DuelBgmThemeId, DuelBgmTheme> = {
   "yami-yugi": { title: "王の逆転劇", bpm: 152, root: 57, minor: true, lead: "square", motif: [0, null, 3, 7, 10, 7, 12, null, 10, 7, 3, 5, 7, null, 2, null], progression: [0, -2, -5, -3], groove: 1 },
   "seto-kaiba": { title: "蒼眼オーバードライブ", bpm: 170, root: 59, minor: true, lead: "sawtooth", motif: [0, 12, 7, 15, 14, 10, 7, null, 3, 7, 10, 15, 14, 12, 7, 10], progression: [0, -5, -2, 2], groove: 2 },
@@ -37,6 +37,8 @@ export const DUEL_BGM_THEMES: Record<DuelBgmThemeId, DuelBgmTheme> = {
   odion: { title: "トラップ・テンプル", bpm: 136, root: 53, minor: true, lead: "sawtooth", motif: [0, null, 3, 5, 7, null, 6, 3, 0, 1, 3, null, 10, 7, 5, null], progression: [0, -5, 1, -2], groove: 0 },
   "ishizu-ishtar": { title: "未来の記憶", bpm: 130, root: 57, minor: false, lead: "triangle", motif: [0, 2, 4, null, 9, 7, 4, null, 2, 4, 7, 11, 9, 7, 4, 2], progression: [0, 2, -3, -5], groove: 1 },
   "yami-marik": { title: "太陽神マッドネス", bpm: 178, root: 55, minor: true, lead: "sawtooth", motif: [0, 12, 6, 13, 7, 15, 10, 14, 12, 7, 6, 3, 1, 0, -1, -5], progression: [0, 1, 6, -2], groove: 2 },
+  pegasus: { title: "トゥーン・マスカレード", bpm: 146, root: 60, minor: false, lead: "triangle", motif: [0, 4, 7, 11, 12, 9, 7, 4, 2, 6, 9, 14, 12, 11, 7, null], progression: [0, 4, -3, 2], groove: 1 },
+  "bandit-keith": { title: "メタル・ギャンブラー", bpm: 168, root: 52, minor: true, lead: "sawtooth", motif: [0, 7, 0, 10, 3, 12, 7, 15, 12, 10, 7, 3, 0, -2, 0, null], progression: [0, -5, 3, -2], groove: 2 },
 };
 
 let activeBgmTheme: DuelBgmThemeId | null = null;

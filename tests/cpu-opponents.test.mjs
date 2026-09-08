@@ -39,9 +39,9 @@ const moduleUrl = `data:text/javascript;base64,${Buffer.from(javascript).toStrin
 const { createCpuOpponents } = await import(moduleUrl);
 const opponents = createCpuOpponents([...cardsById.values()]);
 
-test("15人のCPUが重複3枚以内の40枚デッキを使う", () => {
-  assert.equal(opponents.length, 15);
-  assert.equal(new Set(opponents.map((entry) => entry.id)).size, 15);
+test("17人のCPUが重複3枚以内の40枚デッキを使う", () => {
+  assert.equal(opponents.length, 17);
+  assert.equal(new Set(opponents.map((entry) => entry.id)).size, 17);
   for (const opponent of opponents) {
     assert.equal(opponent.deck.length, 40, opponent.name);
     const counts = opponent.deck.reduce((result, id) => result.set(id, (result.get(id) ?? 0) + 1), new Map());
@@ -59,6 +59,10 @@ test("原作の切り札を対応するキャラクターが使用する", () =>
   assert.ok(deck("mai-valentine").includes("vol4-harpie-lady"));
   assert.ok(deck("weevil-underwood").includes("pr99-perfect-moth"));
   assert.ok(deck("yami-marik").includes("g4-03-ra"));
+  assert.ok(deck("pegasus").includes("ps-00"));
+  assert.ok(deck("pegasus").includes("ps-25"));
+  assert.ok(deck("bandit-keith").includes("vol7-barrel-dragon"));
+  assert.ok(deck("bandit-keith").includes("mr-slot-machine"));
 });
 
 test("今後追加されるテーマカードもデュエリストのデッキへ自動採用する", () => {

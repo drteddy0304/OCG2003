@@ -55,6 +55,8 @@ const themeKeywords: Record<string, string[]> = {
   odion: ["罠", "神殿", "アポピス"],
   "ishizu-ishtar": ["墓守", "天使", "聖なる", "墓地"],
   "yami-marik": ["ラー", "拷問", "溶岩", "闇"],
+  pegasus: ["トゥーン", "サクリファイス", "幻想", "アイズ"],
+  "bandit-keith": ["機械", "リボルバー", "ランチャー", "スロット", "拷問機械"],
 };
 
 const rarityScore = { SE: 5, UR: 4, SR: 3, R: 2, N: 1 } as const;
@@ -167,6 +169,20 @@ const definitions: OpponentDefinition[] = [
     featured: ["g4-03-ra", "vol7-dark-elf", "vol7-dark-elf", "vol4-summoned-skull", "vol3-man-eater-bug", "vol6-cannon-soldier"],
     kinds: ["悪魔族", "魔法使い族"], attributes: ["闇"],
     support: ["vol7-tremendous-fire", "bo5-just-desserts", "bo6-magic-thorn", "mr-chain-energy", "mr-delinquent-duo", "mr-confiscation"],
+  },
+  {
+    id: "pegasus", name: "ペガサス・J・クロフォード", title: "トゥーンを操る決闘王国の主", mark: "眼", difficulty: 5,
+    ace: "ブルーアイズ・トゥーン・ドラゴン／トゥーン・デーモン", strategy: "トゥーン・ワールドを軸に、直接攻撃と手札妨害で相手の計算を崩す。",
+    featured: ["ps-00", "ps-20", "ps-21", "ps-21", "ps-22", "ps-22", "vol7-toon-alligator"],
+    kinds: ["魔法使い族", "悪魔族", "ドラゴン族"],
+    support: ["ps-25", "ps-25", "mr-confiscation", "mr-forceful-sentry", "vol2-swords-revealing-light", "mr-spellbinding-circle"],
+  },
+  {
+    id: "bandit-keith", name: "バンデット・キース", title: "全米王者の機械デュエリスト", mark: "銃", difficulty: 5,
+    ace: "リボルバー・ドラゴン／スロットマシーンAM－７", strategy: "高守備の機械族で耐え、コイントス除去と大型機械で盤面を制圧する。",
+    featured: ["vol7-barrel-dragon", "vol7-barrel-dragon", "mr-slot-machine", "vol7-launcher-spider", "vol7-pendulum-machine", "bo5-machine-king", "vol6-cannon-soldier"],
+    kinds: ["機械族"], attributes: ["闇"],
+    support: ["vol2-machine-conversion-factory", "vol4-acid-storm", "pr99-kunai-chain", "vol1-trap-hole", "vol7-mirror-force"],
   },
 ];
 

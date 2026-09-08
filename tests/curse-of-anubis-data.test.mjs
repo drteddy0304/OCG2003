@@ -65,12 +65,22 @@ test("真実の眼・聖なる輝き・正々堂々は永続罠として対戦�
   assert.match(arena, /"ca-10", "ca-31", "ca-32"/);
 });
 
+test("抹殺の使徒と撲滅の使徒は対象選択と同名カード除外へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /card\.id === "ca-35"/);
+  assert.match(arena, /card\.id === "ca-36"/);
+  assert.match(arena, /resolveCurseRemoval/);
+  assert.match(arena, /リバースモンスターだったため/);
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-10"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-31"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-32"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-35"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-36"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-51"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-03"), false);
 });

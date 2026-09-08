@@ -176,6 +176,7 @@ type PendingFusion = {
   selected: FusionMaterialSelection[];
 };
 type PendingDragonFlute = { spellIndex: number; selected: number[] };
+type PendingCurseRemoval = { spellIndex: number; kind: "monster" | "spell-trap" };
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
 type ZoneCard = {
@@ -345,6 +346,7 @@ export function DuelArena({
   const [pendingTailor, setPendingTailor] = useState<PendingTailor | null>(null);
   const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
   const [pendingStopAttack, setPendingStopAttack] = useState<number | null>(null);
+  const [pendingCurseRemoval, setPendingCurseRemoval] = useState<PendingCurseRemoval | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -396,6 +398,7 @@ export function DuelArena({
     && !duel.pendingDeckSearch
     && pendingTributeToDoomed === null
     && pendingSoulRelease === null
+    && pendingCurseRemoval === null
     && pendingCheerfulCoffin === null
     && pendingFusion === null
     && pendingRitual === null
@@ -503,6 +506,7 @@ export function DuelArena({
     setPendingEgotist(null);
     setPendingTributeToDoomed(null);
     setPendingSoulRelease(null);
+    setPendingCurseRemoval(null);
     setPendingCheerfulCoffin(null);
     setPendingFusion(null);
     setPendingLastWill(null);
@@ -830,7 +834,7 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingLastWill !== null || pendingRitual !== null) return;
+    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingLastWill !== null || pendingRitual !== null || pendingCurseRemoval !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell") return;
     const curseOfFiendStandby = card.id === "mr-curse-fiend" && duel.phase === "standby";
@@ -921,6 +925,23 @@ export function DuelArena({
       if (!canActivateEquip(duel, card.id)) return;
       setSelectedEquip(handIndex);
       setSelectedAttacker(null);
+      return;
+    }
+
+    if (card.id === "ca-35") {
+      if (!duel.cpuField.some((zone) => zone.faceDown && !isEffectTargetProtected(duel, "cpu", zone))) return;
+      setPendingCurseRemoval({ spellIndex: handIndex, kind: "monster" });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "ca-36") {
+      const hasSetTarget = duel.cpuSpellTrap.some((id) => cardById.get(id)?.cardType === "trap" && !duel.cpuActiveTraps.includes(id));
+      if (!hasSetTarget) return;
+      setPendingCurseRemoval({ spellIndex: handIndex, kind: "spell-trap" });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
       return;
     }
 
@@ -1394,6 +1415,46 @@ export function DuelArena({
       if (current.length >= 2) return current;
       return [...current, handIndex].sort((a, b) => a - b);
     });
+  }
+
+  function resolveCurseRemoval(targetIndex: number) {
+    if (!duel || !pendingCurseRemoval) return;
+    const spellId = pendingCurseRemoval.kind === "monster" ? "ca-35" : "ca-36";
+    if (duel.playerHand[pendingCurseRemoval.spellIndex] !== spellId) return;
+    let next = removeHandCard(duel, pendingCurseRemoval.spellIndex);
+    if (pendingCurseRemoval.kind === "monster") {
+      const target = duel.cpuField[targetIndex];
+      if (!target?.faceDown || isEffectTargetProtected(duel, "cpu", target)) return;
+      const removeDeckCopies = flipEffect(target.id) !== null;
+      const playerCopies = removeDeckCopies ? next.playerDeck.filter((id) => id === target.id).length : 0;
+      const cpuCopies = removeDeckCopies ? next.cpuDeck.filter((id) => id === target.id).length : 0;
+      next = {
+        ...next,
+        playerDeck: removeDeckCopies ? next.playerDeck.filter((id) => id !== target.id) : next.playerDeck,
+        cpuDeck: removeDeckCopies ? next.cpuDeck.filter((id) => id !== target.id) : next.cpuDeck,
+        cpuField: next.cpuField.filter((_, index) => index !== targetIndex),
+        cpuSpellTrap: discardEquips(next.cpuSpellTrap, [target]),
+        playerGraveyard: [...next.playerGraveyard, spellId],
+        cpuGraveyard: [...next.cpuGraveyard, ...target.equipped],
+        log: appendLog(next.log, `抹殺の使徒を発動。裏側モンスターを除外。${removeDeckCopies ? `リバースモンスターだったため、両デッキの同名カード${playerCopies + cpuCopies}枚も除外。` : ""}`),
+      };
+    } else {
+      const targetId = duel.cpuSpellTrap[targetIndex];
+      const targetCard = cardById.get(targetId);
+      if (!targetId || targetCard?.cardType !== "trap" || duel.cpuActiveTraps.includes(targetId)) return;
+      const playerCopies = next.playerDeck.filter((id) => id === targetId).length;
+      const cpuCopies = next.cpuDeck.filter((id) => id === targetId).length;
+      next = {
+        ...next,
+        playerDeck: next.playerDeck.filter((id) => id !== targetId),
+        cpuDeck: next.cpuDeck.filter((id) => id !== targetId),
+        cpuSpellTrap: next.cpuSpellTrap.filter((_, index) => index !== targetIndex),
+        playerGraveyard: [...next.playerGraveyard, spellId],
+        log: appendLog(next.log, `撲滅の使徒を発動。セットされていた${targetCard?.name ?? "罠カード"}を除外し、両デッキの同名カード${playerCopies + cpuCopies}枚も除外。`),
+      };
+    }
+    setDuel(next);
+    setPendingCurseRemoval(null);
   }
 
   function resolveGracefulCharity() {
@@ -2969,7 +3030,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "standby") {
@@ -3005,7 +3066,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -4120,8 +4181,8 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>15 DUELISTS · BUILD 159</strong>
-          <p>バトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
+          <strong>17 DUELISTS · BUILD 160</strong>
+          <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
           {opponents.map((entry) => (
@@ -4872,6 +4933,33 @@ export function DuelArena({
             </div>
             <button className="overlay-close" disabled={pendingSoulRelease.selected.length === 0} onClick={confirmSoulRelease}>選んだカードを除外</button>
             <button onClick={() => setPendingSoulRelease(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
+      {pendingCurseRemoval && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">{pendingCurseRemoval.kind === "monster" ? "NOBLEMAN OF CROSSOUT" : "NOBLEMAN OF EXTERMINATION"}</p>
+            <h2>{pendingCurseRemoval.kind === "monster" ? "除外する裏側モンスターを選ぶ" : "除外するセット罠を選ぶ"}</h2>
+            <p>{pendingCurseRemoval.kind === "monster"
+              ? "相手フィールドの裏側守備表示モンスター1体を除外します。リバース効果モンスターなら、両方のデッキから同名カードも除外します。"
+              : "相手フィールドにセットされた罠カード1枚を除外し、両方のデッキから同名カードも除外します。"}</p>
+            <div className="spell-target-list">
+              {pendingCurseRemoval.kind === "monster"
+                ? duel.cpuField.map((zone, index) => !zone.faceDown || isEffectTargetProtected(duel, "cpu", zone) ? null : (
+                    <button key={`${zone.id}-${index}`} onClick={() => resolveCurseRemoval(index)}>
+                      <span>CPUフィールド</span>
+                      <strong>裏側守備表示モンスター</strong>
+                    </button>
+                  ))
+                : duel.cpuSpellTrap.map((id, index) => cardById.get(id)?.cardType !== "trap" || duel.cpuActiveTraps.includes(id) ? null : (
+                    <button key={`${id}-${index}`} onClick={() => resolveCurseRemoval(index)}>
+                      <span>CPUフィールド</span>
+                      <strong>セットカード</strong>
+                    </button>
+                  ))}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingCurseRemoval(null)}>キャンセル</button>
           </div>
         </div>
       )}
@@ -5803,6 +5891,7 @@ export function DuelArena({
                         || pendingEgotist !== null
                         || pendingTributeToDoomed !== null
                         || pendingSoulRelease !== null
+                        || pendingCurseRemoval !== null
                         || pendingCheerfulCoffin !== null
                         || pendingFusion !== null
                         || pendingLastWill !== null
@@ -5825,6 +5914,8 @@ export function DuelArena({
                         || (card.id === "vol4-elegant-egotist" && !canActivateElegantEgotist(duel, index))
                         || (card.id === "vol5-tribute-doomed" && !canActivateTributeToDoomed(duel.playerHand.length, duel.playerField.length + duel.cpuField.length))
                         || (card.id === "vol5-soul-release" && duel.playerGraveyard.length + duel.cpuGraveyard.length === 0)
+                        || (card.id === "ca-35" && !duel.cpuField.some((zone) => zone.faceDown && !isEffectTargetProtected(duel, "cpu", zone)))
+                        || (card.id === "ca-36" && !duel.cpuSpellTrap.some((id) => cardById.get(id)?.cardType === "trap" && !duel.cpuActiveTraps.includes(id)))
                         || (card.id === "vol5-cheerful-coffin" && !canActivateCheerfulCoffin(duel.playerHand.flatMap((id, handIndex) => handIndex === index ? [] : [cardById.get(id)?.cardType ?? ""])))
                         || (card.id === "vol5-change-heart" && (!canActivateChangeOfHeart(duel.playerField.length, duel.cpuField.length, FIELD_LIMIT) || !duel.cpuField.some((zone) => !isEffectTargetProtected(duel, "cpu", zone))))
                         || (card.id === "pr99-skull-rider-ritual" && (() => {
@@ -5869,7 +5960,7 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "standby"
               ? "メイン1へ"
               : duel.phase === "main1"
@@ -5877,7 +5968,7 @@ export function DuelArena({
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {(duel.phase === "main1" || duel.phase === "battle") && (
-            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -9398,6 +9489,8 @@ function isSpellImplemented(id: string) {
       "vol5-soul-release",
       "vol5-cheerful-coffin",
       "vol5-change-heart",
+      "ca-35",
+      "ca-36",
       "pr99-skull-rider-ritual",
       "vol7-stop-attack",
       "vol7-shield-sword",

@@ -6,12 +6,14 @@ import { DUEL_BGM_THEMES, duelBgmTitle } from "../app/duel-audio.ts";
 const audio = await readFile(new URL("../app/duel-audio.ts", import.meta.url), "utf8");
 const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
 
-test("15人の対戦キャラに異なるオリジナルBGMを割り当てる", () => {
+test("17人の対戦キャラに異なるオリジナルBGMを割り当てる", () => {
   const themes = Object.values(DUEL_BGM_THEMES);
-  assert.equal(themes.length, 15);
-  assert.equal(new Set(themes.map((theme) => theme.title)).size, 15);
-  assert.equal(new Set(themes.map((theme) => `${theme.bpm}:${theme.root}:${theme.motif.join(",")}`)).size, 15);
+  assert.equal(themes.length, 17);
+  assert.equal(new Set(themes.map((theme) => theme.title)).size, 17);
+  assert.equal(new Set(themes.map((theme) => `${theme.bpm}:${theme.root}:${theme.motif.join(",")}`)).size, 17);
   assert.equal(duelBgmTitle("seto-kaiba"), "蒼眼オーバードライブ");
+  assert.equal(duelBgmTitle("pegasus"), "トゥーン・マスカレード");
+  assert.equal(duelBgmTitle("bandit-keith"), "メタル・ギャンブラー");
   assert.match(audio, /scheduleCharacterSong/);
   assert.match(audio, /export function startDuelBgm/);
   assert.match(audio, /export function stopDuelBgm/);
