@@ -72,6 +72,7 @@ export const equipRules = Object.freeze({
   "ps-03": "全モンスター",
   "ps-08": "迷宮壁",
   "ps-10": "全モンスター",
+  "ca-04": "機械族",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -677,6 +678,10 @@ export function royalDecreeNegatesTraps(playerActiveTrapIds, cpuActiveTrapIds) {
   return [...playerActiveTrapIds, ...cpuActiveTrapIds].includes("bo5-royal-decree");
 }
 
+export function jinzoNegatesTraps(playerFaceUpMonsterIds = [], cpuFaceUpMonsterIds = []) {
+  return [...playerFaceUpMonsterIds, ...cpuFaceUpMonsterIds].includes("ca-00");
+}
+
 export function magicThornDamage(discardCount, opponentActiveTrapIds, trapsNegated = false) {
   return !trapsNegated && opponentActiveTrapIds.includes("bo6-magic-thorn")
     ? Math.max(0, discardCount) * 500
@@ -718,6 +723,7 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
     if (id === "mr-black-pendant") return { atk: result.atk + 500, def: result.def };
     if (id === "mr-horn-light") return { atk: result.atk, def: result.def + 800 };
     if (id === "mr-malevolent-nuzzler") return { atk: result.atk + 700, def: result.def };
+    if (id === "ca-04") return { atk: result.atk + 700, def: result.def };
     if (id === "ps-03") return { atk: result.atk + 700, def: result.def + 700 };
     if (id === "ps-08") return result;
     if (id === "pr99-insect-armor" || id === "pr99-salamandra" || id === "pr99-shine-palace") return { atk: result.atk + 700, def: result.def };
@@ -1009,7 +1015,7 @@ export function monsterSentFromFieldToGrave(previousFieldIds, nextFieldIds, prev
   });
 }
 
-export function continuousMonsterStats({ id, attribute, kind = "", position = "attack", atk, def: defense, handSize = 0, opponentMonsterCount = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, equipCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
+export function continuousMonsterStats({ id, attribute, kind = "", position = "attack", atk, def: defense, handSize = 0, opponentMonsterCount = 0, opponentDragonCount = 0, graveyardMonsterCount = 0, faceUpPlantCount = 0, faceUpMachineCount = 0, equipCount = 0, auraIds = [], allyIds = [], fieldSpellIds = [] }) {
   let nextAtk = atk;
   let nextDef = defense;
   if (id === "vol6-shadow-ghoul") nextAtk += graveyardMonsterCount * 100;
@@ -1027,6 +1033,7 @@ export function continuousMonsterStats({ id, attribute, kind = "", position = "a
     nextDef -= Math.max(0, handSize) * 400;
   }
   if (id === "ps-38" && opponentMonsterCount > 0) nextAtk -= 1000;
+  if (id === "ca-51") nextAtk += Math.max(0, opponentDragonCount) * 500;
   auraIds.forEach((auraId) => {
     const aura = attributeAuraEffects[auraId];
     if (aura?.boost === attribute) nextAtk += 500;
@@ -1084,7 +1091,7 @@ export function cpuRaEffectPlan(lifePoints, currentAttack, opponentLifePoints, o
   };
 }
 
-export const competitiveCpuDeckLatestPackId = "dm4-god-cards";
+export const competitiveCpuDeckLatestPackId = "curse-of-anubis";
 
 export const competitiveCpuFusionDeck = Object.freeze([
   "vol3-gaia-dragon-champion",

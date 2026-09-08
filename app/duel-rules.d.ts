@@ -25,7 +25,7 @@ export function sliferDivineStats(handSize: number): { atk: number; def: number 
 export function raTributeStats(tributes: Array<{ atk?: number; def?: number }>): { atk: number; def: number };
 export function raPointTransfer(lifePoints: number): { lifePoints: number; attackBonus: number };
 export function cpuRaEffectPlan(lifePoints: number, currentAttack: number, opponentLifePoints: number, opponentMonsterCount: number): { usePhoenix: boolean; usePointTransfer: boolean };
-export const competitiveCpuDeckLatestPackId: "dm4-god-cards";
+export const competitiveCpuDeckLatestPackId: "curse-of-anubis";
 export const competitiveCpuDeck: readonly string[];
 export const competitiveCpuFusionDeck: readonly string[];
 
@@ -134,6 +134,7 @@ export function canActivateChangeOfHeart(playerMonsterCount: number, opponentMon
 export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): boolean;
 export function spellSpecificTrapResponse(trapIds: string[], spellId: string): string | null;
 export function royalDecreeNegatesTraps(playerActiveTrapIds: string[], cpuActiveTrapIds: string[]): boolean;
+export function jinzoNegatesTraps(playerFaceUpMonsterIds?: string[], cpuFaceUpMonsterIds?: string[]): boolean;
 export function magicThornDamage(discardCount: number, opponentActiveTrapIds: string[], trapsNegated?: boolean): number;
 export function canActivateSevenTools(lifePoints: number, trapIds: string[]): boolean;
 export function canActivateMagicJammer(handSize: number, trapIds: string[]): boolean;
@@ -153,6 +154,7 @@ export function continuousMonsterStats(input: {
   def: number;
   handSize?: number;
   opponentMonsterCount?: number;
+  opponentDragonCount?: number;
   graveyardMonsterCount?: number;
   faceUpPlantCount?: number;
   faceUpMachineCount?: number;

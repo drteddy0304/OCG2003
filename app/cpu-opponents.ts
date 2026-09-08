@@ -63,7 +63,7 @@ const definitions: OpponentDefinition[] = [
   {
     id: "yami-yugi", name: "闇遊戯", title: "王の記憶を継ぐ決闘者", mark: "遊", difficulty: 5,
     ace: "ブラック・マジシャン／オシリスの天空竜", strategy: "魔法使いと罠を組み合わせ、切り札で逆転する王道デッキ。",
-    featured: ["g4-02-slifer", "vol1-dark-magician", "vol1-dark-magician", "vol4-summoned-skull", "vol1-gaia", "vol7-kuriboh", "vol6-sangan"],
+    featured: ["g4-02-slifer", "vol1-dark-magician", "vol1-dark-magician", "ca-51", "vol4-summoned-skull", "vol1-gaia", "vol7-kuriboh", "vol6-sangan"],
     kinds: ["魔法使い族", "戦士族", "悪魔族"],
     support: ["stb-yami", "vol1-book-secret-arts", "mr-spellbinding-circle", "vol5-change-heart"],
     fusionDeck: ["vol3-gaia-dragon-champion"],
@@ -115,7 +115,7 @@ const definitions: OpponentDefinition[] = [
   {
     id: "espa-roba", name: "エスパー絽場", title: "電脳サイキック決闘者", mark: "絽", difficulty: 4,
     ace: "リボルバー・ドラゴン／機械王", strategy: "機械族を強化し、効果ダメージと除去で主導権を握る。",
-    featured: ["vol7-barrel-dragon", "bo5-machine-king", "vol6-cannon-soldier", "vol6-cannon-soldier", "bo3-machine-soldier", "vol7-mechanical-soldier"],
+    featured: ["ca-00", "vol7-barrel-dragon", "bo5-machine-king", "vol6-cannon-soldier", "vol6-cannon-soldier", "bo3-machine-soldier", "vol7-mechanical-soldier"],
     kinds: ["機械族", "雷族"],
     support: ["vol2-machine-conversion-factory", "vol4-acid-storm", "mr-chain-energy", "bo5-just-desserts"],
   },

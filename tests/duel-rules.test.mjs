@@ -799,7 +799,7 @@ test("強化CPUは40枚デッキを使い、2003年10月の制限枚数を守る
 });
 
 test("強化CPUは現在追加済みの三幻神プロモーションパックまで採用する", () => {
-  assert.equal(competitiveCpuDeckLatestPackId, "dm4-god-cards");
+  assert.equal(competitiveCpuDeckLatestPackId, "curse-of-anubis");
   assert.equal(competitiveCpuDeck.filter((id) => id === "g4-01-obelisk").length, 1);
   assert.equal(competitiveCpuDeck.filter((id) => id === "mr-maha-vailo").length, 1);
   assert.equal(competitiveCpuDeck.filter((id) => id === "pr99-meteor-dragon").length, 1);
