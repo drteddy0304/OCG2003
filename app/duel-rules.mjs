@@ -488,6 +488,7 @@ const flipEffects = Object.freeze({
   "bo6-penguin-soldier": "return-two-monsters",
   "ex-033": "inspect-all-set",
   "ps-26": "cyber-jar",
+  "ca-03": "parasite-deck",
 });
 
 export function flipEffect(id) {
@@ -680,6 +681,29 @@ export function royalDecreeNegatesTraps(playerActiveTrapIds, cpuActiveTrapIds) {
 
 export function jinzoNegatesTraps(playerFaceUpMonsterIds = [], cpuFaceUpMonsterIds = []) {
   return [...playerFaceUpMonsterIds, ...cpuFaceUpMonsterIds].includes("ca-00");
+}
+
+export function holyElfBlessingGain(monsterCount) {
+  return Math.max(0, monsterCount) * 300;
+}
+
+export function ceasefireDamage(effectMonsterCount) {
+  return Math.max(0, effectMonsterCount) * 500;
+}
+
+export function whiteRobeAngelGain(copiesInGrave = 0) {
+  return 1000 + Math.max(0, copiesInGrave) * 500;
+}
+
+export function chainDestructionResult(cardId, attack, hand = [], deck = []) {
+  if (!cardId || attack > 2000) return null;
+  const removedHand = hand.filter((id) => id === cardId);
+  const removedDeck = deck.filter((id) => id === cardId);
+  return {
+    hand: hand.filter((id) => id !== cardId),
+    deck: deck.filter((id) => id !== cardId),
+    destroyed: [...removedHand, ...removedDeck],
+  };
 }
 
 export function magicThornDamage(discardCount, opponentActiveTrapIds, trapsNegated = false) {

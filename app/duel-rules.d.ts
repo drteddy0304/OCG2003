@@ -135,6 +135,10 @@ export function canRespondWithAntiRaigeki(trapIds: string[], spellId: string): b
 export function spellSpecificTrapResponse(trapIds: string[], spellId: string): string | null;
 export function royalDecreeNegatesTraps(playerActiveTrapIds: string[], cpuActiveTrapIds: string[]): boolean;
 export function jinzoNegatesTraps(playerFaceUpMonsterIds?: string[], cpuFaceUpMonsterIds?: string[]): boolean;
+export function holyElfBlessingGain(monsterCount: number): number;
+export function ceasefireDamage(effectMonsterCount: number): number;
+export function whiteRobeAngelGain(copiesInGrave?: number): number;
+export function chainDestructionResult(cardId: string, attack: number, hand?: string[], deck?: string[]): { hand: string[]; deck: string[]; destroyed: string[] } | null;
 export function magicThornDamage(discardCount: number, opponentActiveTrapIds: string[], trapsNegated?: boolean): number;
 export function canActivateSevenTools(lifePoints: number, trapIds: string[]): boolean;
 export function canActivateMagicJammer(handSize: number, trapIds: string[]): boolean;
@@ -218,7 +222,7 @@ export function blackPendantTriggerCounts(previousPlayerSpellTrapIds: string[], 
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle" | "swap-control" | "cyber-jar";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle" | "swap-control" | "cyber-jar" | "parasite-deck";
 
 export function flipEffect(id: string): FlipEffect | null;
 export function controlChangeLifeEffect(id: string): { newControllerDamage: number; originalOwnerGain: number } | null;

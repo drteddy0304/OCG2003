@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { curseOfAnubisCards, curseOfAnubisPack, curseOfAnubisReadyCardIds } from "../app/curse-of-anubis-data.ts";
-import { continuousMonsterStats, equippedMonsterStats, jinzoNegatesTraps } from "../app/duel-rules.mjs";
+import { ceasefireDamage, chainDestructionResult, continuousMonsterStats, equippedMonsterStats, holyElfBlessingGain, jinzoNegatesTraps, whiteRobeAngelGain } from "../app/duel-rules.mjs";
 
 test("Curse of Anubisは発売当時の全52種類を保持する", () => {
   assert.equal(curseOfAnubisCards.length, 52);
@@ -35,8 +35,31 @@ test("７カードは機械族へ装備できATKを700上げる", () => {
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["ca-04"]), { atk: 1700, def: 1000 });
 });
 
+test("回復・バーン・連鎖破壊を共有ルールとして計算する", () => {
+  assert.equal(holyElfBlessingGain(6), 1800);
+  assert.equal(ceasefireDamage(4), 2000);
+  assert.equal(whiteRobeAngelGain(2), 2000);
+  assert.deepEqual(chainDestructionResult("ca-44", 1700, ["ca-44", "ca-50"], ["ca-44", "ca-44", "ca-01"]), {
+    hand: ["ca-50"],
+    deck: ["ca-01"],
+    destroyed: ["ca-44", "ca-44", "ca-44"],
+  });
+  assert.equal(chainDestructionResult("ca-43", 2200, ["ca-43"], ["ca-43"]), null);
+});
+
+test("寄生虫パラサイドと3種類の罠は対戦画面へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /effect === "parasite-deck"/);
+  assert.match(arena, /resolveParasiteDraw/);
+  assert.match(arena, /pending\.trapId === "ca-06"/);
+  assert.match(arena, /chainDestructionResult/);
+  assert.match(arena, /ホーリー・エルフの祝福を発動する/);
+  assert.match(arena, /停戦協定を発動する/);
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-51"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-03"), false);
 });
