@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { cardById, cards, type Card } from "./card-data";
 import { createCpuOpponents } from "./cpu-opponents";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, chaosPotExcavate, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { duelBgmTitle, playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -4181,7 +4181,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 160</strong>
+          <strong>17 DUELISTS · BUILD 161</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -8417,6 +8417,47 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
       log: appendLog(state.log, `サイバーポッドがリバース。全モンスターを破壊し、あなたは${playerResult.summonCards.length}体、CPUは${cpuResult.summonCards.length}体を特殊召喚。残りを手札に加えた。`),
     };
     return applyDeckSearchTriggers(resolved, destroyedPlayer, destroyedCpu);
+  }
+  if (effect === "chaos-pot") {
+    const playerOwned = [
+      ...state.playerField.filter((zone) => zone.controlReturn !== "cpu"),
+      ...state.cpuField.filter((zone) => zone.controlReturn === "player"),
+    ];
+    const cpuOwned = [
+      ...state.cpuField.filter((zone) => zone.controlReturn !== "player"),
+      ...state.playerField.filter((zone) => zone.controlReturn === "cpu"),
+    ];
+    const playerMain = playerOwned.filter((zone) => !cardById.get(zone.id)?.fusion).map((zone) => zone.id);
+    const cpuMain = cpuOwned.filter((zone) => !cardById.get(zone.id)?.fusion).map((zone) => zone.id);
+    const playerFusion = playerOwned.filter((zone) => cardById.get(zone.id)?.fusion).map((zone) => zone.id);
+    const cpuFusion = cpuOwned.filter((zone) => cardById.get(zone.id)?.fusion).map((zone) => zone.id);
+    const playerDeck = shuffle([...state.playerDeck, ...playerMain]);
+    const cpuDeck = shuffle([...state.cpuDeck, ...cpuMain]);
+    const playerResult = chaosPotExcavate(playerDeck.map((id) => cardById.get(id)), playerMain.length, FIELD_LIMIT);
+    const cpuResult = chaosPotExcavate(cpuDeck.map((id) => cardById.get(id)), cpuMain.length, FIELD_LIMIT);
+    const makeSetZone = (id: string, side: Side): ZoneCard => ({
+      id,
+      position: "defense",
+      faceDown: true,
+      attacked: side === "cpu",
+      equipped: [],
+      summonedTurn: state.turnNumber,
+      positionChanged: false,
+    });
+    return {
+      ...state,
+      playerDeck: playerResult.remainingDeck.filter(Boolean).map((card: Card) => card.id),
+      cpuDeck: cpuResult.remainingDeck.filter(Boolean).map((card: Card) => card.id),
+      playerFusionDeck: [...state.playerFusionDeck, ...playerFusion],
+      cpuFusionDeck: [...state.cpuFusionDeck, ...cpuFusion],
+      playerField: playerResult.summonIds.map((id: string) => makeSetZone(id, "player")),
+      cpuField: cpuResult.summonIds.map((id: string) => makeSetZone(id, "cpu")),
+      playerSpellTrap: discardEquips(state.playerSpellTrap, playerOwned),
+      cpuSpellTrap: discardEquips(state.cpuSpellTrap, cpuOwned),
+      playerGraveyard: [...state.playerGraveyard, ...playerResult.graveIds, ...playerOwned.flatMap((zone) => zone.equipped)],
+      cpuGraveyard: [...state.cpuGraveyard, ...cpuResult.graveIds, ...cpuOwned.flatMap((zone) => zone.equipped)],
+      log: appendLog(state.log, `カオスポッドがリバース。全モンスターをデッキへ戻し、あなたは${playerResult.summonIds.length}体、CPUは${cpuResult.summonIds.length}体を裏側守備表示で特殊召喚。残りを墓地へ送った。`),
+    };
   }
   if (effect === "destroy-swords-extra-battle") {
     const targetSpellTrap = owner === "player" ? state.cpuSpellTrap : state.playerSpellTrap;

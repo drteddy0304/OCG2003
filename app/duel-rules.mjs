@@ -489,10 +489,42 @@ const flipEffects = Object.freeze({
   "ex-033": "inspect-all-set",
   "ps-26": "cyber-jar",
   "ca-03": "parasite-deck",
+  "ca-41": "chaos-pot",
 });
 
 export function flipEffect(id) {
   return flipEffects[id] ?? null;
+}
+
+export function chaosPotExcavate(deck, requiredMonsterCount, fieldLimit = 5) {
+  const required = Math.max(0, requiredMonsterCount);
+  if (required === 0) return { remainingDeck: [...deck], summonIds: [], graveIds: [], revealedCount: 0 };
+  const revealed = [];
+  let monstersFound = 0;
+  for (const card of deck) {
+    revealed.push(card);
+    if (card?.cardType === "monster") monstersFound += 1;
+    if (monstersFound >= required) break;
+  }
+  const summonIds = revealed
+    .filter((card) => card?.cardType === "monster" && !card.fusion && (card.level ?? 0) <= 4)
+    .slice(0, Math.max(0, fieldLimit))
+    .map((card) => card.id);
+  const remainingSummons = [...summonIds];
+  const graveIds = revealed.flatMap((card) => {
+    const index = remainingSummons.indexOf(card?.id);
+    if (index >= 0) {
+      remainingSummons.splice(index, 1);
+      return [];
+    }
+    return [card.id];
+  });
+  return {
+    remainingDeck: deck.slice(revealed.length),
+    summonIds,
+    graveIds,
+    revealedCount: revealed.length,
+  };
 }
 
 export function controlChangeLifeEffect(id) {

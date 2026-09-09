@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { curseOfAnubisCards, curseOfAnubisPack, curseOfAnubisReadyCardIds } from "../app/curse-of-anubis-data.ts";
-import { ceasefireDamage, chainDestructionResult, continuousMonsterStats, equippedMonsterStats, holyElfBlessingGain, jinzoNegatesTraps, whiteRobeAngelGain } from "../app/duel-rules.mjs";
+import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, equippedMonsterStats, flipEffect, holyElfBlessingGain, jinzoNegatesTraps, whiteRobeAngelGain } from "../app/duel-rules.mjs";
 
 test("Curse of Anubisは発売当時の全52種類を保持する", () => {
   assert.equal(curseOfAnubisCards.length, 52);
@@ -73,6 +73,28 @@ test("抹殺の使徒と撲滅の使徒は対象選択と同名カード除外�
   assert.match(arena, /リバースモンスターだったため/);
 });
 
+test("カオスポッドは戻したモンスター数までめくり、下級だけを裏守備で出す", () => {
+  const deck = [
+    { id: "spell", cardType: "spell" },
+    { id: "low", cardType: "monster", level: 4 },
+    { id: "high", cardType: "monster", level: 6 },
+    { id: "untouched", cardType: "trap" },
+  ];
+  assert.equal(flipEffect("ca-41"), "chaos-pot");
+  assert.deepEqual(chaosPotExcavate(deck, 2), {
+    remainingDeck: [deck[3]],
+    summonIds: ["low"],
+    graveIds: ["spell", "high"],
+    revealedCount: 3,
+  });
+  assert.deepEqual(chaosPotExcavate(deck, 0), {
+    remainingDeck: deck,
+    summonIds: [],
+    graveIds: [],
+    revealedCount: 0,
+  });
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);
@@ -82,7 +104,9 @@ test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-35"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-36"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-51"), true);
-  assert.equal(curseOfAnubisReadyCardIds.includes("ca-03"), false);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-03"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-41"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-47"), false);
 });
 
 test("全カードに固有の説明文が用意される", async () => {
