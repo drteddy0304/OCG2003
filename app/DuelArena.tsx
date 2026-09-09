@@ -980,6 +980,27 @@ export function DuelArena({
       return;
     }
 
+    if (card.id === "ca-37") {
+      const playerTarget = duel.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster" && !cardById.get(id)?.fusion);
+      const cpuTarget = duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "monster" && !cardById.get(id)?.fusion);
+      if (!playerTarget || !cpuTarget || duel.playerField.length >= FIELD_LIMIT || duel.cpuField.length >= FIELD_LIMIT || isLightOfInterventionActive(duel)) return;
+      setPendingReborn(handIndex);
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
+      return;
+    }
+
+    if (card.id === "ca-39") {
+      if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+      const next = removeHandCard(duel, handIndex);
+      setDuel({
+        ...next,
+        playerSpellTrap: [...next.playerSpellTrap, card.id],
+        log: appendLog(next.log, "検閲を発動。CPUのスタンバイフェイズごとに500LPを払って手札を確認できる。"),
+      });
+      return;
+    }
+
     if (card.id === "vol2-de-spell" || card.id === "stb-remove-trap" || card.id === "mr-mystical-space-typhoon") {
       const hasRemoveTrapTarget = [...duel.playerSpellTrap, ...duel.cpuSpellTrap].some(isFaceUpTrapTarget);
       if (card.id === "stb-remove-trap" && !hasRemoveTrapTarget) return;
@@ -2064,7 +2085,39 @@ export function DuelArena({
 
   function reviveMonster(graveSide: Side, graveIndex: number, position: Position) {
     if (!duel || pendingReborn === null || duel.playerField.length >= FIELD_LIMIT) return;
-    if (duel.playerHand[pendingReborn] !== "vol2-monster-reborn") return;
+    const spellId = duel.playerHand[pendingReborn];
+    if (spellId !== "vol2-monster-reborn" && spellId !== "ca-37") return;
+    if (spellId === "ca-37") {
+      if (graveSide !== "player" || duel.cpuField.length >= FIELD_LIMIT || isLightOfInterventionActive(duel)) return;
+      const playerTaken = takeGraveyardCard(duel.playerGraveyard, graveIndex);
+      const cpuChoices = duel.cpuGraveyard
+        .map((id, index) => ({ id, index, card: cardById.get(id) }))
+        .filter(({ card }) => card?.cardType === "monster" && !card.fusion)
+        .sort((a, b) => (b.card?.atk ?? 0) - (a.card?.atk ?? 0));
+      const cpuChoice = cpuChoices[0];
+      const playerMonster = playerTaken ? cardById.get(playerTaken.cardId) : null;
+      const cpuTaken = cpuChoice ? takeGraveyardCard(duel.cpuGraveyard, cpuChoice.index) : null;
+      if (!playerTaken || playerMonster?.cardType !== "monster" || !cpuTaken) return;
+      const makeSetZone = (id: string, side: Side): ZoneCard => ({
+        id,
+        position: "defense",
+        faceDown: true,
+        attacked: side === "cpu",
+        equipped: [],
+        summonedTurn: duel.turnNumber,
+        positionChanged: false,
+      });
+      setDuel({
+        ...removeHandCard(duel, pendingReborn),
+        playerField: [...duel.playerField, makeSetZone(playerTaken.cardId, "player")],
+        cpuField: [...duel.cpuField, makeSetZone(cpuTaken.cardId, "cpu")],
+        playerGraveyard: [...playerTaken.remaining, spellId],
+        cpuGraveyard: cpuTaken.remaining,
+        log: appendLog(duel.log, `浅すぎた墓穴を発動。あなたは${playerMonster.name}、CPUは${cardById.get(cpuTaken.cardId)?.name ?? "モンスター"}を裏側守備表示で特殊召喚。`),
+      });
+      setPendingReborn(null);
+      return;
+    }
     const graveyard = graveSide === "player" ? duel.playerGraveyard : duel.cpuGraveyard;
     const taken = takeGraveyardCard(graveyard, graveIndex);
     const monster = taken ? cardById.get(taken.cardId) : null;
@@ -4181,7 +4234,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 161</strong>
+          <strong>17 DUELISTS · BUILD 162</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -4794,21 +4847,23 @@ export function DuelArena({
       {pendingReborn !== null && (
         <div className="card-overlay revive-overlay">
           <div className="graveyard-panel revive-panel">
-            <p className="section-label">MONSTER REBORN</p>
-            <h2>特殊召喚するモンスターを選択</h2>
+            <p className="section-label">{duel.playerHand[pendingReborn] === "ca-37" ? "THE SHALLOW GRAVE" : "MONSTER REBORN"}</p>
+            <h2>{duel.playerHand[pendingReborn] === "ca-37" ? "裏側守備表示で蘇生するモンスターを選択" : "特殊召喚するモンスターを選択"}</h2>
+            {duel.playerHand[pendingReborn] === "ca-37" && <p>自分の墓地から1体選びます。CPUも墓地から1体を選び、同時に裏側守備表示で特殊召喚します。</p>}
             <div className="revive-list">
               {(["player", "cpu"] as const).flatMap((side) =>
                 (side === "player" ? duel.playerGraveyard : duel.cpuGraveyard).map((id, index) => {
                   const card = cardById.get(id);
-                  if (card?.cardType !== "monster") return null;
+                  const shallowGrave = duel.playerHand[pendingReborn] === "ca-37";
+                  if (card?.cardType !== "monster" || (shallowGrave && (side !== "player" || card.fusion))) return null;
                   return (
                     <div key={`${side}-${id}-${index}`}>
                       <span>{side === "player" ? "自分" : "CPU"}の墓地</span>
                       <strong>{card.name}</strong>
                       <small>ATK {card.atk} / DEF {card.def}</small>
                       <div>
-                        <button onClick={() => reviveMonster(side, index, "attack")}>攻撃表示</button>
-                        <button onClick={() => reviveMonster(side, index, "defense")}>守備表示</button>
+                        {!shallowGrave && <button onClick={() => reviveMonster(side, index, "attack")}>攻撃表示</button>}
+                        <button onClick={() => reviveMonster(side, index, "defense")}>{shallowGrave ? "このカードを選ぶ" : "守備表示"}</button>
                       </div>
                     </div>
                   );
@@ -5906,6 +5961,14 @@ export function DuelArena({
                           || ![...duel.playerGraveyard, ...duel.cpuGraveyard]
                             .some((id) => cardById.get(id)?.cardType === "monster")
                         ))
+                        || (card.id === "ca-37" && (
+                          duel.playerField.length >= FIELD_LIMIT
+                          || duel.cpuField.length >= FIELD_LIMIT
+                          || isLightOfInterventionActive(duel)
+                          || !duel.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster" && !cardById.get(id)?.fusion)
+                          || !duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "monster" && !cardById.get(id)?.fusion)
+                        ))
+                        || (card.id === "ca-39" && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol2-de-spell" && duel.playerSpellTrap.length + duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell)
                         || (card.id === "vol3-pot-of-greed" && duel.playerDeck.length < 2)
                         || (card.id === "vol3-stop-defense" && !duel.cpuField.some((zone) => zone.position === "defense"))
@@ -6180,6 +6243,7 @@ function runCpuTurn(initial: DuelState): DuelState {
   };
   if (!virusDestroyed) state = resolveParasiteDraw(state, "cpu", drawnId);
   state = activateCpuContinuousTraps(state);
+  state = applyCardInspectionStandby(state, "cpu");
   state = applyEyeOfTruthStandby(state, "cpu");
   state = applySnatchStealStandby(state, "cpu");
   state = applyMessengerStandby(state, "cpu");
@@ -6961,6 +7025,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       : "あなたのターン。1枚ドロー。"),
   };
   if (!playerDrawDestroyed) playerStart = resolveParasiteDraw(playerStart, "player", playerDrawId);
+  playerStart = applyCardInspectionStandby(playerStart, "player");
   playerStart = applyEyeOfTruthStandby(playerStart, "player");
   playerStart = applySnatchStealStandby(playerStart, "player");
   playerStart = applyMessengerStandby(playerStart, "player");
@@ -8038,6 +8103,24 @@ function applyEyeOfTruthStandby(state: DuelState, standbySide: Side): DuelState 
     [lifeKey]: state[lifeKey] + gain,
     log: appendLog(state.log, `真実の眼の効果で${standbySide === "player" ? "あなた" : "CPU"}が${gain}LP回復。`),
   } as DuelState;
+}
+
+function applyCardInspectionStandby(state: DuelState, standbySide: Side): DuelState {
+  const inspectorSide: Side = standbySide === "player" ? "cpu" : "player";
+  const inspectorSpellTrap = inspectorSide === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
+  const copies = inspectorSpellTrap.filter((id) => id === "ca-39").length;
+  const targetHand = standbySide === "player" ? state.playerHand : state.cpuHand;
+  const inspectorLp = inspectorSide === "player" ? state.playerLp : state.cpuLp;
+  const usableCopies = Math.min(copies, Math.max(0, Math.ceil((inspectorLp - 500) / 500)), targetHand.length);
+  if (usableCopies === 0) return state;
+  const revealed = shuffle([...targetHand]).slice(0, usableCopies).map((id) => cardById.get(id)?.name ?? "カード");
+  const cost = usableCopies * 500;
+  return {
+    ...state,
+    playerLp: inspectorSide === "player" ? state.playerLp - cost : state.playerLp,
+    cpuLp: inspectorSide === "cpu" ? state.cpuLp - cost : state.cpuLp,
+    log: appendLog(state.log, `${inspectorSide === "player" ? "あなた" : "CPU"}が検閲の効果で${cost}LPを払い、${standbySide === "player" ? "あなた" : "CPU"}の手札を確認：${revealed.join("／")}。`),
+  };
 }
 
 function isEffectTargetProtected(state: DuelState, side: Side, zone: ZoneCard): boolean {
@@ -9454,6 +9537,8 @@ function spellDescription(id: string) {
   if (effect?.damage) return `相手に${effect.damage}ダメージ${effect.selfDamage ? `、自分に${effect.selfDamage}ダメージ` : ""}`;
   if (id === "vol2-swords-revealing-light") return "相手モンスターを表にし、相手の攻撃を3ターン封じる";
   if (id === "vol2-monster-reborn") return "自分または相手の墓地からモンスター1体を特殊召喚";
+  if (id === "ca-37") return "お互いに自分の墓地からモンスター1体を裏側守備表示で特殊召喚";
+  if (id === "ca-39") return "相手スタンバイフェイズに500LPを払い、相手の手札1枚を確認";
   if (id === "vol2-de-spell") return "フィールドのカード1枚を確認し、魔法カードなら破壊";
   if (id === "stb-remove-trap") return "表側表示でフィールドに残っている罠カード1枚を破壊";
   if (id === "vol1-fissure") return "相手の表側モンスターのうちATKが一番低い1体を破壊";
@@ -9505,6 +9590,8 @@ function isSpellImplemented(id: string) {
       "vol1-fissure",
       "vol2-swords-revealing-light",
       "vol2-monster-reborn",
+      "ca-37",
+      "ca-39",
       "vol2-de-spell",
       "vol3-pot-of-greed",
       "mr-upstart-goblin",

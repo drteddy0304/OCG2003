@@ -95,6 +95,14 @@ test("カオスポッドは戻したモンスター数までめくり、下級�
   });
 });
 
+test("浅すぎた墓穴と検閲は対戦処理へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /card\.id === "ca-37"/);
+  assert.match(arena, /浅すぎた墓穴を発動/);
+  assert.match(arena, /card\.id === "ca-39"/);
+  assert.match(arena, /applyCardInspectionStandby/);
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);
@@ -103,6 +111,8 @@ test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-32"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-35"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-36"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-37"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-39"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-51"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-03"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-41"), true);
