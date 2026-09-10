@@ -177,6 +177,7 @@ type PendingFusion = {
 };
 type PendingDragonFlute = { spellIndex: number; selected: number[] };
 type PendingCurseRemoval = { spellIndex: number; kind: "monster" | "spell-trap" };
+type PendingBackupSoldier = { trapIndex: number; selected: number[] };
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
 type ZoneCard = {
@@ -201,6 +202,7 @@ type ZoneCard = {
   spellbindingCircleOwner?: Side;
   revivedByMonsterReborn?: boolean;
   prematureBurialLinked?: boolean;
+  callHauntedLinked?: boolean;
   spiritParasiteOwners?: Side[];
   catapultUsedTurn?: number;
   barrelUsedTurn?: number;
@@ -309,7 +311,7 @@ export function DuelArena({
 
   function setDuel(next: DuelState | null) {
     rawSetDuel((previous) => previous && next
-      ? applyBlackPendantGraveTriggers(previous, applyPharaohContinuousRules(previous, trackMonstersSentToGrave(previous, applyPrematureBurialDestruction(previous, next))))
+      ? applyBlackPendantGraveTriggers(previous, applyPharaohContinuousRules(previous, trackMonstersSentToGrave(previous, applyCallHauntedDestruction(previous, applyPrematureBurialDestruction(previous, next)))))
       : next);
   }
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
@@ -349,6 +351,10 @@ export function DuelArena({
   const [pendingMatangoTransfer, setPendingMatangoTransfer] = useState<number | null>(null);
   const [pendingStopAttack, setPendingStopAttack] = useState<number | null>(null);
   const [pendingCurseRemoval, setPendingCurseRemoval] = useState<PendingCurseRemoval | null>(null);
+  const [pendingDustTornado, setPendingDustTornado] = useState<number | null>(null);
+  const [pendingDustSet, setPendingDustSet] = useState(false);
+  const [pendingCallHaunted, setPendingCallHaunted] = useState<number | null>(null);
+  const [pendingBackupSoldier, setPendingBackupSoldier] = useState<PendingBackupSoldier | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -401,6 +407,10 @@ export function DuelArena({
     && pendingTributeToDoomed === null
     && pendingSoulRelease === null
     && pendingCurseRemoval === null
+    && pendingDustTornado === null
+    && !pendingDustSet
+    && pendingCallHaunted === null
+    && pendingBackupSoldier === null
     && pendingCheerfulCoffin === null
     && pendingFusion === null
     && pendingRitual === null
@@ -509,6 +519,10 @@ export function DuelArena({
     setPendingTributeToDoomed(null);
     setPendingSoulRelease(null);
     setPendingCurseRemoval(null);
+    setPendingDustTornado(null);
+    setPendingDustSet(false);
+    setPendingCallHaunted(null);
+    setPendingBackupSoldier(null);
     setPendingCheerfulCoffin(null);
     setPendingFusion(null);
     setPendingLastWill(null);
@@ -2972,6 +2986,22 @@ export function DuelArena({
   function activateCurseOfAnubisTrap(trapIndex: number) {
     if (!duel || !isPlayerMainPhase || areTrapEffectsNegated(duel)) return;
     const trapId = duel.playerSpellTrap[trapIndex];
+    if (trapId === "ca-11") {
+      if (duel.playerSpellTrap.length <= 1 && duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell) return;
+      setPendingDustTornado(trapIndex);
+      return;
+    }
+    if (trapId === "ca-12") {
+      if (duel.playerField.length >= FIELD_LIMIT || !duel.playerGraveyard.some(isReviveTarget)) return;
+      setPendingCallHaunted(trapIndex);
+      return;
+    }
+    if (trapId === "ca-28") {
+      const monsterCount = duel.playerGraveyard.filter((id) => cardById.get(id)?.cardType === "monster").length;
+      if (monsterCount < 5 || !duel.playerGraveyard.some(isBackupSoldierTarget)) return;
+      setPendingBackupSoldier({ trapIndex, selected: [] });
+      return;
+    }
     if (trapId === "ca-09") {
       const monsterCount = duel.playerField.length + duel.cpuField.length;
       const gain = holyElfBlessingGain(monsterCount);
@@ -3001,6 +3031,114 @@ export function DuelArena({
         log: appendLog(duel.log, `停戦協定を発動。裏側モンスターを表にし、リバース効果を発動せず、効果モンスター${effectCount}体につき500、合計${damage}ダメージ。`),
       });
     }
+  }
+
+  function resolveDustTornado(targetSide: Side, targetIndex: number, fieldSpell = false) {
+    if (!duel || pendingDustTornado === null || duel.playerSpellTrap[pendingDustTornado] !== "ca-11") return;
+    if (targetSide === "player" && !fieldSpell && targetIndex === pendingDustTornado) return;
+    const targetSpellTrap = targetSide === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap;
+    const targetId = fieldSpell
+      ? targetSide === "player" ? duel.playerFieldSpell : duel.cpuFieldSpell
+      : targetSpellTrap[targetIndex];
+    if (!targetId) return;
+    const targetName = cardById.get(targetId)?.name ?? "カード";
+    let next: DuelState = {
+      ...duel,
+      playerSpellTrap: duel.playerSpellTrap.filter((_, index) => index !== pendingDustTornado),
+      playerGraveyard: [...duel.playerGraveyard, "ca-11"],
+      log: appendLog(duel.log, `砂塵の大竜巻を発動。${targetSide === "player" ? "自分" : "CPU"}の${targetName}を破壊。`),
+    };
+    if (targetSide === "player") {
+      next = {
+        ...next,
+        playerField: fieldSpell ? next.playerField : removeEquippedCard(next.playerField, targetId),
+        playerSpellTrap: fieldSpell ? next.playerSpellTrap : next.playerSpellTrap.filter((id, index) => id !== targetId || index !== targetIndex - (targetIndex > pendingDustTornado ? 1 : 0)),
+        playerFieldSpell: fieldSpell ? null : next.playerFieldSpell,
+        playerActiveTraps: next.playerActiveTraps.filter((id) => id !== targetId),
+        playerGraveyard: [...next.playerGraveyard, targetId],
+      };
+    } else {
+      next = {
+        ...next,
+        cpuField: fieldSpell ? next.cpuField : removeEquippedCard(next.cpuField, targetId),
+        cpuSpellTrap: fieldSpell ? next.cpuSpellTrap : next.cpuSpellTrap.filter((_, index) => index !== targetIndex),
+        cpuFieldSpell: fieldSpell ? null : next.cpuFieldSpell,
+        cpuActiveTraps: next.cpuActiveTraps.filter((id) => id !== targetId),
+        cpuGraveyard: [...next.cpuGraveyard, targetId],
+      };
+    }
+    setDuel(next);
+    setPendingDustTornado(null);
+    setPendingDustSet(next.playerSpellTrap.length < FIELD_LIMIT && next.playerHand.some((id) => cardById.get(id)?.cardType !== "monster"));
+  }
+
+  function setCardWithDustTornado(handIndex: number | null) {
+    if (!duel || !pendingDustSet) return;
+    if (handIndex === null) {
+      setPendingDustSet(false);
+      return;
+    }
+    const id = duel.playerHand[handIndex];
+    const card = cardById.get(id);
+    if (!card || card.cardType === "monster" || duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+    setDuel({
+      ...duel,
+      playerHand: duel.playerHand.filter((_, index) => index !== handIndex),
+      playerSpellTrap: [...duel.playerSpellTrap, id],
+      log: appendLog(duel.log, "砂塵の大竜巻の効果で手札から魔法・罠カード1枚をセット。"),
+    });
+    setPendingDustSet(false);
+  }
+
+  function resolveCallHaunted(graveIndex: number) {
+    if (!duel || pendingCallHaunted === null || duel.playerSpellTrap[pendingCallHaunted] !== "ca-12" || duel.playerField.length >= FIELD_LIMIT) return;
+    const taken = takeGraveyardCard(duel.playerGraveyard, graveIndex);
+    const monster = taken ? cardById.get(taken.cardId) : null;
+    if (!taken || !monster || !isReviveTarget(taken.cardId)) return;
+    setDuel({
+      ...duel,
+      playerField: [...duel.playerField, {
+        id: taken.cardId,
+        position: "attack",
+        faceDown: false,
+        attacked: false,
+        equipped: ["ca-12"],
+        summonedTurn: duel.turnNumber,
+        positionChanged: false,
+        callHauntedLinked: true,
+        godSpecialSummoned: isGodCard(taken.cardId),
+        ...(taken.cardId === "g4-03-ra" ? { godBaseAtk: 0, godBaseDef: 0 } : {}),
+      }],
+      playerGraveyard: taken.remaining,
+      playerActiveTraps: [...new Set([...duel.playerActiveTraps, "ca-12"])],
+      log: appendLog(duel.log, `リビングデッドの呼び声を発動。${monster.name}を攻撃表示で特殊召喚。`),
+    });
+    setPendingCallHaunted(null);
+  }
+
+  function toggleBackupSoldierCard(graveIndex: number) {
+    if (!duel || !pendingBackupSoldier || !isBackupSoldierTarget(duel.playerGraveyard[graveIndex])) return;
+    setPendingBackupSoldier({
+      ...pendingBackupSoldier,
+      selected: pendingBackupSoldier.selected.includes(graveIndex)
+        ? pendingBackupSoldier.selected.filter((index) => index !== graveIndex)
+        : pendingBackupSoldier.selected.length < 3 ? [...pendingBackupSoldier.selected, graveIndex] : pendingBackupSoldier.selected,
+    });
+  }
+
+  function confirmBackupSoldier() {
+    if (!duel || !pendingBackupSoldier || pendingBackupSoldier.selected.length === 0 || duel.playerSpellTrap[pendingBackupSoldier.trapIndex] !== "ca-28") return;
+    const selected = new Set(pendingBackupSoldier.selected);
+    const returned = duel.playerGraveyard.filter((id, index) => selected.has(index) && isBackupSoldierTarget(id));
+    if (returned.length === 0) return;
+    setDuel({
+      ...duel,
+      playerHand: [...duel.playerHand, ...returned],
+      playerGraveyard: [...duel.playerGraveyard.filter((_, index) => !selected.has(index)), "ca-28"],
+      playerSpellTrap: duel.playerSpellTrap.filter((_, index) => index !== pendingBackupSoldier.trapIndex),
+      log: appendLog(duel.log, `補充要員を発動。ATK1500以下の通常モンスター${returned.length}体を墓地から手札に加えた。`),
+    });
+    setPendingBackupSoldier(null);
   }
 
   function hasUltimateOfferingSummonCandidate(state: DuelState) {
@@ -4273,7 +4411,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 164</strong>
+          <strong>17 DUELISTS · BUILD 165</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -4915,6 +5053,104 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingDustTornado !== null && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">DUST TORNADO</p>
+            <h2>破壊する魔法・罠を選択</h2>
+            <p>CPUフィールドの魔法・罠カード1枚を破壊します。</p>
+            <div className="spell-target-list">
+              {(["player", "cpu"] as const).flatMap((side) => (side === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap).map((id, index) => {
+                if (side === "player" && index === pendingDustTornado) return null;
+                const active = side === "player" ? duel.playerActiveTraps.includes(id) : duel.cpuActiveTraps.includes(id);
+                return (
+                  <button key={`${side}-${id}-${index}`} onClick={() => resolveDustTornado(side, index)}>
+                    <span>{side === "player" ? "自分" : "CPU"}の魔法・罠ゾーン</span>
+                    <strong>{active || cardById.get(id)?.cardType === "spell" ? cardById.get(id)?.name : "セットカード"}</strong>
+                  </button>
+                );
+              }))}
+              {duel.playerFieldSpell && (
+                <button onClick={() => resolveDustTornado("player", -1, true)}>
+                  <span>自分のフィールドゾーン</span>
+                  <strong>{cardById.get(duel.playerFieldSpell)?.name}</strong>
+                </button>
+              )}
+              {duel.cpuFieldSpell && (
+                <button onClick={() => resolveDustTornado("cpu", -1, true)}>
+                  <span>CPUのフィールドゾーン</span>
+                  <strong>{cardById.get(duel.cpuFieldSpell)?.name}</strong>
+                </button>
+              )}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingDustTornado(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
+      {pendingDustSet && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">DUST TORNADO</p>
+            <h2>追加でセットするカードを選択</h2>
+            <p>手札から魔法・罠カード1枚をセットできます。セットしないことも選べます。</p>
+            <div className="spell-target-list">
+              {duel.playerHand.map((id, index) => cardById.get(id)?.cardType === "monster" ? null : (
+                <button key={`${id}-${index}`} onClick={() => setCardWithDustTornado(index)}>
+                  <span>{cardById.get(id)?.kind}</span>
+                  <strong>{cardById.get(id)?.name}</strong>
+                </button>
+              ))}
+            </div>
+            <button className="overlay-close" onClick={() => setCardWithDustTornado(null)}>セットしない</button>
+          </div>
+        </div>
+      )}
+      {pendingCallHaunted !== null && (
+        <div className="card-overlay revive-overlay">
+          <div className="graveyard-panel revive-panel">
+            <p className="section-label">CALL OF THE HAUNTED</p>
+            <h2>蘇生するモンスターを選択</h2>
+            <p>自分の墓地からモンスター1体を攻撃表示で特殊召喚します。</p>
+            <div className="revive-list">
+              {duel.playerGraveyard.map((id, index) => {
+                const card = cardById.get(id);
+                return !card || !isReviveTarget(id) ? null : (
+                  <button key={`${id}-${index}`} onClick={() => resolveCallHaunted(index)}>
+                    <strong>{card.name}</strong>
+                    <small>ATK {card.atk} / DEF {card.def}</small>
+                  </button>
+                );
+              })}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingCallHaunted(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
+      {pendingBackupSoldier && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">BACKUP SOLDIER</p>
+            <h2>手札に戻す通常モンスターを選択</h2>
+            <p>ATK1500以下の通常モンスターを3体まで選べます（選択中 {pendingBackupSoldier.selected.length}/3）。</p>
+            <div className="spell-target-list">
+              {duel.playerGraveyard.map((id, index) => {
+                const card = cardById.get(id);
+                if (!card || !isBackupSoldierTarget(id)) return null;
+                const selected = pendingBackupSoldier.selected.includes(index);
+                return (
+                  <button className={selected ? "selected" : ""} key={`${id}-${index}`} onClick={() => toggleBackupSoldierCard(index)}>
+                    <span>{selected ? "選択中" : "自分の墓地"}</span>
+                    <strong>{card.name}</strong>
+                    <small>ATK {card.atk} / DEF {card.def}</small>
+                  </button>
+                );
+              })}
+            </div>
+            <button className="overlay-close" disabled={pendingBackupSoldier.selected.length === 0} onClick={confirmBackupSoldier}>選んだカードを手札に加える</button>
+            <button onClick={() => setPendingBackupSoldier(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {pendingDeSpell !== null && (
         <div className="card-overlay spell-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -5365,6 +5601,12 @@ export function DuelArena({
         ) : null)}
         {isPlayerMainPhase && !areTrapEffectsNegated(duel) && duel.playerSpellTrap.map((id, index) => id === "ca-09" ? (
           <button className="effect-action-button" key={`holy-elf-blessing-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>ホーリー・エルフの祝福を発動する</button>
+        ) : id === "ca-11" && (duel.playerSpellTrap.length > 1 || duel.cpuSpellTrap.length > 0 || Boolean(duel.playerFieldSpell) || Boolean(duel.cpuFieldSpell)) ? (
+          <button className="effect-action-button" key={`dust-tornado-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>砂塵の大竜巻を発動する</button>
+        ) : id === "ca-12" && duel.playerField.length < FIELD_LIMIT && duel.playerGraveyard.some(isReviveTarget) ? (
+          <button className="effect-action-button" key={`call-haunted-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>リビングデッドの呼び声を発動する</button>
+        ) : id === "ca-28" && duel.playerGraveyard.filter((cardId) => cardById.get(cardId)?.cardType === "monster").length >= 5 && duel.playerGraveyard.some(isBackupSoldierTarget) ? (
+          <button className="effect-action-button" key={`backup-soldier-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>補充要員を発動する</button>
         ) : id === "ca-30" ? (
           <button className="effect-action-button" key={`ceasefire-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>停戦協定を発動する</button>
         ) : null)}
@@ -6920,6 +7162,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     if (state.result || state.pendingDeckSearch) return state;
     state = useCpuBarrelDragon(state);
     if (state.result || state.pendingDeckSearch) return state;
+    state = resolveCpuCurseOfAnubisTraps(state);
     state = setCpuTrapAndEquips(state);
     state = activateCpuContinuousTraps(state);
     state = {
@@ -7745,7 +7988,7 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     };
   }
 
-  for (const trapId of ["ca-10", "ca-31", "ca-32"]) {
+  for (const trapId of ["ca-10", "ca-11", "ca-12", "ca-28", "ca-31", "ca-32"]) {
     if (state.cpuSpellTrap.length >= FIELD_LIMIT || !state.cpuHand.includes(trapId) || !canPayDuelChainEnergy(state, "cpu")) continue;
     state = {
       ...removeCpuHandCard(state, trapId),
@@ -7777,6 +8020,82 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
       cpuSpellTrap: [...state.cpuSpellTrap, choice.id],
       log: appendLog(state.log, `CPUが${choice.name}を${target?.name ?? "モンスター"}に装備。`),
     };
+  }
+  return state;
+}
+
+function resolveCpuCurseOfAnubisTraps(initial: DuelState): DuelState {
+  if (areTrapEffectsNegated(initial)) return initial;
+  let state = initial;
+
+  const callIndex = state.cpuSpellTrap.indexOf("ca-12");
+  const reviveChoice = state.cpuGraveyard
+    .map((id, index) => ({ id, index, card: cardById.get(id) }))
+    .filter(({ id }) => isReviveTarget(id))
+    .sort((a, b) => (b.card?.atk ?? 0) - (a.card?.atk ?? 0))[0];
+  if (callIndex >= 0 && reviveChoice && state.cpuField.length < FIELD_LIMIT) {
+    const taken = takeGraveyardCard(state.cpuGraveyard, reviveChoice.index);
+    if (taken) {
+      state = {
+        ...state,
+        cpuField: [...state.cpuField, {
+          id: taken.cardId,
+          position: "attack",
+          faceDown: false,
+          attacked: false,
+          equipped: ["ca-12"],
+          summonedTurn: state.turnNumber,
+          positionChanged: false,
+          callHauntedLinked: true,
+          godSpecialSummoned: isGodCard(taken.cardId),
+          ...(taken.cardId === "g4-03-ra" ? { godBaseAtk: 0, godBaseDef: 0 } : {}),
+        }],
+        cpuGraveyard: taken.remaining,
+        cpuActiveTraps: [...new Set([...state.cpuActiveTraps, "ca-12"])],
+        log: appendLog(state.log, `CPUがリビングデッドの呼び声を発動。${reviveChoice.card?.name ?? "モンスター"}を攻撃表示で特殊召喚。`),
+      };
+    }
+  }
+
+  const backupIndex = state.cpuSpellTrap.indexOf("ca-28");
+  const cpuMonsterCount = state.cpuGraveyard.filter((id) => cardById.get(id)?.cardType === "monster").length;
+  if (backupIndex >= 0 && cpuMonsterCount >= 5) {
+    const choices = state.cpuGraveyard
+      .map((id, index) => ({ id, index, card: cardById.get(id) }))
+      .filter(({ id }) => isBackupSoldierTarget(id))
+      .sort((a, b) => (b.card?.atk ?? 0) - (a.card?.atk ?? 0))
+      .slice(0, 3);
+    if (choices.length > 0) {
+      const selected = new Set(choices.map(({ index }) => index));
+      state = {
+        ...state,
+        cpuHand: [...state.cpuHand, ...choices.map(({ id }) => id)],
+        cpuSpellTrap: state.cpuSpellTrap.filter((_, index) => index !== backupIndex),
+        cpuGraveyard: [...state.cpuGraveyard.filter((_, index) => !selected.has(index)), "ca-28"],
+        log: appendLog(state.log, `CPUが補充要員を発動。通常モンスター${choices.length}体を墓地から手札に加えた。`),
+      };
+    }
+  }
+
+  const dustIndex = state.cpuSpellTrap.indexOf("ca-11");
+  if (dustIndex >= 0 && (state.playerSpellTrap.length > 0 || state.playerFieldSpell)) {
+    const targetIndex = state.playerSpellTrap.findIndex((id) => cardById.get(id)?.cardType === "trap" || Boolean(EQUIP_RULES[id]));
+    const useFieldSpell = targetIndex < 0 && Boolean(state.playerFieldSpell);
+    const actualIndex = targetIndex >= 0 ? targetIndex : 0;
+    const targetId = useFieldSpell ? state.playerFieldSpell : state.playerSpellTrap[actualIndex];
+    if (targetId) {
+      state = {
+        ...state,
+        playerField: useFieldSpell ? state.playerField : removeEquippedCard(state.playerField, targetId),
+        playerSpellTrap: useFieldSpell ? state.playerSpellTrap : state.playerSpellTrap.filter((_, index) => index !== actualIndex),
+        playerFieldSpell: useFieldSpell ? null : state.playerFieldSpell,
+        playerActiveTraps: state.playerActiveTraps.filter((id) => id !== targetId),
+        playerGraveyard: [...state.playerGraveyard, targetId],
+        cpuSpellTrap: state.cpuSpellTrap.filter((_, index) => index !== dustIndex),
+        cpuGraveyard: [...state.cpuGraveyard, "ca-11"],
+        log: appendLog(state.log, `CPUが砂塵の大竜巻を発動。あなたの${cardById.get(targetId)?.name ?? "カード"}を破壊。`),
+      };
+    }
   }
   return state;
 }
@@ -9413,6 +9732,16 @@ function graveCards(zones: ZoneCard[]) {
   return zones.flatMap((zone) => [zone.id, ...zone.equipped]);
 }
 
+function isReviveTarget(id: string) {
+  const card = cardById.get(id);
+  return card?.cardType === "monster" && !card.fusion;
+}
+
+function isBackupSoldierTarget(id: string) {
+  const card = cardById.get(id);
+  return card?.cardType === "monster" && !card.effect && !card.fusion && (card.atk ?? 0) <= 1500;
+}
+
 function equipGraveCards(zones: ZoneCard[]) {
   return zones.flatMap((zone) => zone.equipped);
 }
@@ -9806,8 +10135,11 @@ function isSpellImplemented(id: string) {
 
 function trapDescription(id: string) {
   if (id === "ca-07") return "次の相手ターンのドローフェイズをスキップする";
+  if (id === "ca-11") return "フィールドの魔法・罠カード1枚を破壊。その後、手札から魔法・罠カード1枚をセットできる";
+  if (id === "ca-12") return "自分の墓地のモンスター1体を攻撃表示で特殊召喚し、このカードを装備する";
   if (id === "ca-13") return "次の自分のスタンバイフェイズをスキップする";
   if (id === "ca-15") return "相手の攻撃宣言時、攻撃モンスターの現在のATK分だけ自分のLPを回復する";
+  if (id === "ca-28") return "墓地にモンスターが5体以上いる時、ATK1500以下の通常モンスターを3体まで手札に戻す";
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
   if (id === "vol7-mirror-force") return "相手の攻撃宣言時、相手の攻撃表示モンスターをすべて破壊";
   if (id === "vol7-robbin-goblin") return "自分のモンスターが戦闘ダメージを与えるたび、相手の手札をランダムに1枚捨てる";
@@ -9840,7 +10172,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "ca-06" || id === "ca-07" || id === "ca-09" || id === "ca-10" || id === "ca-13" || id === "ca-15" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
+  return id === "ca-06" || id === "ca-07" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-15" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {
@@ -9922,6 +10254,31 @@ function applyPrematureBurialDestruction(previous: DuelState, next: DuelState): 
       log: appendLog(resolved.log, `早すぎた埋葬が破壊されたため、${destroyed.map((zone) => cardById.get(zone.id)?.name ?? "モンスター").join("、")}も破壊。`),
     } as DuelState;
   });
+  return resolved;
+}
+
+function applyCallHauntedDestruction(previous: DuelState, next: DuelState): DuelState {
+  let resolved = next;
+  for (const side of ["player", "cpu"] as const) {
+    const spellTrapKey = side === "player" ? "playerSpellTrap" : "cpuSpellTrap";
+    const activeTrapKey = side === "player" ? "playerActiveTraps" : "cpuActiveTraps";
+    const graveyardKey = side === "player" ? "playerGraveyard" : "cpuGraveyard";
+    const fieldKey = side === "player" ? "playerField" : "cpuField";
+    const trapLost = previous[spellTrapKey].filter((id) => id === "ca-12").length > resolved[spellTrapKey].filter((id) => id === "ca-12").length;
+    const trapMovedToGrave = resolved[graveyardKey].filter((id) => id === "ca-12").length > previous[graveyardKey].filter((id) => id === "ca-12").length;
+    if (!trapLost || !trapMovedToGrave) continue;
+    const destroyed = resolved[fieldKey].filter((zone) => zone.callHauntedLinked);
+    resolved = {
+      ...resolved,
+      [fieldKey]: resolved[fieldKey].filter((zone) => !zone.callHauntedLinked),
+      [spellTrapKey]: discardEquips(resolved[spellTrapKey], destroyed),
+      [activeTrapKey]: resolved[activeTrapKey].filter((id) => id !== "ca-12"),
+      [graveyardKey]: [...resolved[graveyardKey], ...destroyed.flatMap((zone) => [zone.id, ...zone.equipped.filter((id) => id !== "ca-12")])],
+      log: destroyed.length > 0
+        ? appendLog(resolved.log, `リビングデッドの呼び声がフィールドを離れたため、${destroyed.map((zone) => cardById.get(zone.id)?.name ?? "モンスター").join("、")}も破壊。`)
+        : resolved.log,
+    } as DuelState;
+  }
   return resolved;
 }
 

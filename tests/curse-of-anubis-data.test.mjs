@@ -119,6 +119,16 @@ test("刻の封印・ソロモンの律法書・ホーリージャベリンは�
   for (const id of ["ca-07", "ca-13", "ca-15"]) assert.equal(curseOfAnubisReadyCardIds.includes(id), true);
 });
 
+test("砂塵の大竜巻・リビングデッドの呼び声・補充要員は双方の対象処理へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /resolveDustTornado/);
+  assert.match(arena, /resolveCallHaunted/);
+  assert.match(arena, /confirmBackupSoldier/);
+  assert.match(arena, /resolveCpuCurseOfAnubisTraps/);
+  assert.match(arena, /applyCallHauntedDestruction/);
+  for (const id of ["ca-11", "ca-12", "ca-28"]) assert.equal(curseOfAnubisReadyCardIds.includes(id), true);
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);
