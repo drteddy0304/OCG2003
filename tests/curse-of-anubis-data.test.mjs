@@ -103,6 +103,14 @@ test("浅すぎた墓穴と検閲は対戦処理へ接続される", async () =>
   assert.match(arena, /applyCardInspectionStandby/);
 });
 
+test("早すぎた埋葬と精神寄生体は蘇生・装備・スタンバイ処理へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /card\.id === "ca-38"/);
+  assert.match(arena, /applyPrematureBurialDestruction/);
+  assert.match(arena, /defender\.id === "ca-47"/);
+  assert.match(arena, /applySpiritParasiteStandby/);
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);
@@ -116,7 +124,8 @@ test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-51"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-03"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-41"), true);
-  assert.equal(curseOfAnubisReadyCardIds.includes("ca-47"), false);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-38"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-47"), true);
 });
 
 test("全カードに固有の説明文が用意される", async () => {
