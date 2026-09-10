@@ -111,6 +111,14 @@ test("早すぎた埋葬と精神寄生体は蘇生・装備・スタンバイ�
   assert.match(arena, /applySpiritParasiteStandby/);
 });
 
+test("刻の封印・ソロモンの律法書・ホーリージャベリンは双方のターン処理へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /activateTimeSealForDraw/);
+  assert.match(arena, /activateSolomonForStandby/);
+  assert.match(arena, /activateHolyJavelinOnAttack/);
+  for (const id of ["ca-07", "ca-13", "ca-15"]) assert.equal(curseOfAnubisReadyCardIds.includes(id), true);
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);

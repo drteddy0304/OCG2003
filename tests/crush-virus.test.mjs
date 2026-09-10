@@ -16,5 +16,5 @@ test("死のデッキ破壊ウイルスはCPUも判断して使い、双方の3�
   assert.match(source, /playerCrushVirusTurns: 3/);
   assert.match(source, /cpuCrushVirusTurns: 3/);
   assert.match(source, /virusDestroyed = state\.cpuCrushVirusTurns > 0/);
-  assert.match(source, /playerDrawDestroyed = state\.playerCrushVirusTurns > 0/);
+  assert.match(source, /playerDrawDestroyed = playerDrawId !== null && state\.playerCrushVirusTurns > 0/);
 });

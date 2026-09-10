@@ -4273,7 +4273,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 163</strong>
+          <strong>17 DUELISTS · BUILD 164</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -6274,30 +6274,37 @@ function resolveParasiteDraw(state: DuelState, side: Side, drawnId: string): Due
 }
 
 function runCpuTurn(initial: DuelState): DuelState {
-  let state = initial;
-  if (state.cpuDeck.length === 0) return { ...state, result: "win" };
-  const drawnId = state.cpuDeck[0];
-  const virusDestroyed = state.cpuCrushVirusTurns > 0 && crushCardVirusDestroys(cardById.get(drawnId));
-  state = {
-    ...state,
-    cpuHand: virusDestroyed ? state.cpuHand : [...state.cpuHand, drawnId],
-    cpuDeck: state.cpuDeck.slice(1),
-    cpuGraveyard: virusDestroyed ? [...state.cpuGraveyard, drawnId] : state.cpuGraveyard,
-    cpuCrushVirusTurns: Math.max(0, state.cpuCrushVirusTurns - (state.cpuCrushVirusTurns > 0 ? 1 : 0)),
-    log: appendLog(state.log, virusDestroyed
-      ? `CPUが1枚ドロー。死のデッキ破壊ウイルスが${cardById.get(drawnId)?.name ?? "モンスター"}を破壊。`
-      : "CPUが1枚ドロー。"),
-  };
-  if (!virusDestroyed) state = resolveParasiteDraw(state, "cpu", drawnId);
+  const timeSeal = activateTimeSealForDraw(initial, "cpu");
+  let state = timeSeal.state;
+  if (!timeSeal.skipped) {
+    if (state.cpuDeck.length === 0) return { ...state, result: "win" };
+    const drawnId = state.cpuDeck[0];
+    const virusDestroyed = state.cpuCrushVirusTurns > 0 && crushCardVirusDestroys(cardById.get(drawnId));
+    state = {
+      ...state,
+      cpuHand: virusDestroyed ? state.cpuHand : [...state.cpuHand, drawnId],
+      cpuDeck: state.cpuDeck.slice(1),
+      cpuGraveyard: virusDestroyed ? [...state.cpuGraveyard, drawnId] : state.cpuGraveyard,
+      cpuCrushVirusTurns: Math.max(0, state.cpuCrushVirusTurns - (state.cpuCrushVirusTurns > 0 ? 1 : 0)),
+      log: appendLog(state.log, virusDestroyed
+        ? `CPUが1枚ドロー。死のデッキ破壊ウイルスが${cardById.get(drawnId)?.name ?? "モンスター"}を破壊。`
+        : "CPUが1枚ドロー。"),
+    };
+    if (!virusDestroyed) state = resolveParasiteDraw(state, "cpu", drawnId);
+  }
+  const solomon = activateSolomonForStandby(state, "cpu");
+  state = solomon.state;
   state = activateCpuContinuousTraps(state);
-  state = applyCardInspectionStandby(state, "cpu");
-  state = applySpiritParasiteStandby(state, "cpu");
-  state = applyEyeOfTruthStandby(state, "cpu");
-  state = applySnatchStealStandby(state, "cpu");
-  state = applyMessengerStandby(state, "cpu");
-  state = applyMatangoStandby(state, "cpu");
-  state = applyGermInfectionStandby(state, "cpu");
-  state = applyPatrolRoboStandby(state, "cpu");
+  if (!solomon.skipped) {
+    state = applyCardInspectionStandby(state, "cpu");
+    state = applySpiritParasiteStandby(state, "cpu");
+    state = applyEyeOfTruthStandby(state, "cpu");
+    state = applySnatchStealStandby(state, "cpu");
+    state = applyMessengerStandby(state, "cpu");
+    state = applyMatangoStandby(state, "cpu");
+    state = applyGermInfectionStandby(state, "cpu");
+    state = applyPatrolRoboStandby(state, "cpu");
+  }
   if (state.result) return state;
   state = useCpuCurseOfFiend(state);
   if (state.pendingFlipTarget || state.pendingMultiTarget || state.pendingDeckReorder || state.pendingDeckSearch) return state;
@@ -7052,35 +7059,45 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     state = { ...state, playerSwordsTurns: swords.remaining };
   }
 
-  if (state.playerDeck.length === 0) {
+  const timeSeal = activateTimeSealForDraw(state, "player");
+  state = timeSeal.state;
+  if (!timeSeal.skipped && state.playerDeck.length === 0) {
     return { ...state, result: "lose", log: appendLog(state.log, "デッキからカードを引けず敗北。") };
   }
-  const playerDrawId = state.playerDeck[0];
-  const playerDrawDestroyed = state.playerCrushVirusTurns > 0 && crushCardVirusDestroys(cardById.get(playerDrawId));
+  const playerDrawId = timeSeal.skipped ? null : state.playerDeck[0];
+  const playerDrawDestroyed = playerDrawId !== null && state.playerCrushVirusTurns > 0 && crushCardVirusDestroys(cardById.get(playerDrawId));
   let playerStart: DuelState = {
     ...state,
-    playerHand: playerDrawDestroyed ? state.playerHand : [...state.playerHand, playerDrawId],
-    playerDeck: state.playerDeck.slice(1),
-    playerGraveyard: playerDrawDestroyed ? [...state.playerGraveyard, playerDrawId] : state.playerGraveyard,
-    playerCrushVirusTurns: Math.max(0, state.playerCrushVirusTurns - (state.playerCrushVirusTurns > 0 ? 1 : 0)),
+    playerHand: playerDrawId === null || playerDrawDestroyed ? state.playerHand : [...state.playerHand, playerDrawId],
+    playerDeck: playerDrawId === null ? state.playerDeck : state.playerDeck.slice(1),
+    playerGraveyard: playerDrawDestroyed && playerDrawId ? [...state.playerGraveyard, playerDrawId] : state.playerGraveyard,
+    playerCrushVirusTurns: playerDrawId === null
+      ? state.playerCrushVirusTurns
+      : Math.max(0, state.playerCrushVirusTurns - (state.playerCrushVirusTurns > 0 ? 1 : 0)),
     playerField: state.playerField.map((zone) => ({ ...zone, attacked: false, positionChanged: false })),
     turn: "player",
     turnNumber: state.turnNumber + 1,
     phase: "standby",
     normalSummoned: false,
-    log: appendLog(state.log, playerDrawDestroyed
+    log: playerDrawId === null ? state.log : appendLog(state.log, playerDrawDestroyed
       ? `あなたのターン。1枚ドロー。死のデッキ破壊ウイルスが${cardById.get(playerDrawId)?.name ?? "モンスター"}を破壊。`
       : "あなたのターン。1枚ドロー。"),
   };
-  if (!playerDrawDestroyed) playerStart = resolveParasiteDraw(playerStart, "player", playerDrawId);
-  playerStart = applyCardInspectionStandby(playerStart, "player");
-  playerStart = applySpiritParasiteStandby(playerStart, "player");
-  playerStart = applyEyeOfTruthStandby(playerStart, "player");
-  playerStart = applySnatchStealStandby(playerStart, "player");
-  playerStart = applyMessengerStandby(playerStart, "player");
-  playerStart = applyMatangoStandby(playerStart, "player");
-  playerStart = applyGermInfectionStandby(playerStart, "player");
-  playerStart = applyPatrolRoboStandby(playerStart, "player");
+  if (playerDrawId !== null && !playerDrawDestroyed) playerStart = resolveParasiteDraw(playerStart, "player", playerDrawId);
+  const solomon = activateSolomonForStandby(playerStart, "player");
+  playerStart = solomon.state;
+  if (!solomon.skipped) {
+    playerStart = applyCardInspectionStandby(playerStart, "player");
+    playerStart = applySpiritParasiteStandby(playerStart, "player");
+    playerStart = applyEyeOfTruthStandby(playerStart, "player");
+    playerStart = applySnatchStealStandby(playerStart, "player");
+    playerStart = applyMessengerStandby(playerStart, "player");
+    playerStart = applyMatangoStandby(playerStart, "player");
+    playerStart = applyGermInfectionStandby(playerStart, "player");
+    playerStart = applyPatrolRoboStandby(playerStart, "player");
+  } else {
+    playerStart = { ...playerStart, phase: "main1" };
+  }
   if (playerStart.result) return playerStart;
   return openBlastJugglerPrompt(playerStart);
 }
@@ -7882,6 +7899,7 @@ function duelAttackPayment(state: DuelState, side: Side, monster: ZoneCard) {
 }
 
 function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: number, defenderIndex: number | null, guardianEffect = false, preventPlayerBattleDamage = false): DuelState {
+  state = activateHolyJavelinOnAttack(state, attackerSide, attackerIndex);
   const attackerFieldKey = attackerSide === "player" ? "playerField" : "cpuField";
   const defenderFieldKey = attackerSide === "player" ? "cpuField" : "playerField";
   const attackerLpKey = attackerSide === "player" ? "playerLp" : "cpuLp";
@@ -8183,6 +8201,60 @@ function applyCardInspectionStandby(state: DuelState, standbySide: Side): DuelSt
     cpuLp: inspectorSide === "cpu" ? state.cpuLp - cost : state.cpuLp,
     log: appendLog(state.log, `${inspectorSide === "player" ? "あなた" : "CPU"}が検閲の効果で${cost}LPを払い、${standbySide === "player" ? "あなた" : "CPU"}の手札を確認：${revealed.join("／")}。`),
   };
+}
+
+function activateTimeSealForDraw(state: DuelState, drawingSide: Side) {
+  if (areTrapEffectsNegated(state)) return { state, skipped: false };
+  const owner: Side = drawingSide === "player" ? "cpu" : "player";
+  const spellTrapKey = owner === "player" ? "playerSpellTrap" : "cpuSpellTrap";
+  const graveyardKey = owner === "player" ? "playerGraveyard" : "cpuGraveyard";
+  const trapIndex = state[spellTrapKey].indexOf("ca-07");
+  if (trapIndex < 0) return { state, skipped: false };
+  return {
+    skipped: true,
+    state: {
+      ...state,
+      [spellTrapKey]: state[spellTrapKey].filter((_, index) => index !== trapIndex),
+      [graveyardKey]: [...state[graveyardKey], "ca-07"],
+      log: appendLog(state.log, `${owner === "player" ? "プレイヤー" : "CPU"}が刻の封印を発動。${drawingSide === "player" ? "プレイヤー" : "CPU"}のドローフェイズをスキップ。`),
+    } as DuelState,
+  };
+}
+
+function activateSolomonForStandby(state: DuelState, side: Side) {
+  if (areTrapEffectsNegated(state)) return { state, skipped: false };
+  const spellTrapKey = side === "player" ? "playerSpellTrap" : "cpuSpellTrap";
+  const graveyardKey = side === "player" ? "playerGraveyard" : "cpuGraveyard";
+  const trapIndex = state[spellTrapKey].indexOf("ca-13");
+  if (trapIndex < 0) return { state, skipped: false };
+  return {
+    skipped: true,
+    state: {
+      ...state,
+      [spellTrapKey]: state[spellTrapKey].filter((_, index) => index !== trapIndex),
+      [graveyardKey]: [...state[graveyardKey], "ca-13"],
+      log: appendLog(state.log, `${side === "player" ? "プレイヤー" : "CPU"}がソロモンの律法書を発動。スタンバイフェイズをスキップ。`),
+    } as DuelState,
+  };
+}
+
+function activateHolyJavelinOnAttack(state: DuelState, attackerSide: Side, attackerIndex: number): DuelState {
+  if (areTrapEffectsNegated(state)) return state;
+  const defenderSide: Side = attackerSide === "player" ? "cpu" : "player";
+  const spellTrapKey = defenderSide === "player" ? "playerSpellTrap" : "cpuSpellTrap";
+  const graveyardKey = defenderSide === "player" ? "playerGraveyard" : "cpuGraveyard";
+  const lifeKey = defenderSide === "player" ? "playerLp" : "cpuLp";
+  const trapIndex = state[spellTrapKey].indexOf("ca-15");
+  const attacker = (attackerSide === "player" ? state.playerField : state.cpuField)[attackerIndex];
+  if (trapIndex < 0 || !attacker) return state;
+  const gain = effectiveAtk(attacker, state, attackerSide);
+  return {
+    ...state,
+    [spellTrapKey]: state[spellTrapKey].filter((_, index) => index !== trapIndex),
+    [graveyardKey]: [...state[graveyardKey], "ca-15"],
+    [lifeKey]: state[lifeKey] + gain,
+    log: appendLog(state.log, `${defenderSide === "player" ? "プレイヤー" : "CPU"}がホーリージャベリンを発動。攻撃モンスターのATK分、${gain}LP回復。`),
+  } as DuelState;
 }
 
 function applySpiritParasiteStandby(state: DuelState, standbySide: Side): DuelState {
@@ -9733,6 +9805,9 @@ function isSpellImplemented(id: string) {
 }
 
 function trapDescription(id: string) {
+  if (id === "ca-07") return "次の相手ターンのドローフェイズをスキップする";
+  if (id === "ca-13") return "次の自分のスタンバイフェイズをスキップする";
+  if (id === "ca-15") return "相手の攻撃宣言時、攻撃モンスターの現在のATK分だけ自分のLPを回復する";
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
   if (id === "vol7-mirror-force") return "相手の攻撃宣言時、相手の攻撃表示モンスターをすべて破壊";
   if (id === "vol7-robbin-goblin") return "自分のモンスターが戦闘ダメージを与えるたび、相手の手札をランダムに1枚捨てる";
@@ -9765,7 +9840,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "ca-06" || id === "ca-09" || id === "ca-10" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
+  return id === "ca-06" || id === "ca-07" || id === "ca-09" || id === "ca-10" || id === "ca-13" || id === "ca-15" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {
