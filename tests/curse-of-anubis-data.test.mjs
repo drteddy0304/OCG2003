@@ -33,6 +33,15 @@ test("サイコ・ショッカーとバスター・ブレイダーの常在効�
 
 test("７カードは機械族へ装備できATKを700上げる", () => {
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["ca-04"]), { atk: 1700, def: 1000 });
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-04"), true);
+});
+
+test("７カードはプレイヤーがATKかDEFを選びCPUも表示形式に合わせる", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /selectedSevenCardStat/);
+  assert.match(arena, /ATKを700アップ/);
+  assert.match(arena, /DEFを700アップ/);
+  assert.match(arena, /sevenCardDefenseCount/);
 });
 
 test("銀幕の鏡壁は攻撃モンスターを半減し維持コストを計算する", async () => {
@@ -44,6 +53,8 @@ test("銀幕の鏡壁は攻撃モンスターを半減し維持コストを計�
   const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
   assert.match(arena, /activateCpuMirrorWall/);
   assert.match(arena, /applyMirrorWallStandby/);
+  assert.match(arena, /respondToMirrorWallUpkeep/);
+  assert.match(arena, /払わず破壊する/);
 });
 
 test("回復・バーン・連鎖破壊を共有ルールとして計算する", () => {

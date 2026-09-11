@@ -147,6 +147,7 @@ type PendingDarknessApproaches = { spellIndex: number; discardIndexes: number[] 
 type PendingTailor = { spellIndex: number; sourceSide: Side | null; sourceIndex: number | null; equipId: string | null };
 type PendingJustDesserts = { trapIndex: number };
 type PendingBattleStatTrap = { trapIndex: number; trapId: "bo3-reinforcements" | "bo3-castle-walls" | "ca-16"; attackerIndex: number; defenderIndex: number | null };
+type PendingMirrorWallUpkeep = { cost: number };
 type PendingChainBoomerang = { trapIndex: number; attackerIndex: number; defenderIndex: number | null };
 type PendingReverseTrap = { trapIndex: number; attackerIndex: number; defenderIndex: number };
 type PendingDeckReorder = {
@@ -187,6 +188,7 @@ type ZoneCard = {
   faceDown: boolean;
   attacked: boolean;
   equipped: string[];
+  sevenCardDefenseCount?: number;
   summonedTurn: number;
   faceUpTurn?: number;
   positionChanged: boolean;
@@ -282,6 +284,7 @@ type DuelState = {
   pendingRobbinGoblin: PendingRobbinGoblin | null;
   pendingJustDesserts: PendingJustDesserts | null;
   pendingBattleStatTrap: PendingBattleStatTrap | null;
+  pendingMirrorWallUpkeep: PendingMirrorWallUpkeep | null;
   pendingReverseTrap: PendingReverseTrap | null;
   playerActiveTraps: string[];
   cpuActiveTraps: string[];
@@ -321,6 +324,7 @@ export function DuelArena({
   }
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
+  const [selectedSevenCardStat, setSelectedSevenCardStat] = useState<"atk" | "def" | null>(null);
   const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
   const [pendingReborn, setPendingReborn] = useState<number | null>(null);
   const [pendingDeSpell, setPendingDeSpell] = useState<number | null>(null);
@@ -398,6 +402,7 @@ export function DuelArena({
     && !duel.pendingWabokuResponse
     && !duel.pendingRobbinGoblin
     && !duel.pendingBattleStatTrap
+    && !duel.pendingMirrorWallUpkeep
     && !duel.pendingReverseTrap
     && !duel.pendingSevenTools
     && !duel.pendingBlastJuggler
@@ -606,6 +611,7 @@ export function DuelArena({
       pendingRobbinGoblin: null,
       pendingJustDesserts: null,
       pendingBattleStatTrap: null,
+      pendingMirrorWallUpkeep: null,
       pendingReverseTrap: null,
       playerActiveTraps: [],
       cpuActiveTraps: [],
@@ -961,6 +967,7 @@ export function DuelArena({
     if (EQUIP_RULES[card.id]) {
       if (!canActivateEquip(duel, card.id)) return;
       setSelectedEquip(handIndex);
+      setSelectedSevenCardStat(card.id === "ca-04" ? null : "atk");
       setSelectedAttacker(null);
       return;
     }
@@ -1769,11 +1776,20 @@ export function DuelArena({
     const targetSpellTrap = side === "player" ? duel.playerSpellTrap : duel.cpuSpellTrap;
     if (side !== pendingTailor.sourceSide && targetSpellTrap.length >= FIELD_LIMIT) return;
 
+    const movingSevenCardDefense = pendingTailor.equipId === "ca-04" && (source.sevenCardDefenseCount ?? 0) > 0;
     const removeFromSource = (field: ZoneCard[]) => field.map((zone, index) => index === pendingTailor.sourceIndex
-      ? { ...zone, equipped: removeCardCopies(zone.equipped, pendingTailor.equipId!, 1) }
+      ? {
+          ...zone,
+          equipped: removeCardCopies(zone.equipped, pendingTailor.equipId!, 1),
+          ...(movingSevenCardDefense ? { sevenCardDefenseCount: Math.max(0, (zone.sevenCardDefenseCount ?? 0) - 1) } : {}),
+        }
       : zone);
     const addToTarget = (field: ZoneCard[]) => field.map((zone, index) => index === targetIndex
-      ? { ...zone, equipped: [...zone.equipped, pendingTailor.equipId!] }
+      ? {
+          ...zone,
+          equipped: [...zone.equipped, pendingTailor.equipId!],
+          ...(movingSevenCardDefense ? { sevenCardDefenseCount: (zone.sevenCardDefenseCount ?? 0) + 1 } : {}),
+        }
       : zone);
     let playerField = duel.playerField;
     let cpuField = duel.cpuField;
@@ -2810,6 +2826,7 @@ export function DuelArena({
     const zone = duel[fieldKey][fieldIndex];
     const monster = zone ? cardById.get(zone.id) : null;
     if (!spell || !zone || zone.faceDown || !monster || !canEquip(spell.id, monster) || (spell.id !== "mr-snatch-steal" && duel[spellTrapKey].length >= FIELD_LIMIT)) return;
+    if (spell.id === "ca-04" && selectedSevenCardStat === null) return;
     if (spell.id === "ps-08") {
       const wallShadowIndex = duel.playerDeck.indexOf("ps-05");
       if (owner !== "player" || zone.id !== "ps-04" || wallShadowIndex < 0) return;
@@ -2855,6 +2872,9 @@ export function DuelArena({
           ? {
               ...item,
               equipped: [...item.equipped, spell.id],
+              ...(spell.id === "ca-04" && selectedSevenCardStat === "def"
+                ? { sevenCardDefenseCount: (item.sevenCardDefenseCount ?? 0) + 1 }
+                : {}),
               ...(spell.id === "vol4-cocoon-evolution" ? { cocoonEquippedTurn: duel.turnNumber } : {}),
             }
           : item,
@@ -2878,12 +2898,15 @@ export function DuelArena({
                     ? `光の角を${monster.name}に装備。DEFが800アップ。`
                     : spell.id === "mr-malevolent-nuzzler"
                       ? `悪魔のくちづけを${monster.name}に装備。ATKが700アップ。`
+                : spell.id === "ca-04"
+                  ? `７カードを${monster.name}に装備。${selectedSevenCardStat === "def" ? "DEF" : "ATK"}が700アップ。`
                 : spell.id.startsWith("bo2-")
                   ? `${spell.name}を${monster.name}に装備。ATKが400アップし、DEFが200ダウン。`
                   : `${spell.name}を${monster.name}に装備。ATK・DEFが300アップ。`,
       ),
     });
     setSelectedEquip(null);
+    setSelectedSevenCardStat(null);
   }
 
   function summonMoth(handIndex: number, position: Position) {
@@ -3317,7 +3340,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "standby") {
@@ -3353,7 +3376,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -4090,6 +4113,29 @@ export function DuelArena({
     beginCpuPlayback(resumed, finalState, marker);
   }
 
+  function respondToMirrorWallUpkeep(pay: boolean) {
+    if (!duel?.pendingMirrorWallUpkeep) return;
+    const cost = duel.pendingMirrorWallUpkeep.cost;
+    if (pay && duel.playerLp > cost) {
+      setDuel({
+        ...duel,
+        pendingMirrorWallUpkeep: null,
+        playerLp: duel.playerLp - cost,
+        log: appendLog(duel.log, `銀幕の鏡壁の維持コストとして${cost}LPを支払った。`),
+      });
+      return;
+    }
+    const copies = duel.playerActiveTraps.filter((id) => id === "ca-16").length;
+    setDuel({
+      ...duel,
+      pendingMirrorWallUpkeep: null,
+      playerSpellTrap: duel.playerSpellTrap.filter((id) => id !== "ca-16"),
+      playerActiveTraps: duel.playerActiveTraps.filter((id) => id !== "ca-16"),
+      playerGraveyard: [...duel.playerGraveyard, ...Array(copies).fill("ca-16")],
+      log: appendLog(duel.log, "維持コストを払わず、銀幕の鏡壁を破壊した。"),
+    });
+  }
+
   function respondToReverseTrap(activate: boolean) {
     if (!duel?.pendingReverseTrap) return;
     const pending = duel.pendingReverseTrap;
@@ -4474,7 +4520,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 167</strong>
+          <strong>17 DUELISTS · BUILD 168</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -4712,6 +4758,23 @@ export function DuelArena({
             <div>
               <button className="activate-trap" onClick={() => respondToBattleStatTrap(true)}>発動する</button>
               <button onClick={() => respondToBattleStatTrap(false)}>発動しない</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!cpuPlayback && duel.pendingMirrorWallUpkeep && (
+        <div className="trap-response">
+          <div>
+            <p className="section-label">STANDBY PHASE</p>
+            <h2>銀幕の鏡壁を維持しますか？</h2>
+            <p>{duel.pendingMirrorWallUpkeep.cost}LPを払うと、銀幕の鏡壁をフィールドに残せます。</p>
+            <div>
+              <button
+                className="activate-trap"
+                disabled={duel.playerLp <= duel.pendingMirrorWallUpkeep.cost}
+                onClick={() => respondToMirrorWallUpkeep(true)}
+              >{duel.pendingMirrorWallUpkeep.cost}LPを払う</button>
+              <button onClick={() => respondToMirrorWallUpkeep(false)}>払わず破壊する</button>
             </div>
           </div>
         </div>
@@ -5520,6 +5583,20 @@ export function DuelArena({
                   </button>
                 );
               })}
+            </div>
+          </article>
+        </div>
+      )}
+      {selectedEquip !== null && duel.playerHand[selectedEquip] === "ca-04" && selectedSevenCardStat === null && (
+        <div className="card-overlay spell-target-overlay">
+          <article className="effect-choice-panel spell-target-panel">
+            <p className="section-label">EQUIP SPELL · ７ CARD</p>
+            <h2>アップする能力を選択</h2>
+            <p>このあと、表側表示の機械族モンスターを装備先として選びます。</p>
+            <div className="effect-choice-actions">
+              <button className="primary" onClick={() => setSelectedSevenCardStat("atk")}>ATKを700アップ</button>
+              <button className="primary" onClick={() => setSelectedSevenCardStat("def")}>DEFを700アップ</button>
+              <button onClick={() => { setSelectedEquip(null); setSelectedSevenCardStat(null); }}>キャンセル</button>
             </div>
           </article>
         </div>
@@ -8113,7 +8190,13 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     state = {
       ...removeCpuHandCard(state, choice.id),
       cpuField: state.cpuField.map((zone, index) =>
-        index === targetIndex ? { ...zone, equipped: [...zone.equipped, choice.id] } : zone,
+        index === targetIndex ? {
+          ...zone,
+          equipped: [...zone.equipped, choice.id],
+          ...(choice.id === "ca-04" && zone.position === "defense"
+            ? { sevenCardDefenseCount: (zone.sevenCardDefenseCount ?? 0) + 1 }
+            : {}),
+        } : zone,
       ),
       cpuSpellTrap: [...state.cpuSpellTrap, choice.id],
       log: appendLog(state.log, `CPUが${choice.name}を${target?.name ?? "モンスター"}に装備。`),
@@ -8665,6 +8748,13 @@ function applyMirrorWallStandby(state: DuelState, side: Side): DuelState {
   const lifeKey = side === "player" ? "playerLp" : "cpuLp";
   const cost = mirrorWallStandbyCost(state[activeTrapKey]);
   if (cost === 0) return state;
+  if (side === "player") {
+    return {
+      ...state,
+      pendingMirrorWallUpkeep: { cost },
+      log: appendLog(state.log, `銀幕の鏡壁を維持するには${cost}LPが必要です。支払うか選んでください。`),
+    };
+  }
   if (state[lifeKey] > cost) {
     return {
       ...state,
@@ -9770,7 +9860,12 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   const megamorphAtk = state && side && zone.equipped.includes("ps-10")
     ? megamorphAttack(base.atk, side === "player" ? state.playerLp : state.cpuLp, side === "player" ? state.cpuLp : state.playerLp)
     : base.atk;
-  const equipped = equippedMonsterStats(megamorphAtk, base.def, zone.equipped);
+  const equippedBase = equippedMonsterStats(megamorphAtk, base.def, zone.equipped);
+  const sevenCardDefenseCount = Math.min(zone.sevenCardDefenseCount ?? 0, zone.equipped.filter((id) => id === "ca-04").length);
+  const equipped = {
+    atk: Math.max(0, equippedBase.atk - sevenCardDefenseCount * 700),
+    def: equippedBase.def + sevenCardDefenseCount * 700,
+  };
   if (!state || !side || zone.faceDown || !card) return equipped.atk;
   const stats = continuousMonsterStats({
     id: zone.id,
@@ -9820,7 +9915,12 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
   if (state && side && !zone.faceDown && zone.id === "g4-02-slifer") original = sliferDivineStats(side === "player" ? state.playerHand.length : state.cpuHand.length);
   if (!zone.faceDown && zone.id === "g4-03-ra") original = { atk: zone.godBaseAtk ?? 0, def: zone.godBaseDef ?? 0 };
   const base = swappedMonsterStats(original.atk, original.def, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
-  const equipped = equippedMonsterStats(base.atk, base.def, zone.equipped);
+  const equippedBase = equippedMonsterStats(base.atk, base.def, zone.equipped);
+  const sevenCardDefenseCount = Math.min(zone.sevenCardDefenseCount ?? 0, zone.equipped.filter((id) => id === "ca-04").length);
+  const equipped = {
+    atk: Math.max(0, equippedBase.atk - sevenCardDefenseCount * 700),
+    def: equippedBase.def + sevenCardDefenseCount * 700,
+  };
   if (!state || !side || zone.faceDown || !card) return equipped.def;
   const stats = continuousMonsterStats({
     id: zone.id,
@@ -10250,7 +10350,7 @@ function spellDescription(id: string) {
   if (id === "mr-black-pendant") return "ATKを500アップ。フィールドから墓地へ送られた時、相手に500ダメージ";
   if (id === "mr-horn-light") return "モンスター1体のDEFを800アップ";
   if (id === "mr-malevolent-nuzzler") return "モンスター1体のATKを700アップ";
-  if (id === "ca-04") return "機械族モンスター1体のATKを700アップ";
+  if (id === "ca-04") return "機械族モンスター1体のATKかDEFを選び、700アップ";
   if (id === "pr99-insect-armor") return "昆虫族モンスター1体のATKを700アップ";
   if (id === "pr99-cyber-bondage") return "ハーピィ・レディまたは三姉妹のATKを500アップ";
   if (id === "pr99-salamandra") return "炎属性モンスター1体のATKを700アップ";
@@ -10473,14 +10573,20 @@ function removeCardCopies(cardIds: string[], cardId: string, count: number) {
 
 function removeEquippedCard(field: ZoneCard[], spellId: string) {
   let removed = false;
-  return field.map((zone) => ({
-    ...zone,
-    equipped: zone.equipped.filter((id) => {
+  return field.map((zone) => {
+    const removedSevenCardDefense = spellId === "ca-04" && !removed && zone.equipped.includes("ca-04") && (zone.sevenCardDefenseCount ?? 0) > 0;
+    const next = {
+      ...zone,
+      equipped: zone.equipped.filter((id) => {
       if (removed || id !== spellId) return true;
       removed = true;
       return false;
-    }),
-  }));
+      }),
+    };
+    return removedSevenCardDefense
+      ? { ...next, sevenCardDefenseCount: Math.max(0, (zone.sevenCardDefenseCount ?? 0) - 1) }
+      : next;
+  });
 }
 
 function applyPrematureBurialDestruction(previous: DuelState, next: DuelState): DuelState {
