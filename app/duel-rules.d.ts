@@ -18,6 +18,8 @@ export function goddessWhimMultiplier(heads: boolean): number;
 export function germInfectionPenalty(equippedIds: string[], standbyCount?: number): number;
 export function dopingPenalty(equippedIds: string[], standbyCount?: number): number;
 export function paralyzingPotionPreventsAttack(equippedIds: string[]): boolean;
+export function mirrorWallAttack(atk: number, defendingActiveTrapIds: string[], trapsNegated?: boolean): number;
+export function mirrorWallStandbyCost(activeTrapIds: string[]): number;
 export const GOD_CARD_IDS: readonly string[];
 export function isGodCard(id: string): boolean;
 export function requiredTributes(id: string, level?: number): number;

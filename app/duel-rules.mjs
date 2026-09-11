@@ -805,6 +805,16 @@ export function paralyzingPotionPreventsAttack(equippedIds) {
   return equippedIds.includes("vol7-paralyzing-potion");
 }
 
+export function mirrorWallAttack(atk, defendingActiveTrapIds, trapsNegated = false) {
+  return !trapsNegated && defendingActiveTrapIds.includes("ca-16")
+    ? Math.floor(Math.max(0, atk) / 2)
+    : Math.max(0, atk);
+}
+
+export function mirrorWallStandbyCost(activeTrapIds) {
+  return activeTrapIds.filter((id) => id === "ca-16").length * 2000;
+}
+
 export function robbinGoblinCanTrigger(spellTrapIds, opponentHandSize) {
   return opponentHandSize > 0 && spellTrapIds.includes("vol7-robbin-goblin");
 }

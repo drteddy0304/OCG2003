@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { curseOfAnubisCards, curseOfAnubisPack, curseOfAnubisReadyCardIds } from "../app/curse-of-anubis-data.ts";
-import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, equippedMonsterStats, flipEffect, holyElfBlessingGain, jinzoNegatesTraps, whiteRobeAngelGain } from "../app/duel-rules.mjs";
+import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, equippedMonsterStats, flipEffect, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, whiteRobeAngelGain } from "../app/duel-rules.mjs";
 
 test("Curse of Anubisは発売当時の全52種類を保持する", () => {
   assert.equal(curseOfAnubisCards.length, 52);
@@ -33,6 +33,17 @@ test("サイコ・ショッカーとバスター・ブレイダーの常在効�
 
 test("７カードは機械族へ装備できATKを700上げる", () => {
   assert.deepEqual(equippedMonsterStats(1000, 1000, ["ca-04"]), { atk: 1700, def: 1000 });
+});
+
+test("銀幕の鏡壁は攻撃モンスターを半減し維持コストを計算する", async () => {
+  assert.equal(mirrorWallAttack(2501, ["ca-16"]), 1250);
+  assert.equal(mirrorWallAttack(2501, ["ca-16"], true), 2501);
+  assert.equal(mirrorWallAttack(2501, []), 2501);
+  assert.equal(mirrorWallStandbyCost(["ca-16", "ca-16"]), 4000);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-16"), true);
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /activateCpuMirrorWall/);
+  assert.match(arena, /applyMirrorWallStandby/);
 });
 
 test("回復・バーン・連鎖破壊を共有ルールとして計算する", () => {

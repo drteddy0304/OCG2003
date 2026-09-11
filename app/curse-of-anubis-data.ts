@@ -65,5 +65,5 @@ export const curseOfAnubisPack: Pack = {
 };
 
 export const curseOfAnubisReadyCardIds = [
-  "ca-00", "ca-01", "ca-02", "ca-03", "ca-05", "ca-06", "ca-07", "ca-08", "ca-09", "ca-10", "ca-11", "ca-12", "ca-13", "ca-15", "ca-28", "ca-30", "ca-31", "ca-32", "ca-33", "ca-35", "ca-36", "ca-37", "ca-38", "ca-39", "ca-41", "ca-42", "ca-43", "ca-44", "ca-45", "ca-46", "ca-47", "ca-48", "ca-49", "ca-50", "ca-51",
+  "ca-00", "ca-01", "ca-02", "ca-03", "ca-05", "ca-06", "ca-07", "ca-08", "ca-09", "ca-10", "ca-11", "ca-12", "ca-13", "ca-15", "ca-16", "ca-28", "ca-30", "ca-31", "ca-32", "ca-33", "ca-35", "ca-36", "ca-37", "ca-38", "ca-39", "ca-41", "ca-42", "ca-43", "ca-44", "ca-45", "ca-46", "ca-47", "ca-48", "ca-49", "ca-50", "ca-51",
 ] as const;
