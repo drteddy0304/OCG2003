@@ -178,6 +178,7 @@ type PendingFusion = {
 type PendingDragonFlute = { spellIndex: number; selected: number[] };
 type PendingCurseRemoval = { spellIndex: number; kind: "monster" | "spell-trap" };
 type PendingBackupSoldier = { trapIndex: number; selected: number[] };
+type SealedHandCard = { id: string; remainingStandbys: number };
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
 type ZoneCard = {
@@ -252,6 +253,10 @@ type DuelState = {
   cpuExtraBattles: number;
   playerGraveyard: string[];
   cpuGraveyard: string[];
+  playerSealedHand: SealedHandCard[];
+  cpuSealedHand: SealedHandCard[];
+  playerGraverobbedCards: string[];
+  cpuGraverobbedCards: string[];
   playerMonsterSentToGraveTurn: number | null;
   cpuMonsterSentToGraveTurn: number | null;
   playerLp: number;
@@ -355,6 +360,7 @@ export function DuelArena({
   const [pendingDustSet, setPendingDustSet] = useState(false);
   const [pendingCallHaunted, setPendingCallHaunted] = useState<number | null>(null);
   const [pendingBackupSoldier, setPendingBackupSoldier] = useState<PendingBackupSoldier | null>(null);
+  const [pendingGraverobber, setPendingGraverobber] = useState<number | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -411,6 +417,7 @@ export function DuelArena({
     && !pendingDustSet
     && pendingCallHaunted === null
     && pendingBackupSoldier === null
+    && pendingGraverobber === null
     && pendingCheerfulCoffin === null
     && pendingFusion === null
     && pendingRitual === null
@@ -523,6 +530,7 @@ export function DuelArena({
     setPendingDustSet(false);
     setPendingCallHaunted(null);
     setPendingBackupSoldier(null);
+    setPendingGraverobber(null);
     setPendingCheerfulCoffin(null);
     setPendingFusion(null);
     setPendingLastWill(null);
@@ -569,6 +577,10 @@ export function DuelArena({
       cpuExtraBattles: 0,
       playerGraveyard: [],
       cpuGraveyard: [],
+      playerSealedHand: [],
+      cpuSealedHand: [],
+      playerGraverobbedCards: [],
+      cpuGraverobbedCards: [],
       playerMonsterSentToGraveTurn: null,
       cpuMonsterSentToGraveTurn: null,
       playerLp: STARTING_LP,
@@ -856,6 +868,15 @@ export function DuelArena({
     const curseOfFiendStandby = card.id === "mr-curse-fiend" && duel.phase === "standby";
     if (!isPlayerMainPhase && !curseOfFiendStandby) return;
     if (!canPayDuelChainEnergy(duel, "player")) return;
+    if (areSpellEffectsNegated(duel)) {
+      const next = removeHandCard(duel, handIndex);
+      setDuel({
+        ...next,
+        playerGraveyard: [...next.playerGraveyard, card.id],
+        log: appendLog(next.log, `${card.name}を発動したが、王宮の勅命により効果を無効化。`),
+      });
+      return;
+    }
     const ritualDefinition = ritualSummonDefinition(card.id);
     if (ritualDefinition) {
       const ritualIndex = duel.playerHand.findIndex((id, index) => id === ritualDefinition.monsterId && index !== handIndex);
@@ -2966,7 +2987,7 @@ export function DuelArena({
       });
       return;
     }
-    if (["bo5-royal-decree", "bo6-magic-thorn", "ca-10", "ca-31", "ca-32"].includes(card.id)) {
+    if (!areTrapEffectsNegated(duel) && ["bo5-royal-decree", "bo6-magic-thorn", "ca-10", "ca-31", "ca-32", "ca-33"].includes(card.id)) {
       const next = removeHandCard(duel, handIndex);
       setDuel({
         ...next,
@@ -2986,6 +3007,25 @@ export function DuelArena({
   function activateCurseOfAnubisTrap(trapIndex: number) {
     if (!duel || !isPlayerMainPhase || areTrapEffectsNegated(duel)) return;
     const trapId = duel.playerSpellTrap[trapIndex];
+    if (trapId === "ca-05") {
+      if (duel.cpuHand.length === 0) return;
+      const targetIndex = Math.floor(Math.random() * duel.cpuHand.length);
+      const sealedId = duel.cpuHand[targetIndex];
+      setDuel({
+        ...duel,
+        cpuHand: duel.cpuHand.filter((_, index) => index !== targetIndex),
+        cpuSealedHand: [...duel.cpuSealedHand, { id: sealedId, remainingStandbys: 4 }],
+        playerSpellTrap: duel.playerSpellTrap.filter((_, index) => index !== trapIndex),
+        playerGraveyard: [...duel.playerGraveyard, trapId],
+        log: appendLog(duel.log, "光の封札剣を発動。CPUの手札1枚をランダムに封印した。"),
+      });
+      return;
+    }
+    if (trapId === "ca-08") {
+      if (!duel.cpuGraveyard.some((id) => cardById.get(id)?.cardType === "spell")) return;
+      setPendingGraverobber(trapIndex);
+      return;
+    }
     if (trapId === "ca-11") {
       if (duel.playerSpellTrap.length <= 1 && duel.cpuSpellTrap.length === 0 && !duel.playerFieldSpell && !duel.cpuFieldSpell) return;
       setPendingDustTornado(trapIndex);
@@ -3031,6 +3071,23 @@ export function DuelArena({
         log: appendLog(duel.log, `停戦協定を発動。裏側モンスターを表にし、リバース効果を発動せず、効果モンスター${effectCount}体につき500、合計${damage}ダメージ。`),
       });
     }
+  }
+
+  function resolveGraverobber(graveIndex: number) {
+    if (!duel || pendingGraverobber === null || duel.playerSpellTrap[pendingGraverobber] !== "ca-08") return;
+    const taken = takeGraveyardCard(duel.cpuGraveyard, graveIndex);
+    const card = taken ? cardById.get(taken.cardId) : null;
+    if (!taken || card?.cardType !== "spell") return;
+    setDuel({
+      ...duel,
+      playerHand: [...duel.playerHand, taken.cardId],
+      playerGraverobbedCards: [...duel.playerGraverobbedCards, taken.cardId],
+      cpuGraveyard: taken.remaining,
+      playerSpellTrap: duel.playerSpellTrap.filter((_, index) => index !== pendingGraverobber),
+      playerGraveyard: [...duel.playerGraveyard, "ca-08"],
+      log: appendLog(duel.log, `墓荒らしを発動。CPUの墓地から${card.name}を手札に加えた。このターンに使用すると2000ダメージ。`),
+    });
+    setPendingGraverobber(null);
   }
 
   function resolveDustTornado(targetSide: Side, targetIndex: number, fieldSpell = false) {
@@ -4411,7 +4468,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 165</strong>
+          <strong>17 DUELISTS · BUILD 166</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -5151,6 +5208,24 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingGraverobber !== null && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">GRAVEROBBER</p>
+            <h2>奪う魔法カードを選択</h2>
+            <p>CPUの墓地から魔法カード1枚を選びます。このターンに使用すると2000ダメージを受けます。</p>
+            <div className="spell-target-list">
+              {duel.cpuGraveyard.map((id, index) => cardById.get(id)?.cardType !== "spell" ? null : (
+                <button key={`${id}-${index}`} onClick={() => resolveGraverobber(index)}>
+                  <span>CPUの墓地</span>
+                  <strong>{cardById.get(id)?.name}</strong>
+                </button>
+              ))}
+            </div>
+            <button className="overlay-close" onClick={() => setPendingGraverobber(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {pendingDeSpell !== null && (
         <div className="card-overlay spell-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -5445,7 +5520,7 @@ export function DuelArena({
 
       <div className="duel-board">
         <div className="hand-summary">
-          <span>CPU HAND</span><b>{duel.cpuHand.length}</b><span>DECK</span><b>{duel.cpuDeck.length}</b>
+          <span>CPU HAND</span><b>{duel.cpuHand.length}</b>{duel.cpuSealedHand.length > 0 && <small>封印中 {duel.cpuSealedHand.length}</small>}<span>DECK</span><b>{duel.cpuDeck.length}</b>
           <button className="grave-button" onClick={() => setGraveyardView("cpu")}>CPU墓地 {duel.cpuGraveyard.length}</button>
         </div>
         {isCpuHandRevealed(duel) && (
@@ -5601,6 +5676,10 @@ export function DuelArena({
         ) : null)}
         {isPlayerMainPhase && !areTrapEffectsNegated(duel) && duel.playerSpellTrap.map((id, index) => id === "ca-09" ? (
           <button className="effect-action-button" key={`holy-elf-blessing-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>ホーリー・エルフの祝福を発動する</button>
+        ) : id === "ca-05" && duel.cpuHand.length > 0 ? (
+          <button className="effect-action-button" key={`lightforce-sword-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>光の封札剣を発動する</button>
+        ) : id === "ca-08" && duel.cpuGraveyard.some((cardId) => cardById.get(cardId)?.cardType === "spell") ? (
+          <button className="effect-action-button" key={`graverobber-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>墓荒らしを発動する</button>
         ) : id === "ca-11" && (duel.playerSpellTrap.length > 1 || duel.cpuSpellTrap.length > 0 || Boolean(duel.playerFieldSpell) || Boolean(duel.cpuFieldSpell)) ? (
           <button className="effect-action-button" key={`dust-tornado-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>砂塵の大竜巻を発動する</button>
         ) : id === "ca-12" && duel.playerField.length < FIELD_LIMIT && duel.playerGraveyard.some(isReviveTarget) ? (
@@ -5625,7 +5704,7 @@ export function DuelArena({
           <span>PLAYER FIELD</span><strong>{duel.playerFieldSpell ? cardById.get(duel.playerFieldSpell)?.name : "—"}</strong>
         </div>
         <div className="hand-summary">
-          <span>YOUR HAND</span><b>{duel.playerHand.length}</b><span>DECK</span><b>{duel.playerDeck.length}</b>
+          <span>YOUR HAND</span><b>{duel.playerHand.length}</b>{duel.playerSealedHand.length > 0 && <small>封印中 {duel.playerSealedHand.length}</small>}<span>DECK</span><b>{duel.playerDeck.length}</b>
           <button className="grave-button" onClick={() => setGraveyardView("player")}>自分の墓地 {duel.playerGraveyard.length}</button>
         </div>
       </div>
@@ -6538,6 +6617,8 @@ function runCpuTurn(initial: DuelState): DuelState {
   state = solomon.state;
   state = activateCpuContinuousTraps(state);
   if (!solomon.skipped) {
+    state = advanceSealedHand(state, "cpu");
+    state = applyImperialOrderStandby(state, "cpu");
     state = applyCardInspectionStandby(state, "cpu");
     state = applySpiritParasiteStandby(state, "cpu");
     state = applyEyeOfTruthStandby(state, "cpu");
@@ -7330,6 +7411,8 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   const solomon = activateSolomonForStandby(playerStart, "player");
   playerStart = solomon.state;
   if (!solomon.skipped) {
+    playerStart = advanceSealedHand(playerStart, "player");
+    playerStart = applyImperialOrderStandby(playerStart, "player");
     playerStart = applyCardInspectionStandby(playerStart, "player");
     playerStart = applySpiritParasiteStandby(playerStart, "player");
     playerStart = applyEyeOfTruthStandby(playerStart, "player");
@@ -7547,6 +7630,7 @@ function resolveCpuStopDefense(state: DuelState, targetIndex: number): DuelState
 function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false): DuelState {
   let state = initial;
   if (state.pendingFairysHandMirror) return state;
+  if (areSpellEffectsNegated(state)) return state;
   if (!canPayDuelChainEnergy(state, "cpu")) return state;
   const magicJammerIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol6-magic-jammer");
   const pendingSpellId = firstCpuPlayableSpell(state);
@@ -7988,7 +8072,7 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     };
   }
 
-  for (const trapId of ["ca-10", "ca-11", "ca-12", "ca-28", "ca-31", "ca-32"]) {
+  for (const trapId of ["ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-28", "ca-31", "ca-32", "ca-33"]) {
     if (state.cpuSpellTrap.length >= FIELD_LIMIT || !state.cpuHand.includes(trapId) || !canPayDuelChainEnergy(state, "cpu")) continue;
     state = {
       ...removeCpuHandCard(state, trapId),
@@ -8027,6 +8111,40 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
 function resolveCpuCurseOfAnubisTraps(initial: DuelState): DuelState {
   if (areTrapEffectsNegated(initial)) return initial;
   let state = initial;
+
+  const lightforceIndex = state.cpuSpellTrap.indexOf("ca-05");
+  if (lightforceIndex >= 0 && state.playerHand.length > 0) {
+    const targetIndex = Math.floor(Math.random() * state.playerHand.length);
+    const sealedId = state.playerHand[targetIndex];
+    state = {
+      ...state,
+      playerHand: state.playerHand.filter((_, index) => index !== targetIndex),
+      playerSealedHand: [...state.playerSealedHand, { id: sealedId, remainingStandbys: 4 }],
+      cpuSpellTrap: state.cpuSpellTrap.filter((_, index) => index !== lightforceIndex),
+      cpuGraveyard: [...state.cpuGraveyard, "ca-05"],
+      log: appendLog(state.log, "CPUが光の封札剣を発動。あなたの手札1枚をランダムに封印した。"),
+    };
+  }
+
+  const graverobberIndex = state.cpuSpellTrap.indexOf("ca-08");
+  const graveSpellChoice = state.playerGraveyard
+    .map((id, index) => ({ id, index, card: cardById.get(id) }))
+    .filter(({ card }) => card?.cardType === "spell")
+    .sort((a, b) => cpuSpellPriority(b.id) - cpuSpellPriority(a.id))[0];
+  if (graverobberIndex >= 0 && graveSpellChoice) {
+    const taken = takeGraveyardCard(state.playerGraveyard, graveSpellChoice.index);
+    if (taken) {
+      state = {
+        ...state,
+        cpuHand: [...state.cpuHand, taken.cardId],
+        cpuGraverobbedCards: [...state.cpuGraverobbedCards, taken.cardId],
+        playerGraveyard: taken.remaining,
+        cpuSpellTrap: state.cpuSpellTrap.filter((_, index) => index !== graverobberIndex),
+        cpuGraveyard: [...state.cpuGraveyard, "ca-08"],
+        log: appendLog(state.log, `CPUが墓荒らしを発動。あなたの墓地から${graveSpellChoice.card?.name ?? "魔法カード"}を奪った。`),
+      };
+    }
+  }
 
   const callIndex = state.cpuSpellTrap.indexOf("ca-12");
   const reviveChoice = state.cpuGraveyard
@@ -8457,6 +8575,58 @@ function areTrapEffectsNegated(state: DuelState): boolean {
     || jinzoNegatesTraps(faceUp(state.playerField), faceUp(state.cpuField));
 }
 
+function areSpellEffectsNegated(state: DuelState): boolean {
+  return !areTrapEffectsNegated(state)
+    && [...state.playerActiveTraps, ...state.cpuActiveTraps].includes("ca-33");
+}
+
+function advanceSealedHand(state: DuelState, side: Side): DuelState {
+  const sealedKey = side === "player" ? "playerSealedHand" : "cpuSealedHand";
+  const handKey = side === "player" ? "playerHand" : "cpuHand";
+  const returning = state[sealedKey].filter((entry) => entry.remainingStandbys <= 1);
+  const remaining = state[sealedKey]
+    .filter((entry) => entry.remainingStandbys > 1)
+    .map((entry) => ({ ...entry, remainingStandbys: entry.remainingStandbys - 1 }));
+  if (returning.length === 0) return { ...state, [sealedKey]: remaining } as DuelState;
+  return {
+    ...state,
+    [sealedKey]: remaining,
+    [handKey]: [...state[handKey], ...returning.map((entry) => entry.id)],
+    log: appendLog(state.log, `光の封札剣で封印されていた${side === "player" ? "あなた" : "CPU"}の手札${returning.length}枚が戻った。`),
+  } as DuelState;
+}
+
+function applyImperialOrderStandby(state: DuelState, side: Side): DuelState {
+  if (areTrapEffectsNegated(state)) return state;
+  const spellTrapKey = side === "player" ? "playerSpellTrap" : "cpuSpellTrap";
+  const activeTrapKey = side === "player" ? "playerActiveTraps" : "cpuActiveTraps";
+  const graveyardKey = side === "player" ? "playerGraveyard" : "cpuGraveyard";
+  const lifeKey = side === "player" ? "playerLp" : "cpuLp";
+  const copies = state[activeTrapKey].filter((id) => id === "ca-33").length;
+  if (copies === 0) return state;
+  const cost = copies * 700;
+  if (state[lifeKey] > cost) {
+    return {
+      ...state,
+      [lifeKey]: state[lifeKey] - cost,
+      log: appendLog(state.log, `王宮の勅命の維持コストとして${side === "player" ? "あなた" : "CPU"}が${cost}LPを支払った。`),
+    } as DuelState;
+  }
+  return {
+    ...state,
+    [spellTrapKey]: state[spellTrapKey].filter((id) => id !== "ca-33"),
+    [activeTrapKey]: state[activeTrapKey].filter((id) => id !== "ca-33"),
+    [graveyardKey]: [...state[graveyardKey], ...Array(copies).fill("ca-33")],
+    log: appendLog(state.log, `700LPを払えないため、${side === "player" ? "あなた" : "CPU"}の王宮の勅命を破壊。`),
+  } as DuelState;
+}
+
+function cpuSpellPriority(id: string) {
+  if (["vol5-raigeki", "vol2-dark-hole", "pr99-harpie-duster"].includes(id)) return 100;
+  if (["vol2-monster-reborn", "ca-38", "mr-snatch-steal"].includes(id)) return 80;
+  return cardById.get(id)?.rarity === "UR" ? 60 : 20;
+}
+
 function isLightOfInterventionActive(state: DuelState): boolean {
   return !areTrapEffectsNegated(state)
     && [...state.playerActiveTraps, ...state.cpuActiveTraps].includes("ca-31");
@@ -8475,7 +8645,7 @@ function isCpuHandRevealed(state: DuelState): boolean {
 
 function activateCpuContinuousTraps(state: DuelState): DuelState {
   if (areTrapEffectsNegated(state)) return state;
-  const activating = state.cpuSpellTrap.filter((id) => ["ca-10", "ca-31", "ca-32"].includes(id));
+  const activating = state.cpuSpellTrap.filter((id) => ["ca-10", "ca-31", "ca-32", "ca-33"].includes(id));
   const nextActive = [...new Set([...state.cpuActiveTraps, ...activating])];
   if (nextActive.length === state.cpuActiveTraps.length) return state;
   const names = activating
@@ -9705,14 +9875,35 @@ function applyChainEnergyPayment(state: DuelState, side: Side, actionCount = 1):
 }
 
 function removeHandCard(state: DuelState, handIndex: number): DuelState {
-  return applyChainEnergyPayment({ ...state, playerHand: state.playerHand.filter((_, index) => index !== handIndex) }, "player");
+  const cardId = state.playerHand[handIndex];
+  const robbedIndex = state.playerGraverobbedCards.indexOf(cardId);
+  const penalty = robbedIndex >= 0 ? 2000 : 0;
+  const playerLp = Math.max(0, state.playerLp - penalty);
+  const next = {
+    ...state,
+    playerHand: state.playerHand.filter((_, index) => index !== handIndex),
+    playerGraverobbedCards: robbedIndex < 0 ? state.playerGraverobbedCards : state.playerGraverobbedCards.filter((_, index) => index !== robbedIndex),
+    playerLp,
+    result: playerLp === 0 ? "lose" as Result : state.result,
+    log: penalty ? appendLog(state.log, "墓荒らしで奪った魔法カードを使用したため2000ダメージ。") : state.log,
+  };
+  return applyChainEnergyPayment(next, "player");
 }
 
 function removeCpuHandCard(state: DuelState, cardId: string): DuelState {
   const index = state.cpuHand.indexOf(cardId);
-  return index < 0
-    ? state
-    : applyChainEnergyPayment({ ...state, cpuHand: state.cpuHand.filter((_, handIndex) => handIndex !== index) }, "cpu");
+  if (index < 0) return state;
+  const robbedIndex = state.cpuGraverobbedCards.indexOf(cardId);
+  const penalty = robbedIndex >= 0 ? 2000 : 0;
+  const cpuLp = Math.max(0, state.cpuLp - penalty);
+  return applyChainEnergyPayment({
+    ...state,
+    cpuHand: state.cpuHand.filter((_, handIndex) => handIndex !== index),
+    cpuGraverobbedCards: robbedIndex < 0 ? state.cpuGraverobbedCards : state.cpuGraverobbedCards.filter((_, robbedCardIndex) => robbedCardIndex !== robbedIndex),
+    cpuLp,
+    result: cpuLp === 0 ? "win" : state.result,
+    log: penalty ? appendLog(state.log, "CPUが墓荒らしで奪った魔法カードを使用し、2000ダメージ。") : state.log,
+  }, "cpu");
 }
 
 function fieldPower(field: ZoneCard[], state?: DuelState, side?: Side) {
@@ -10134,12 +10325,15 @@ function isSpellImplemented(id: string) {
 }
 
 function trapDescription(id: string) {
+  if (id === "ca-05") return "CPUの手札1枚をランダムに封印し、CPUの4回目のスタンバイフェイズに戻す";
   if (id === "ca-07") return "次の相手ターンのドローフェイズをスキップする";
+  if (id === "ca-08") return "CPUの墓地の魔法カード1枚を手札に加える。そのカードを使うと2000ダメージ";
   if (id === "ca-11") return "フィールドの魔法・罠カード1枚を破壊。その後、手札から魔法・罠カード1枚をセットできる";
   if (id === "ca-12") return "自分の墓地のモンスター1体を攻撃表示で特殊召喚し、このカードを装備する";
   if (id === "ca-13") return "次の自分のスタンバイフェイズをスキップする";
   if (id === "ca-15") return "相手の攻撃宣言時、攻撃モンスターの現在のATK分だけ自分のLPを回復する";
   if (id === "ca-28") return "墓地にモンスターが5体以上いる時、ATK1500以下の通常モンスターを3体まで手札に戻す";
+  if (id === "ca-33") return "表側表示の間、すべての魔法効果を無効化。自分のスタンバイフェイズごとに700LPを払えなければ破壊";
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
   if (id === "vol7-mirror-force") return "相手の攻撃宣言時、相手の攻撃表示モンスターをすべて破壊";
   if (id === "vol7-robbin-goblin") return "自分のモンスターが戦闘ダメージを与えるたび、相手の手札をランダムに1枚捨てる";
@@ -10172,7 +10366,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "ca-06" || id === "ca-07" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-15" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
+  return id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-15" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {

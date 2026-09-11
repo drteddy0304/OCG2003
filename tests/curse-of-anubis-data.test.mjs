@@ -129,6 +129,16 @@ test("砂塵の大竜巻・リビングデッドの呼び声・補充要員は�
   for (const id of ["ca-11", "ca-12", "ca-28"]) assert.equal(curseOfAnubisReadyCardIds.includes(id), true);
 });
 
+test("光の封札剣・墓荒らし・王宮の勅命は双方の手札と魔法処理へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /remainingStandbys: 4/);
+  assert.match(arena, /resolveGraverobber/);
+  assert.match(arena, /playerGraverobbedCards/);
+  assert.match(arena, /areSpellEffectsNegated/);
+  assert.match(arena, /applyImperialOrderStandby/);
+  for (const id of ["ca-05", "ca-08", "ca-33"]) assert.equal(curseOfAnubisReadyCardIds.includes(id), true);
+});
+
 test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-00"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-06"), true);
