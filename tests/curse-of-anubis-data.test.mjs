@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { curseOfAnubisCards, curseOfAnubisPack, curseOfAnubisReadyCardIds } from "../app/curse-of-anubis-data.ts";
-import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, equippedMonsterStats, flipEffect, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, whiteRobeAngelGain } from "../app/duel-rules.mjs";
+import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, earthquakeMovementChoice, equippedMonsterStats, flipEffect, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, whiteRobeAngelGain } from "../app/duel-rules.mjs";
 
 test("Curse of Anubisは発売当時の全52種類を保持する", () => {
   assert.equal(curseOfAnubisCards.length, 52);
@@ -67,6 +67,33 @@ test("回復・バーン・連鎖破壊を共有ルールとして計算する",
     destroyed: ["ca-44", "ca-44", "ca-44"],
   });
   assert.equal(chainDestructionResult("ca-43", 2200, ["ca-43"], ["ca-43"]), null);
+});
+
+test("地殻変動は2属性から相手に有利な属性を選ばせる", () => {
+  const activator = [
+    { attribute: "闇", faceDown: false },
+    { attribute: "光", faceDown: false },
+  ];
+  const chooser = [
+    { attribute: "闇", faceDown: false },
+    { attribute: "闇", faceDown: true },
+  ];
+  assert.deepEqual(earthquakeMovementChoice(["闇", "光"], activator, chooser), {
+    attribute: "光",
+    order: 1,
+    activatorDestroyed: 1,
+    chooserDestroyed: 0,
+  });
+  assert.equal(earthquakeMovementChoice(["闇"], activator, chooser), null);
+});
+
+test("地殻変動・世界の平定・白衣の天使を対戦処理へ接続する", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /pendingEarthquakeMovement/);
+  assert.match(arena, /fieldSpellNegatedTurn/);
+  assert.match(arena, /applyAutomaticCurseResponses/);
+  assert.match(arena, /whiteRobeAngelGain/);
+  for (const id of ["ca-14", "ca-20", "ca-23"]) assert.equal(curseOfAnubisReadyCardIds.includes(id), true);
 });
 
 test("寄生虫パラサイドと3種類の罠は対戦画面へ接続される", async () => {

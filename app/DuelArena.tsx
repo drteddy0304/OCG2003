@@ -15,7 +15,7 @@ import { snatchStealStandbyGain } from "./duel-rules.mjs";
 import { curseOfFiendPosition } from "./duel-rules.mjs";
 import { blackPendantTriggerCounts, canPayChainEnergy, chainEnergyCost, monsterSentFromFieldToGrave } from "./duel-rules.mjs";
 import { cpuRaEffectPlan, isGodCard, raPointTransfer, raTributeStats, requiredTributes, ritualSummonDefinition, sliferDivineStats } from "./duel-rules.mjs";
-import { banisherRedirectsToExile, canSpecialSummonToon, ceasefireDamage, ceremonyBellRevealsHands, chainDestructionResult, cyberJarReveal, destroyEquippedMonsterIndexes, holyElfBlessingGain, kotodamaDuplicateIndexes, megamorphAttack, messengerOfPeacePreventsAttack, messengerOfPeaceStandbyCost, pharaohSummonResponseTrap, shouldCpuKeepMessengerOfPeace, timeBomberEffect, toonAttackDeclaration, toonSummonTributeCount, toonWorldActivationCost } from "./duel-rules.mjs";
+import { banisherRedirectsToExile, canSpecialSummonToon, ceasefireDamage, ceremonyBellRevealsHands, chainDestructionResult, cyberJarReveal, destroyEquippedMonsterIndexes, earthquakeMovementChoice, holyElfBlessingGain, kotodamaDuplicateIndexes, megamorphAttack, messengerOfPeacePreventsAttack, messengerOfPeaceStandbyCost, pharaohSummonResponseTrap, shouldCpuKeepMessengerOfPeace, timeBomberEffect, toonAttackDeclaration, toonSummonTributeCount, toonWorldActivationCost, whiteRobeAngelGain } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -179,6 +179,7 @@ type PendingFusion = {
 type PendingDragonFlute = { spellIndex: number; selected: number[] };
 type PendingCurseRemoval = { spellIndex: number; kind: "monster" | "spell-trap" };
 type PendingBackupSoldier = { trapIndex: number; selected: number[] };
+type PendingEarthquakeMovement = { trapIndex: number; selected: string[] };
 type SealedHandCard = { id: string; remainingStandbys: number };
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
@@ -268,6 +269,7 @@ type DuelState = {
   phase: Phase;
   normalSummoned: boolean;
   reverseTrapTurn: number | null;
+  fieldSpellNegatedTurn: number | null;
   reverseTrapDeclinedTurn: number | null;
   playerWabokuTurn: number | null;
   result: Result;
@@ -304,6 +306,7 @@ type DuelState = {
 
 const EQUIP_RULES = equipRules;
 const FIELD_SPELL_IDS = ["stb-forest", "stb-wasteland", "stb-mountain", "stb-sogen", "stb-umi", "stb-yami", "mr-chorus-sanctuary", "ps-45", "ps-46", "ps-47", "ps-48", "ps-49", "ps-50"];
+const MONSTER_ATTRIBUTES = ["闇", "光", "地", "水", "炎", "風", "神"];
 
 export function DuelArena({
   collection,
@@ -318,9 +321,11 @@ export function DuelArena({
   const opponent = opponents.find((entry) => entry.id === selectedOpponentId) ?? opponents[0];
 
   function setDuel(next: DuelState | null) {
-    rawSetDuel((previous) => previous && next
-      ? applyBlackPendantGraveTriggers(previous, applyPharaohContinuousRules(previous, trackMonstersSentToGrave(previous, applyCallHauntedDestruction(previous, applyPrematureBurialDestruction(previous, next)))))
-      : next);
+    rawSetDuel((previous) => {
+      if (!previous || !next) return next;
+      const resolved = applyBlackPendantGraveTriggers(previous, applyPharaohContinuousRules(previous, trackMonstersSentToGrave(previous, applyCallHauntedDestruction(previous, applyPrematureBurialDestruction(previous, next)))));
+      return applyAutomaticCurseResponses(previous, resolved);
+    });
   }
   const [selectedAttacker, setSelectedAttacker] = useState<number | null>(null);
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
@@ -365,6 +370,7 @@ export function DuelArena({
   const [pendingCallHaunted, setPendingCallHaunted] = useState<number | null>(null);
   const [pendingBackupSoldier, setPendingBackupSoldier] = useState<PendingBackupSoldier | null>(null);
   const [pendingGraverobber, setPendingGraverobber] = useState<number | null>(null);
+  const [pendingEarthquakeMovement, setPendingEarthquakeMovement] = useState<PendingEarthquakeMovement | null>(null);
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [graveyardView, setGraveyardView] = useState<Side | null>(null);
   const [cpuPlayback, setCpuPlayback] = useState<CpuPlayback | null>(null);
@@ -423,6 +429,7 @@ export function DuelArena({
     && pendingCallHaunted === null
     && pendingBackupSoldier === null
     && pendingGraverobber === null
+    && pendingEarthquakeMovement === null
     && pendingCheerfulCoffin === null
     && pendingFusion === null
     && pendingRitual === null
@@ -595,6 +602,7 @@ export function DuelArena({
       phase: "standby",
       normalSummoned: false,
       reverseTrapTurn: null,
+      fieldSpellNegatedTurn: null,
       reverseTrapDeclinedTurn: null,
       playerWabokuTurn: null,
       result: null,
@@ -3030,6 +3038,11 @@ export function DuelArena({
   function activateCurseOfAnubisTrap(trapIndex: number) {
     if (!duel || !isPlayerMainPhase || areTrapEffectsNegated(duel)) return;
     const trapId = duel.playerSpellTrap[trapIndex];
+    if (trapId === "ca-14") {
+      if (![...duel.playerField, ...duel.cpuField].some((zone) => !zone.faceDown)) return;
+      setPendingEarthquakeMovement({ trapIndex, selected: [] });
+      return;
+    }
     if (trapId === "ca-05") {
       if (duel.cpuHand.length === 0) return;
       const targetIndex = Math.floor(Math.random() * duel.cpuHand.length);
@@ -3094,6 +3107,38 @@ export function DuelArena({
         log: appendLog(duel.log, `停戦協定を発動。裏側モンスターを表にし、リバース効果を発動せず、効果モンスター${effectCount}体につき500、合計${damage}ダメージ。`),
       });
     }
+  }
+
+  function toggleEarthquakeAttribute(attribute: string) {
+    setPendingEarthquakeMovement((current) => current ? {
+      ...current,
+      selected: current.selected.includes(attribute)
+        ? current.selected.filter((item) => item !== attribute)
+        : current.selected.length < 2 ? [...current.selected, attribute] : current.selected,
+    } : null);
+  }
+
+  function resolveEarthquakeMovement() {
+    if (!duel || !pendingEarthquakeMovement || duel.playerSpellTrap[pendingEarthquakeMovement.trapIndex] !== "ca-14") return;
+    const playerMonsters = duel.playerField.map((zone) => ({ faceDown: zone.faceDown, attribute: cardById.get(zone.id)?.attribute }));
+    const cpuMonsters = duel.cpuField.map((zone) => ({ faceDown: zone.faceDown, attribute: cardById.get(zone.id)?.attribute }));
+    const choice = earthquakeMovementChoice(pendingEarthquakeMovement.selected, playerMonsters, cpuMonsters);
+    if (!choice) return;
+    const playerDestroyed = duel.playerField.filter((zone) => !zone.faceDown && cardById.get(zone.id)?.attribute === choice.attribute);
+    const cpuDestroyed = duel.cpuField.filter((zone) => !zone.faceDown && cardById.get(zone.id)?.attribute === choice.attribute);
+    let next: DuelState = {
+      ...duel,
+      playerField: duel.playerField.filter((zone) => zone.faceDown || cardById.get(zone.id)?.attribute !== choice.attribute),
+      cpuField: duel.cpuField.filter((zone) => zone.faceDown || cardById.get(zone.id)?.attribute !== choice.attribute),
+      playerSpellTrap: discardEquips(duel.playerSpellTrap.filter((_, index) => index !== pendingEarthquakeMovement.trapIndex), playerDestroyed),
+      cpuSpellTrap: discardEquips(duel.cpuSpellTrap, cpuDestroyed),
+      playerGraveyard: [...duel.playerGraveyard, "ca-14", ...graveCards(playerDestroyed)],
+      cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(cpuDestroyed)],
+      log: appendLog(duel.log, `地殻変動を発動。CPUは${choice.attribute}属性を選び、表側モンスター${playerDestroyed.length + cpuDestroyed.length}体を破壊。`),
+    };
+    next = applyDeckSearchTriggers(next, playerDestroyed, cpuDestroyed);
+    setPendingEarthquakeMovement(null);
+    setDuel(next);
   }
 
   function resolveGraverobber(graveIndex: number) {
@@ -3340,7 +3385,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "standby") {
@@ -3376,7 +3421,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -4520,7 +4565,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 168</strong>
+          <strong>17 DUELISTS · BUILD 169</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -5440,6 +5485,29 @@ export function DuelArena({
           </div>
         </div>
       )}
+      {pendingEarthquakeMovement && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">EARTHQUAKE MOVEMENT</p>
+            <h2>属性を2つ選択</h2>
+            <p>選んだ2属性のうちCPUが1つを選び、その属性の表側表示モンスターをすべて破壊します。</p>
+            <div className="spell-target-list">
+              {MONSTER_ATTRIBUTES.map((attribute) => (
+                <button
+                  className={pendingEarthquakeMovement.selected.includes(attribute) ? "selected" : ""}
+                  key={attribute}
+                  onClick={() => toggleEarthquakeAttribute(attribute)}
+                >
+                  <span>{pendingEarthquakeMovement.selected.includes(attribute) ? "選択中" : "属性"}</span>
+                  <strong>{attribute}</strong>
+                </button>
+              ))}
+            </div>
+            <button className="overlay-close" disabled={pendingEarthquakeMovement.selected.length !== 2} onClick={resolveEarthquakeMovement}>選んだ2属性を宣言</button>
+            <button onClick={() => setPendingEarthquakeMovement(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
       {pendingCheerfulCoffin && (
         <div className="card-overlay spell-target-overlay">
           <div className="graveyard-panel spell-target-panel">
@@ -5772,6 +5840,8 @@ export function DuelArena({
           <button className="effect-action-button" key={`backup-soldier-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>補充要員を発動する</button>
         ) : id === "ca-30" ? (
           <button className="effect-action-button" key={`ceasefire-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>停戦協定を発動する</button>
+        ) : id === "ca-14" && [...duel.playerField, ...duel.cpuField].some((zone) => !zone.faceDown) ? (
+          <button className="effect-action-button" key={`earthquake-movement-${index}`} onClick={() => activateCurseOfAnubisTrap(index)}>地殻変動を発動する</button>
         ) : null)}
         <div className="spell-trap-row">
           {Array.from({ length: FIELD_LIMIT }, (_, index) => (
@@ -6393,6 +6463,7 @@ export function DuelArena({
                         || pendingTributeToDoomed !== null
                         || pendingSoulRelease !== null
                         || pendingCurseRemoval !== null
+                        || pendingEarthquakeMovement !== null
                         || pendingCheerfulCoffin !== null
                         || pendingFusion !== null
                         || pendingLastWill !== null
@@ -6475,7 +6546,7 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "standby"
               ? "メイン1へ"
               : duel.phase === "main1"
@@ -6483,7 +6554,7 @@ export function DuelArena({
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {(duel.phase === "main1" || duel.phase === "battle") && (
-            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -8209,6 +8280,37 @@ function resolveCpuCurseOfAnubisTraps(initial: DuelState): DuelState {
   if (areTrapEffectsNegated(initial)) return initial;
   let state = initial;
 
+  const earthquakeIndex = state.cpuSpellTrap.indexOf("ca-14");
+  if (earthquakeIndex >= 0) {
+    const playerMonsters = state.playerField.map((zone) => ({ faceDown: zone.faceDown, attribute: cardById.get(zone.id)?.attribute }));
+    const cpuMonsters = state.cpuField.map((zone) => ({ faceDown: zone.faceDown, attribute: cardById.get(zone.id)?.attribute }));
+    const attributes = MONSTER_ATTRIBUTES
+      .map((attribute) => ({
+        attribute,
+        value: playerMonsters.filter((monster) => !monster.faceDown && monster.attribute === attribute).length
+          - cpuMonsters.filter((monster) => !monster.faceDown && monster.attribute === attribute).length,
+      }))
+      .filter(({ value }) => value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 2)
+      .map(({ attribute }) => attribute);
+    const choice = earthquakeMovementChoice(attributes, cpuMonsters, playerMonsters);
+    if (choice) {
+      const playerDestroyed = state.playerField.filter((zone) => !zone.faceDown && cardById.get(zone.id)?.attribute === choice.attribute);
+      const cpuDestroyed = state.cpuField.filter((zone) => !zone.faceDown && cardById.get(zone.id)?.attribute === choice.attribute);
+      state = applyDeckSearchTriggers({
+        ...state,
+        playerField: state.playerField.filter((zone) => zone.faceDown || cardById.get(zone.id)?.attribute !== choice.attribute),
+        cpuField: state.cpuField.filter((zone) => zone.faceDown || cardById.get(zone.id)?.attribute !== choice.attribute),
+        playerSpellTrap: discardEquips(state.playerSpellTrap, playerDestroyed),
+        cpuSpellTrap: discardEquips(state.cpuSpellTrap.filter((_, index) => index !== earthquakeIndex), cpuDestroyed),
+        playerGraveyard: [...state.playerGraveyard, ...graveCards(playerDestroyed)],
+        cpuGraveyard: [...state.cpuGraveyard, "ca-14", ...graveCards(cpuDestroyed)],
+        log: appendLog(state.log, `CPUが地殻変動を発動。あなたは${choice.attribute}属性を選び、表側モンスター${playerDestroyed.length + cpuDestroyed.length}体を破壊。`),
+      }, playerDestroyed, cpuDestroyed);
+    }
+  }
+
   const lightforceIndex = state.cpuSpellTrap.indexOf("ca-05");
   if (lightforceIndex >= 0 && state.playerHand.length > 0) {
     const targetIndex = Math.floor(Math.random() * state.playerHand.length);
@@ -9887,7 +9989,7 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     equipCount: zone.equipped.length,
     auraIds: [...state.playerField, ...state.cpuField].filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
     allyIds: (side === "player" ? state.playerField : state.cpuField).filter((fieldZone) => !fieldZone.faceDown).map((fieldZone) => fieldZone.id),
-    fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
+    fieldSpellIds: state.fieldSpellNegatedTurn === state.turnNumber ? [] : [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
   const adjusted = stats.atk
     + (zone.godAtkBonus ?? 0)
@@ -9934,7 +10036,7 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
     graveyardMonsterCount: 0,
     equipCount: zone.equipped.length,
     auraIds: [],
-    fieldSpellIds: [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
+    fieldSpellIds: state.fieldSpellNegatedTurn === state.turnNumber ? [] : [state.playerFieldSpell, state.cpuFieldSpell].filter((id): id is string => Boolean(id)),
   });
   const adjusted = stats.def + (zone.godDefBonus ?? 0) + timedFieldBonus(zone, state) + temporaryBattleStatBonus(zone.battleDefBonusTurn, state.turnNumber, zone.battleDefBonusValue) - (zone.godDefPenalty ?? 0);
   return reverseAdjustedStat(base.def, adjusted, state.reverseTrapTurn === state.turnNumber);
@@ -10487,6 +10589,7 @@ function isSpellImplemented(id: string) {
 }
 
 function trapDescription(id: string) {
+  if (id === "ca-14") return "属性を2つ宣言し、CPUが選んだ1属性の表側表示モンスターをすべて破壊";
   if (id === "ca-05") return "CPUの手札1枚をランダムに封印し、CPUの4回目のスタンバイフェイズに戻す";
   if (id === "ca-07") return "次の相手ターンのドローフェイズをスキップする";
   if (id === "ca-08") return "CPUの墓地の魔法カード1枚を手札に加える。そのカードを使うと2000ダメージ";
@@ -10495,6 +10598,8 @@ function trapDescription(id: string) {
   if (id === "ca-13") return "次の自分のスタンバイフェイズをスキップする";
   if (id === "ca-15") return "相手の攻撃宣言時、攻撃モンスターの現在のATK分だけ自分のLPを回復する";
   if (id === "ca-16") return "相手の攻撃モンスターのATKを半分にする。自分のスタンバイフェイズごとに2000LPを払えなければ破壊";
+  if (id === "ca-20") return "フィールド魔法が発動した時、そのターンのフィールド魔法の効果を無効にする";
+  if (id === "ca-23") return "ダメージを受けた時、1000LP＋墓地の同名カード1枚につき500LP回復";
   if (id === "ca-28") return "墓地にモンスターが5体以上いる時、ATK1500以下の通常モンスターを3体まで手札に戻す";
   if (id === "ca-33") return "表側表示の間、すべての魔法効果を無効化。自分のスタンバイフェイズごとに700LPを払えなければ破壊";
   if (id === "vol1-trap-hole") return "ATK1000以上で召喚された相手モンスターを破壊";
@@ -10529,7 +10634,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-15" || id === "ca-16" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
+  return id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-14" || id === "ca-15" || id === "ca-16" || id === "ca-20" || id === "ca-23" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {
@@ -10756,6 +10861,56 @@ function applyBlackPendantGraveTriggers(previous: DuelState, next: DuelState): D
     result: playerLp === 0 && cpuLp === 0 ? "draw" : cpuLp === 0 ? "win" : playerLp === 0 ? "lose" : next.result,
     log,
   };
+}
+
+function applyAutomaticCurseResponses(previous: DuelState, initial: DuelState): DuelState {
+  if (areTrapEffectsNegated(previous)) return initial;
+  let next = initial;
+  const removeFirst = (ids: string[], target: string) => {
+    const index = ids.indexOf(target);
+    return index < 0 ? ids : ids.filter((_, itemIndex) => itemIndex !== index);
+  };
+
+  if (next.cpuFieldSpell && next.cpuFieldSpell !== previous.cpuFieldSpell && next.playerSpellTrap.includes("ca-20")) {
+    next = {
+      ...next,
+      playerSpellTrap: removeFirst(next.playerSpellTrap, "ca-20"),
+      playerGraveyard: [...next.playerGraveyard, "ca-20"],
+      fieldSpellNegatedTurn: next.turnNumber,
+      log: appendLog(next.log, `世界の平定を発動。${cardById.get(next.cpuFieldSpell)?.name ?? "CPUのフィールド魔法"}の効果をこのターン無効化。`),
+    };
+  } else if (next.playerFieldSpell && next.playerFieldSpell !== previous.playerFieldSpell && next.cpuSpellTrap.includes("ca-20")) {
+    next = {
+      ...next,
+      cpuSpellTrap: removeFirst(next.cpuSpellTrap, "ca-20"),
+      cpuGraveyard: [...next.cpuGraveyard, "ca-20"],
+      fieldSpellNegatedTurn: next.turnNumber,
+      log: appendLog(next.log, `CPUが世界の平定を発動。${cardById.get(next.playerFieldSpell)?.name ?? "フィールド魔法"}の効果をこのターン無効化。`),
+    };
+  }
+
+  const damageWasDealt = next.log.at(-1)?.includes("ダメージ") ?? false;
+  if (damageWasDealt && next.playerLp > 0 && next.playerLp < previous.playerLp && next.playerSpellTrap.includes("ca-23")) {
+    const gain = whiteRobeAngelGain(next.playerGraveyard.filter((id) => id === "ca-23").length);
+    next = {
+      ...next,
+      playerLp: next.playerLp + gain,
+      playerSpellTrap: removeFirst(next.playerSpellTrap, "ca-23"),
+      playerGraveyard: [...next.playerGraveyard, "ca-23"],
+      log: appendLog(next.log, `白衣の天使を発動。墓地の同名カード数を含め${gain}LP回復。`),
+    };
+  }
+  if (damageWasDealt && next.cpuLp > 0 && next.cpuLp < previous.cpuLp && next.cpuSpellTrap.includes("ca-23")) {
+    const gain = whiteRobeAngelGain(next.cpuGraveyard.filter((id) => id === "ca-23").length);
+    next = {
+      ...next,
+      cpuLp: next.cpuLp + gain,
+      cpuSpellTrap: removeFirst(next.cpuSpellTrap, "ca-23"),
+      cpuGraveyard: [...next.cpuGraveyard, "ca-23"],
+      log: appendLog(next.log, `CPUが白衣の天使を発動し、${gain}LP回復。`),
+    };
+  }
+  return next;
 }
 
 function trackMonstersSentToGrave(previous: DuelState, next: DuelState): DuelState {

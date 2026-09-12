@@ -727,6 +727,21 @@ export function whiteRobeAngelGain(copiesInGrave = 0) {
   return 1000 + Math.max(0, copiesInGrave) * 500;
 }
 
+export function earthquakeMovementChoice(attributes = [], activatorMonsters = [], chooserMonsters = []) {
+  const choices = [...new Set(attributes)].filter(Boolean).slice(0, 2);
+  if (choices.length !== 2) return null;
+  const faceUpCount = (monsters, attribute) => monsters
+    .filter((monster) => !monster?.faceDown && monster?.attribute === attribute).length;
+  return choices
+    .map((attribute, order) => ({
+      attribute,
+      order,
+      activatorDestroyed: faceUpCount(activatorMonsters, attribute),
+      chooserDestroyed: faceUpCount(chooserMonsters, attribute),
+    }))
+    .sort((a, b) => (b.activatorDestroyed - b.chooserDestroyed) - (a.activatorDestroyed - a.chooserDestroyed) || a.order - b.order)[0];
+}
+
 export function chainDestructionResult(cardId, attack, hand = [], deck = []) {
   if (!cardId || attack > 2000) return null;
   const removedHand = hand.filter((id) => id === cardId);
