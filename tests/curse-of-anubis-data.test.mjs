@@ -2,7 +2,21 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { curseOfAnubisCards, curseOfAnubisPack, curseOfAnubisReadyCardIds } from "../app/curse-of-anubis-data.ts";
-import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, earthquakeMovementChoice, equippedMonsterStats, flipEffect, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, whiteRobeAngelGain } from "../app/duel-rules.mjs";
+import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, earthquakeMovementChoice, equippedMonsterStats, flipEffect, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, sharedRideTriggerCount, whiteRobeAngelGain } from "../app/duel-rules.mjs";
+
+test("便乗は相手のドローフェイズ外のドローだけに反応する", async () => {
+  const before = ["罠カードを1枚セット。", "CPUが1枚ドロー。"];
+  const after = [...before, "CPUが強欲な壺を発動。カードを2枚ドロー。"];
+  assert.equal(sharedRideTriggerCount(before, after, "cpu", 2, "cpu"), 1);
+  assert.equal(sharedRideTriggerCount(before, after, "player", 0, "cpu"), 0);
+  assert.equal(sharedRideTriggerCount(before, [...before, "CPUが黒き森のウィッチでカードを手札に加えた。"], "cpu", 1, "cpu"), 0);
+  assert.equal(sharedRideTriggerCount(before, [...before, "CPUが1枚ドロー。"], "cpu", 1, "cpu"), 0);
+  assert.equal(sharedRideTriggerCount([], ["あなたのターン。1枚ドロー。"], "player", 1, "player"), 0);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-24"), true);
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /playerTriggers \* 2/);
+  assert.match(arena, /cpuTriggers \* 2/);
+});
 
 test("Curse of Anubisは発売当時の全52種類を保持する", () => {
   assert.equal(curseOfAnubisCards.length, 52);
@@ -111,7 +125,7 @@ test("真実の眼・聖なる輝き・正々堂々は永続罠として対戦�
   assert.match(arena, /isCpuHandRevealed/);
   assert.match(arena, /applyEyeOfTruthStandby/);
   assert.match(arena, /isLightOfInterventionActive/);
-  assert.match(arena, /"ca-10", "ca-31", "ca-32"/);
+  assert.match(arena, /"ca-10", "ca-24", "ca-31", "ca-32"/);
 });
 
 test("抹殺の使徒と撲滅の使徒は対象選択と同名カード除外へ接続される", async () => {

@@ -1234,3 +1234,22 @@ export function bestCpuBattleTargetIndex(attack, targets) {
   });
   return bestIndex;
 }
+
+export function sharedRideTriggerCount(previousLog, currentLog, drawer, deckCardsDrawn, turn) {
+  if (deckCardsDrawn <= 0) return 0;
+  let overlap = Math.min(previousLog.length, currentLog.length);
+  while (overlap > 0 && !previousLog.slice(-overlap).every((entry, index) => entry === currentLog[index])) overlap--;
+  const additions = currentLog.slice(overlap);
+  return additions.filter((entry) => {
+    if (!entry.includes("ドロー")) return false;
+    if (drawer === "cpu" && (entry.startsWith("CPUが1枚ドロー。") || entry.includes("寄生虫パラサイドをドロー"))) return false;
+    if (drawer === "player" && entry.startsWith("あなたのターン。1枚ドロー。")) return false;
+    const namesPlayer = entry.includes("あなたは") || entry.startsWith("あなたが") || entry.startsWith("あなたの") || entry.includes("プレイヤーが");
+    const namesCpu = entry.includes("CPUは") || entry.startsWith("CPUが") || entry.includes("CPUが") || entry.includes("CPUは");
+    if (namesPlayer && namesCpu) return true;
+    if (drawer === "player" && namesCpu) return false;
+    if (drawer === "cpu" && namesPlayer) return false;
+    if (!namesPlayer && !namesCpu) return turn === drawer;
+    return true;
+  }).length;
+}
