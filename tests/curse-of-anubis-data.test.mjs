@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { curseOfAnubisCards, curseOfAnubisPack, curseOfAnubisReadyCardIds } from "../app/curse-of-anubis-data.ts";
-import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, earthquakeMovementChoice, equippedMonsterStats, flipEffect, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, sharedRideTriggerCount, whiteRobeAngelGain } from "../app/duel-rules.mjs";
+import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, earthquakeMovementChoice, equippedMonsterStats, flipEffect, handCardsMovedToGrave, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, sharedRideTriggerCount, whiteRobeAngelGain } from "../app/duel-rules.mjs";
 
 test("便乗は相手のドローフェイズ外のドローだけに反応する", async () => {
   const before = ["罠カードを1枚セット。", "CPUが1枚ドロー。"];
@@ -16,6 +16,23 @@ test("便乗は相手のドローフェイズ外のドローだけに反応す�
   const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
   assert.match(arena, /playerTriggers \* 2/);
   assert.match(arena, /cpuTriggers \* 2/);
+});
+
+test("強制接収は手札から墓地へ実際に捨てた枚数だけを数える", async () => {
+  assert.equal(handCardsMovedToGrave(["a", "b", "b", "c"], ["a", "b"], ["x"], ["x", "b", "c"]), 2);
+  assert.equal(handCardsMovedToGrave(["a", "b"], ["a"], ["x"], ["x", "z"]), 0);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-25"), true);
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /resolveForcedRequisition/);
+  assert.match(arena, /強制接収を発動/);
+});
+
+test("ガラスの鎧は発動ターン中の装備カード効果を無効化する", async () => {
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-19"), true);
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /equipEffectsNegatedTurn/);
+  assert.match(arena, /ガラスの鎧を発動/);
+  assert.match(arena, /effectiveEquipIds/);
 });
 
 test("Curse of Anubisは発売当時の全52種類を保持する", () => {

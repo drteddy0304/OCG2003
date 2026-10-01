@@ -1253,3 +1253,25 @@ export function sharedRideTriggerCount(previousLog, currentLog, drawer, deckCard
     return true;
   }).length;
 }
+
+export function handCardsMovedToGrave(previousHand, nextHand, previousGraveyard, nextGraveyard) {
+  const removed = new Map();
+  const remainingHand = new Map();
+  nextHand.forEach((id) => remainingHand.set(id, (remainingHand.get(id) ?? 0) + 1));
+  previousHand.forEach((id) => {
+    const remaining = remainingHand.get(id) ?? 0;
+    if (remaining > 0) remainingHand.set(id, remaining - 1);
+    else removed.set(id, (removed.get(id) ?? 0) + 1);
+  });
+  const addedToGrave = new Map();
+  const previousGrave = new Map();
+  previousGraveyard.forEach((id) => previousGrave.set(id, (previousGrave.get(id) ?? 0) + 1));
+  nextGraveyard.forEach((id) => {
+    const remaining = previousGrave.get(id) ?? 0;
+    if (remaining > 0) previousGrave.set(id, remaining - 1);
+    else addedToGrave.set(id, (addedToGrave.get(id) ?? 0) + 1);
+  });
+  let count = 0;
+  removed.forEach((amount, id) => { count += Math.min(amount, addedToGrave.get(id) ?? 0); });
+  return count;
+}
