@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { cardById, cards, type Card } from "./card-data";
 import { createCpuOpponents } from "./cpu-opponents";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, catapultTurtleDamage, chaosPotExcavate, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, handCardsMovedToGrave, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, mirrorWallAttack, mirrorWallStandbyCost, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, sharedRideTriggerCount, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, cardIdsMovedToGrave, catapultTurtleDamage, chaosPotExcavate, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, darkCastleUndeadBoost, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, handCardsMovedToGrave, hasNewLogText, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, mirrorWallAttack, mirrorWallStandbyCost, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, patrolRoboCanInspect, phantomWallReturnsAttacker, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalDecreeNegatesTraps, selectedCards, sharedRideTriggerCount, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, takeGraveyardCard, temporaryBattleStatBonus, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, wormBeastReturns } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { duelBgmTitle, playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -131,6 +131,10 @@ type PendingMultiTarget = {
   monsterId: string;
   effect: "destroy-dragon" | "return-two-monsters" | "destroy-two-set-spell-traps";
   selected: string[];
+};
+type PendingSpellTrapRetaliation = {
+  trapId: "ca-17" | "ca-18";
+  owner: Side;
 };
 type PendingCyberStein = { sourceIndex: number; fusionId: string | null };
 type PendingYadoKaru = { sourceIndex: number; selected: number[] };
@@ -300,6 +304,7 @@ type DuelState = {
   pendingFlipTarget: PendingFlipTarget | null;
   pendingFlipQueue: PendingFlipQueueItem[];
   pendingMultiTarget: PendingMultiTarget | null;
+  pendingSpellTrapRetaliation: PendingSpellTrapRetaliation | null;
   pendingDeckReorder: PendingDeckReorder | null;
   pendingDeckSearch: PendingDeckSearch | null;
   log: string[];
@@ -634,6 +639,7 @@ export function DuelArena({
       pendingFlipTarget: null,
       pendingFlipQueue: [],
       pendingMultiTarget: null,
+      pendingSpellTrapRetaliation: null,
       pendingDeckReorder: null,
       pendingDeckSearch: null,
       log: [`${opponent.name}とのデュエル開始。先攻プレイヤーは6枚でスタート。`, "第1ターンは攻撃できません。"],
@@ -4503,6 +4509,11 @@ export function DuelArena({
     setDuel(resolved);
   }
 
+  function chooseSpellTrapRetaliation(target: SpellTrapRetaliationTarget) {
+    if (!duel?.pendingSpellTrapRetaliation) return;
+    setDuel(resolveSpellTrapRetaliation(duel, target));
+  }
+
   function movePendingDeckCard(fromIndex: number, toIndex: number) {
     if (!duel?.pendingDeckReorder) return;
     setDuel({
@@ -4567,7 +4578,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 171</strong>
+          <strong>17 DUELISTS · BUILD 172</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -5613,6 +5624,29 @@ export function DuelArena({
             >
               {duel.pendingMultiTarget.effect === "return-two-monsters" && duel.pendingMultiTarget.selected.length === 0 ? "戻さず終了" : `選択した${duel.pendingMultiTarget.selected.length}件で決定`}
             </button>
+          </div>
+        </div>
+      )}
+      {duel.pendingSpellTrapRetaliation && (
+        <div className="effect-target-overlay" role="dialog" aria-modal="true" aria-label="破壊する魔法・罠カードを選択">
+          <div className="effect-target-panel">
+            <p className="section-label">{duel.pendingSpellTrapRetaliation.trapId === "ca-17" ? "GUST" : "BLIZZARD"}</p>
+            <h2>破壊する魔法・罠カードを選ぶ</h2>
+            <p>{duel.pendingSpellTrapRetaliation.trapId === "ca-17" ? "突風" : "猛吹雪"}でフィールドのカード1枚を破壊します。</p>
+            <div className="effect-target-list">
+              {spellTrapRetaliationTargets(duel).map((target) => {
+                const active = target.zone === "field-spell"
+                  || (target.side === "player" ? duel.playerActiveTraps : duel.cpuActiveTraps).includes(target.id)
+                  || (target.side === "player" ? duel.playerField : duel.cpuField).some((zone) => zone.equipped.includes(target.id));
+                const label = target.side === "player" || active ? cardById.get(target.id)?.name ?? "カード" : "セットカード";
+                return (
+                  <button key={`${target.side}-${target.zone}-${target.index}-${target.id}`} onClick={() => chooseSpellTrapRetaliation(target)}>
+                    <strong>{label}</strong>
+                    <small>{target.side === "player" ? "自分" : "CPU"}・{target.zone === "field-spell" ? "フィールド魔法" : active ? "表側表示" : "セット"}</small>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -8238,7 +8272,7 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     };
   }
 
-  for (const trapId of ["ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-16", "ca-19", "ca-24", "ca-25", "ca-28", "ca-31", "ca-32", "ca-33"]) {
+  for (const trapId of ["ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-16", "ca-17", "ca-18", "ca-19", "ca-24", "ca-25", "ca-28", "ca-31", "ca-32", "ca-33"]) {
     if (state.cpuSpellTrap.length >= FIELD_LIMIT || !state.cpuHand.includes(trapId) || !canPayDuelChainEnergy(state, "cpu")) continue;
     state = {
       ...removeCpuHandCard(state, trapId),
@@ -9312,6 +9346,61 @@ function resolvePendingMultiTarget(state: DuelState): DuelState {
     playerGraveyard: [...state.playerGraveyard, ...playerDestroyed],
     cpuGraveyard: [...state.cpuGraveyard, ...cpuDestroyed],
     log: appendLog(state.log, `ドッペルゲンガーの効果でセットされた魔法・罠カード${playerDestroyed.length + cpuDestroyed.length}枚を破壊した。`),
+  };
+}
+
+type SpellTrapRetaliationTarget = {
+  side: Side;
+  zone: "spell-trap" | "field-spell";
+  index: number;
+  id: string;
+};
+
+function spellTrapRetaliationTargets(state: DuelState): SpellTrapRetaliationTarget[] {
+  const zoneTargets = (["player", "cpu"] as const).flatMap((side) => {
+    const ids = side === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
+    return ids.map((id, index) => ({ side, zone: "spell-trap" as const, index, id }));
+  });
+  const fieldTargets = (["player", "cpu"] as const).flatMap((side) => {
+    const id = side === "player" ? state.playerFieldSpell : state.cpuFieldSpell;
+    return id ? [{ side, zone: "field-spell" as const, index: 0, id }] : [];
+  });
+  return [...zoneTargets, ...fieldTargets];
+}
+
+function resolveSpellTrapRetaliation(state: DuelState, target: SpellTrapRetaliationTarget): DuelState {
+  const pending = state.pendingSpellTrapRetaliation;
+  if (!pending) return state;
+  const name = cardById.get(target.id)?.name ?? "魔法・罠カード";
+  const sourceName = pending.trapId === "ca-17" ? "突風" : "猛吹雪";
+  if (target.zone === "field-spell") {
+    return target.side === "player"
+      ? { ...state, pendingSpellTrapRetaliation: null, playerFieldSpell: null, playerGraveyard: [...state.playerGraveyard, target.id], log: appendLog(state.log, `${sourceName}の効果で${name}を破壊。`) }
+      : { ...state, pendingSpellTrapRetaliation: null, cpuFieldSpell: null, cpuGraveyard: [...state.cpuGraveyard, target.id], log: appendLog(state.log, `${sourceName}の効果で${name}を破壊。`) };
+  }
+  if (target.side === "player") {
+    if (state.playerSpellTrap[target.index] !== target.id) return state;
+    return {
+      ...state,
+      pendingSpellTrapRetaliation: null,
+      playerSpellTrap: state.playerSpellTrap.filter((_, index) => index !== target.index),
+      playerActiveTraps: state.playerActiveTraps.filter((id) => id !== target.id),
+      playerField: removeEquippedCard(state.playerField, target.id),
+      playerSwordsTurns: target.id === "vol2-swords-revealing-light" ? state.playerSwordsTurns.slice(1) : state.playerSwordsTurns,
+      playerGraveyard: [...state.playerGraveyard, target.id],
+      log: appendLog(state.log, `${sourceName}の効果で${name}を破壊。`),
+    };
+  }
+  if (state.cpuSpellTrap[target.index] !== target.id) return state;
+  return {
+    ...state,
+    pendingSpellTrapRetaliation: null,
+    cpuSpellTrap: state.cpuSpellTrap.filter((_, index) => index !== target.index),
+    cpuActiveTraps: state.cpuActiveTraps.filter((id) => id !== target.id),
+    cpuField: removeEquippedCard(state.cpuField, target.id),
+    cpuSwordsTurns: target.id === "vol2-swords-revealing-light" ? state.cpuSwordsTurns.slice(1) : state.cpuSwordsTurns,
+    cpuGraveyard: [...state.cpuGraveyard, target.id],
+    log: appendLog(state.log, `${sourceName}の効果で${name}を破壊。`),
   };
 }
 
@@ -10644,7 +10733,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-14" || id === "ca-15" || id === "ca-16" || id === "ca-19" || id === "ca-20" || id === "ca-23" || id === "ca-24" || id === "ca-25" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
+  return id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-14" || id === "ca-15" || id === "ca-16" || id === "ca-17" || id === "ca-18" || id === "ca-19" || id === "ca-20" || id === "ca-23" || id === "ca-24" || id === "ca-25" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {
@@ -10901,6 +10990,50 @@ function applyAutomaticCurseResponses(previous: DuelState, initial: DuelState): 
         log: appendLog(next.log, "CPUがガラスの鎧を発動。このターン、装備カードの効果をすべて無効化。"),
       };
     }
+  }
+
+  if (!areTrapEffectsNegated(next) && hasNewLogText(previous.log, initial.log, "破壊")) {
+    const destroyedBySide = (side: Side) => {
+      const previousCards = side === "player" ? [...previous.playerSpellTrap, ...(previous.playerFieldSpell ? [previous.playerFieldSpell] : [])] : [...previous.cpuSpellTrap, ...(previous.cpuFieldSpell ? [previous.cpuFieldSpell] : [])];
+      const currentCards = side === "player" ? [...initial.playerSpellTrap, ...(initial.playerFieldSpell ? [initial.playerFieldSpell] : [])] : [...initial.cpuSpellTrap, ...(initial.cpuFieldSpell ? [initial.cpuFieldSpell] : [])];
+      return cardIdsMovedToGrave(
+        previousCards,
+        currentCards,
+        side === "player" ? previous.playerGraveyard : previous.cpuGraveyard,
+        side === "player" ? initial.playerGraveyard : initial.cpuGraveyard,
+      );
+    };
+    const activateRetaliation = (state: DuelState, side: Side, trapId: "ca-17" | "ca-18") => {
+      const spellTrap = side === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
+      if (!spellTrap.includes(trapId)) return state;
+      const sourceName = trapId === "ca-17" ? "突風" : "猛吹雪";
+      const activated: DuelState = side === "player"
+        ? {
+            ...state,
+            playerSpellTrap: removeFirst(state.playerSpellTrap, trapId),
+            playerGraveyard: [...state.playerGraveyard, trapId],
+            pendingSpellTrapRetaliation: { trapId, owner: side },
+            log: appendLog(state.log, `${sourceName}を発動。破壊する魔法・罠カードを選んでください。`),
+          }
+        : {
+            ...state,
+            cpuSpellTrap: removeFirst(state.cpuSpellTrap, trapId),
+            cpuGraveyard: [...state.cpuGraveyard, trapId],
+            pendingSpellTrapRetaliation: { trapId, owner: side },
+            log: appendLog(state.log, `CPUが${sourceName}を発動。`),
+          };
+      const targets = spellTrapRetaliationTargets(activated);
+      if (targets.length === 0) return state;
+      if (side === "player") return activated;
+      const target = targets.find((candidate) => candidate.side === "player") ?? targets[0];
+      return resolveSpellTrapRetaliation(activated, target);
+    };
+    const playerDestroyed = destroyedBySide("player");
+    const cpuDestroyed = destroyedBySide("cpu");
+    const playerTrapId = playerDestroyed.some((id) => cardById.get(id)?.cardType === "spell") ? "ca-17" : playerDestroyed.some((id) => cardById.get(id)?.cardType === "trap") ? "ca-18" : null;
+    const cpuTrapId = cpuDestroyed.some((id) => cardById.get(id)?.cardType === "spell") ? "ca-17" : cpuDestroyed.some((id) => cardById.get(id)?.cardType === "trap") ? "ca-18" : null;
+    if (playerTrapId) next = activateRetaliation(next, "player", playerTrapId);
+    if (cpuTrapId && !next.pendingSpellTrapRetaliation) next = activateRetaliation(next, "cpu", cpuTrapId);
   }
 
   if (next.cpuFieldSpell && next.cpuFieldSpell !== previous.cpuFieldSpell && next.playerSpellTrap.includes("ca-20")) {

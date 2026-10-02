@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { curseOfAnubisCards, curseOfAnubisPack, curseOfAnubisReadyCardIds } from "../app/curse-of-anubis-data.ts";
-import { ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, earthquakeMovementChoice, equippedMonsterStats, flipEffect, handCardsMovedToGrave, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, sharedRideTriggerCount, whiteRobeAngelGain } from "../app/duel-rules.mjs";
+import { cardIdsMovedToGrave, ceasefireDamage, chainDestructionResult, chaosPotExcavate, continuousMonsterStats, earthquakeMovementChoice, equippedMonsterStats, flipEffect, handCardsMovedToGrave, hasNewLogText, holyElfBlessingGain, jinzoNegatesTraps, mirrorWallAttack, mirrorWallStandbyCost, sharedRideTriggerCount, whiteRobeAngelGain } from "../app/duel-rules.mjs";
 
 test("便乗は相手のドローフェイズ外のドローだけに反応する", async () => {
   const before = ["罠カードを1枚セット。", "CPUが1枚ドロー。"];
@@ -33,6 +33,20 @@ test("ガラスの鎧は発動ターン中の装備カード効果を無効化�
   assert.match(arena, /equipEffectsNegatedTurn/);
   assert.match(arena, /ガラスの鎧を発動/);
   assert.match(arena, /effectiveEquipIds/);
+});
+
+test("突風と猛吹雪は破壊され墓地へ移ったカードだけを発動条件にする", async () => {
+  assert.deepEqual(cardIdsMovedToGrave(["spell-a", "trap-b"], ["trap-b"], ["old"], ["old", "spell-a"]), ["spell-a"]);
+  assert.deepEqual(cardIdsMovedToGrave(["spell-a"], [], [], ["different"]), []);
+  assert.equal(hasNewLogText(["開始"], ["開始", "魔法カードを破壊。"], "破壊"), true);
+  assert.equal(hasNewLogText(["開始"], ["開始", "魔法カードを発動。"], "破壊"), false);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-17"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-18"), true);
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /pendingSpellTrapRetaliation/);
+  assert.match(arena, /spellTrapRetaliationTargets/);
+  assert.match(arena, /resolveSpellTrapRetaliation/);
+  assert.match(arena, /破壊する魔法・罠カードを選ぶ/);
 });
 
 test("Curse of Anubisは発売当時の全52種類を保持する", () => {

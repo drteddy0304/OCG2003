@@ -1275,3 +1275,34 @@ export function handCardsMovedToGrave(previousHand, nextHand, previousGraveyard,
   removed.forEach((amount, id) => { count += Math.min(amount, addedToGrave.get(id) ?? 0); });
   return count;
 }
+
+export function cardIdsMovedToGrave(previousCards, nextCards, previousGraveyard, nextGraveyard) {
+  const remainingCards = new Map();
+  nextCards.forEach((id) => remainingCards.set(id, (remainingCards.get(id) ?? 0) + 1));
+  const removed = [];
+  previousCards.forEach((id) => {
+    const remaining = remainingCards.get(id) ?? 0;
+    if (remaining > 0) remainingCards.set(id, remaining - 1);
+    else removed.push(id);
+  });
+  const previousGrave = new Map();
+  previousGraveyard.forEach((id) => previousGrave.set(id, (previousGrave.get(id) ?? 0) + 1));
+  const addedToGrave = new Map();
+  nextGraveyard.forEach((id) => {
+    const remaining = previousGrave.get(id) ?? 0;
+    if (remaining > 0) previousGrave.set(id, remaining - 1);
+    else addedToGrave.set(id, (addedToGrave.get(id) ?? 0) + 1);
+  });
+  return removed.filter((id) => {
+    const remaining = addedToGrave.get(id) ?? 0;
+    if (remaining <= 0) return false;
+    addedToGrave.set(id, remaining - 1);
+    return true;
+  });
+}
+
+export function hasNewLogText(previousLog, currentLog, text) {
+  let overlap = Math.min(previousLog.length, currentLog.length);
+  while (overlap > 0 && !previousLog.slice(-overlap).every((entry, index) => entry === currentLog[index])) overlap--;
+  return currentLog.slice(overlap).some((entry) => entry.includes(text));
+}
