@@ -275,6 +275,8 @@ type DuelState = {
   reverseTrapTurn: number | null;
   fieldSpellNegatedTurn: number | null;
   equipEffectsNegatedTurn: number | null;
+  continuousSpellEffectsNegatedTurn: number | null;
+  continuousTrapEffectsNegatedTurn: number | null;
   reverseTrapDeclinedTurn: number | null;
   playerWabokuTurn: number | null;
   result: Result;
@@ -610,6 +612,8 @@ export function DuelArena({
       reverseTrapTurn: null,
       fieldSpellNegatedTurn: null,
       equipEffectsNegatedTurn: null,
+      continuousSpellEffectsNegatedTurn: null,
+      continuousTrapEffectsNegatedTurn: null,
       reverseTrapDeclinedTurn: null,
       playerWabokuTurn: null,
       result: null,
@@ -678,7 +682,7 @@ export function DuelArena({
     if (!duel || !isPlayerMainPhase || duel.result || !canPayDuelChainEnergy(duel, "player")) return;
     const id = duel.playerHand[handIndex];
     const required = toonSummonTributeCount(id);
-    const hasToonWorld = duel.playerSpellTrap.includes("ps-25");
+    const hasToonWorld = effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25");
     if (required === null || !canSpecialSummonToon(id, hasToonWorld, duel.playerField.length, duel.playerField.length, FIELD_LIMIT)) return;
     if (required > 0) {
       setPendingTribute({ handIndex, position, required, selected: [], special: true });
@@ -695,7 +699,7 @@ export function DuelArena({
     const card = cardById.get(id);
     const requiredTributeCount = special ? toonSummonTributeCount(id) : tributeCount(card);
     if (!card || card.cardType !== "monster" || requiredTributeCount === null || (!special && !canNormalSummonMonster(card.id, card.fusion)) || tributeIndexes.length !== requiredTributeCount) return;
-    if (special && !canSpecialSummonToon(id, duel.playerSpellTrap.includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)) return;
+    if (special && !canSpecialSummonToon(id, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)) return;
     const tributedZones = duel.playerField.filter((_, index) => tributeIndexes.includes(index));
     const returnedTributes = tributedZones.filter((zone) => zone.controlReturn === "cpu");
     const playerTributes = tributedZones.filter((zone) => zone.controlReturn !== "cpu");
@@ -3284,7 +3288,7 @@ export function DuelArena({
   }
 
   function activateUltimateOffering() {
-    if (!duel || !isPlayerMainPhase || !duel.playerSpellTrap.includes("bo3-ultimate-offering")) return;
+    if (!duel || !isPlayerMainPhase || areContinuousTrapEffectsNegated(duel) || !duel.playerSpellTrap.includes("bo3-ultimate-offering")) return;
     if (!canUseUltimateOffering(duel.playerLp, duel.normalSummoned, duel.playerField.length, hasUltimateOfferingSummonCandidate(duel), FIELD_LIMIT)) return;
     setDuel({
       ...duel,
@@ -3298,8 +3302,12 @@ export function DuelArena({
   function chooseAttacker(index: number) {
     if (!duel || duel.turn !== "player" || duel.phase !== "battle" || duel.turnNumber === 1 || duel.result || duel.cpuSwordsTurns.length > 0) return;
     const zone = duel.playerField[index];
-    if (!zone || zone.position !== "attack" || zone.attacked || isSpellbindingCircleLocked(duel, zone) || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || messengerOfPeacePreventsAttack(effectiveAtk(zone, duel, "player"), [...duel.playerSpellTrap, ...duel.cpuSpellTrap]) || duelAttackPayment(duel, "player", zone) === null) return;
-    const toonAttack = toonAttackDeclaration(zone.id, zone.summonedTurn, duel.turnNumber, duel.playerLp, duel.playerSpellTrap.includes("ps-25"), duel.cpuField.filter((target) => toonSummonTributeCount(target.id) !== null).length);
+    const effectiveSpells = [
+      ...effectiveSpellTrapIds(duel, duel.playerSpellTrap),
+      ...effectiveSpellTrapIds(duel, duel.cpuSpellTrap),
+    ];
+    if (!zone || zone.position !== "attack" || zone.attacked || isSpellbindingCircleLocked(duel, zone) || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || messengerOfPeacePreventsAttack(effectiveAtk(zone, duel, "player"), effectiveSpells) || duelAttackPayment(duel, "player", zone) === null) return;
+    const toonAttack = toonAttackDeclaration(zone.id, zone.summonedTurn, duel.turnNumber, duel.playerLp, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.cpuField.filter((target) => toonSummonTributeCount(target.id) !== null).length);
     if (duel.cpuField.length === 0 || toonAttack?.directAttack) {
       resolvePlayerAttack(index, null);
       setSelectedAttacker(null);
@@ -3378,7 +3386,7 @@ export function DuelArena({
     const attacker = duel.playerField[selectedAttacker];
     const target = duel.cpuField[targetIndex];
     if (!attacker || !target) return;
-    const toonAttack = toonAttackDeclaration(attacker.id, attacker.summonedTurn, duel.turnNumber, duel.playerLp, duel.playerSpellTrap.includes("ps-25"), duel.cpuField.filter((zone) => toonSummonTributeCount(zone.id) !== null).length);
+    const toonAttack = toonAttackDeclaration(attacker.id, attacker.summonedTurn, duel.turnNumber, duel.playerLp, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.cpuField.filter((zone) => toonSummonTributeCount(zone.id) !== null).length);
     if (toonAttack?.mustAttackToon && toonSummonTributeCount(target.id) === null) return;
     resolvePlayerAttack(selectedAttacker, targetIndex);
     setSelectedAttacker(null);
@@ -4578,7 +4586,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 172</strong>
+          <strong>17 DUELISTS · BUILD 173</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -6430,10 +6438,10 @@ export function DuelArena({
                     <small>★{card.level}　ATK {card.atk} / DEF {card.def}</small>
                     {toonSummonTributeCount(card.id) !== null ? (
                       <>
-                        <small>{duel.playerSpellTrap.includes("ps-25") ? `トゥーン・ワールド発動中／リリース${toonSummonTributeCount(card.id)}体` : "トゥーン・ワールドが必要です"}</small>
+                        <small>{effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25") ? `トゥーン・ワールド発動中／リリース${toonSummonTributeCount(card.id)}体` : "トゥーン・ワールドが必要です"}</small>
                         <div>
-                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || !canSpecialSummonToon(card.id, duel.playerSpellTrap.includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)} onClick={() => summonToon(index, "attack")}>特殊召喚（攻）</button>
-                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || !canSpecialSummonToon(card.id, duel.playerSpellTrap.includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)} onClick={() => summonToon(index, "defense")}>特殊召喚（守）</button>
+                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || !canSpecialSummonToon(card.id, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)} onClick={() => summonToon(index, "attack")}>特殊召喚（攻）</button>
+                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || !canSpecialSummonToon(card.id, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)} onClick={() => summonToon(index, "defense")}>特殊召喚（守）</button>
                         </div>
                       </>
                     ) : card.id === "pr99-gate-guardian" ? (
@@ -6836,7 +6844,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
   state = useCpuGateGuardian(state);
   state = useCpuMothEvolution(state);
   const toonWorldIndex = state.cpuHand.indexOf("ps-25");
-  if (!state.cpuSpellTrap.includes("ps-25") && toonWorldIndex >= 0 && toonWorldActivationCost("ps-25", state.cpuLp) !== null && state.cpuSpellTrap.length < FIELD_LIMIT) {
+  if (!effectiveSpellTrapIds(state, state.cpuSpellTrap).includes("ps-25") && toonWorldIndex >= 0 && toonWorldActivationCost("ps-25", state.cpuLp) !== null && state.cpuSpellTrap.length < FIELD_LIMIT) {
     state = {
       ...state,
       cpuHand: state.cpuHand.filter((_, index) => index !== toonWorldIndex),
@@ -6845,7 +6853,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
       log: appendLog(state.log, "CPUが1000LPを払い、トゥーン・ワールドを発動。"),
     };
   }
-  const toonChoice = state.cpuSpellTrap.includes("ps-25")
+  const toonChoice = effectiveSpellTrapIds(state, state.cpuSpellTrap).includes("ps-25")
     ? state.cpuHand
         .map((id, index) => ({ card: cardById.get(id), index }))
         .filter((item): item is { card: Card; index: number } => Boolean(item.card && toonSummonTributeCount(item.card.id) !== null && canSpecialSummonToon(item.card.id, true, state.cpuField.length, state.cpuField.length, FIELD_LIMIT)))
@@ -7113,7 +7121,7 @@ function isSpellbindingCircleLocked(state: DuelState, zone: ZoneCard) {
   if (!owner) return false;
   const spellTrap = owner === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
   const activeTraps = owner === "player" ? state.playerActiveTraps : state.cpuActiveTraps;
-  return spellTrap.includes("mr-spellbinding-circle") && activeTraps.includes("mr-spellbinding-circle") && !areTrapEffectsNegated(state);
+  return spellTrap.includes("mr-spellbinding-circle") && activeTraps.includes("mr-spellbinding-circle") && !areTrapEffectsNegated(state) && !areContinuousTrapEffectsNegated(state);
 }
 
 function cleanupSpellbindingCircles(state: DuelState): DuelState {
@@ -7285,6 +7293,7 @@ function returnWormBeastAtEndPhase(state: DuelState, side: Side): DuelState {
 }
 
 function applyMessengerStandby(state: DuelState, side: Side): DuelState {
+  if (areContinuousSpellEffectsNegated(state)) return state;
   const spellKey = side === "player" ? "playerSpellTrap" : "cpuSpellTrap";
   const graveKey = side === "player" ? "playerGraveyard" : "cpuGraveyard";
   const lpKey = side === "player" ? "playerLp" : "cpuLp";
@@ -7470,9 +7479,13 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
   } else {
     for (let index = state.cpuField.length - 1; index >= 0 && state.phase === "battle" && !state.result && !state.pendingFlipTarget && !state.pendingMultiTarget && !state.pendingDeckReorder && !state.pendingDeckSearch && !state.pendingGuardianResponse && !state.pendingMirrorForce && !state.pendingChainBoomerang && !state.pendingReverseTrap && !state.pendingBattleStatTrap && !state.pendingKuribohResponse && !state.pendingWabokuResponse; index -= 1) {
       const attacker = state.cpuField[index];
-      if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(effectiveEquipIds(attacker, state)) || isSpellbindingCircleLocked(state, attacker) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber) || messengerOfPeacePreventsAttack(effectiveAtk(attacker, state, "cpu"), [...state.playerSpellTrap, ...state.cpuSpellTrap])) continue;
+      const effectiveSpells = [
+        ...effectiveSpellTrapIds(state, state.playerSpellTrap),
+        ...effectiveSpellTrapIds(state, state.cpuSpellTrap),
+      ];
+      if (attacker.position !== "attack" || attacker.attacked || paralyzingPotionPreventsAttack(effectiveEquipIds(attacker, state)) || isSpellbindingCircleLocked(state, attacker) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber) || messengerOfPeacePreventsAttack(effectiveAtk(attacker, state, "cpu"), effectiveSpells)) continue;
       if (duelAttackPayment(state, "cpu", attacker) === null) continue;
-      const toonAttack = toonAttackDeclaration(attacker.id, attacker.summonedTurn, state.turnNumber, state.cpuLp, state.cpuSpellTrap.includes("ps-25"), state.playerField.filter((zone) => toonSummonTributeCount(zone.id) !== null).length);
+      const toonAttack = toonAttackDeclaration(attacker.id, attacker.summonedTurn, state.turnNumber, state.cpuLp, effectiveSpellTrapIds(state, state.cpuSpellTrap).includes("ps-25"), state.playerField.filter((zone) => toonSummonTributeCount(zone.id) !== null).length);
       if (state.playerField.length === 0 || toonAttack?.directAttack) {
         const mirrorForceIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("vol7-mirror-force");
         if (mirrorForceIndex >= 0) {
@@ -8272,7 +8285,7 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     };
   }
 
-  for (const trapId of ["ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-16", "ca-17", "ca-18", "ca-19", "ca-24", "ca-25", "ca-28", "ca-31", "ca-32", "ca-33"]) {
+  for (const trapId of ["ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-16", "ca-17", "ca-18", "ca-19", "ca-21", "ca-22", "ca-24", "ca-25", "ca-28", "ca-31", "ca-32", "ca-33"]) {
     if (state.cpuSpellTrap.length >= FIELD_LIMIT || !state.cpuHand.includes(trapId) || !canPayDuelChainEnergy(state, "cpu")) continue;
     state = {
       ...removeCpuHandCard(state, trapId),
@@ -8456,7 +8469,7 @@ function resolveCpuCurseOfAnubisTraps(initial: DuelState): DuelState {
 }
 
 function activateCpuMirrorWall(state: DuelState): DuelState {
-  if (areTrapEffectsNegated(state) || state.cpuActiveTraps.includes("ca-16")) return state;
+  if (areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state) || state.cpuActiveTraps.includes("ca-16")) return state;
   if (!state.cpuSpellTrap.includes("ca-16")) return state;
   return {
     ...state,
@@ -8518,7 +8531,7 @@ function prepareKuribohOnlyResponse(state: DuelState, attackerIndex: number, def
 }
 
 function prepareBattleStatTrap(state: DuelState, attackerIndex: number, defenderIndex: number | null): DuelState | null {
-  if (!areTrapEffectsNegated(state) && !state.playerActiveTraps.includes("ca-16")) {
+  if (!areTrapEffectsNegated(state) && !areContinuousTrapEffectsNegated(state) && !state.playerActiveTraps.includes("ca-16")) {
     const mirrorWallIndex = state.playerSpellTrap.indexOf("ca-16");
     if (mirrorWallIndex >= 0) {
       return {
@@ -8576,14 +8589,17 @@ function prepareReverseTrap(state: DuelState, attackerIndex: number, defenderInd
 function duelAttackPayment(state: DuelState, side: Side, monster: ZoneCard) {
   const ownLp = side === "player" ? state.playerLp : state.cpuLp;
   const ownDeck = side === "player" ? state.playerDeck : state.cpuDeck;
-  const ownSpellTraps = side === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
+  const ownSpellTraps = effectiveSpellTrapIds(state, side === "player" ? state.playerSpellTrap : state.cpuSpellTrap);
   const opponentField = side === "player" ? state.cpuField : state.playerField;
-  const opponentSpellTraps = side === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
+  const opponentSpellTraps = effectiveSpellTrapIds(state, side === "player" ? state.cpuSpellTrap : state.playerSpellTrap);
   const payment = attackDeclarationPayment(
     monster.id,
     ownLp,
     ownDeck.length,
-    [...state.playerSpellTrap, ...state.cpuSpellTrap],
+    [
+      ...effectiveSpellTrapIds(state, state.playerSpellTrap),
+      ...effectiveSpellTrapIds(state, state.cpuSpellTrap),
+    ],
     opponentSpellTraps,
   );
   if (!payment) return null;
@@ -8631,7 +8647,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   attackerZone.attacked = true;
 
   if (defenderIndex === null || !defenderField[defenderIndex]) {
-    const defenderActiveTraps = attackerSide === "player" ? state.cpuActiveTraps : state.playerActiveTraps;
+    const defenderActiveTraps = effectiveActiveTrapIds(state, attackerSide === "player" ? state.cpuActiveTraps : state.playerActiveTraps);
     const damage = mirrorWallAttack(effectiveAtk(attackerZone, state, attackerSide), defenderActiveTraps, areTrapEffectsNegated(state));
     const appliedDamage = attackerSide === "cpu" && (preventPlayerBattleDamage || state.playerWabokuTurn === state.turnNumber) ? 0 : damage;
     let next = { ...state, [attackerFieldKey]: attackerField, [attackerLpKey]: attackerLpAfterCost, [defenderLpKey]: state[defenderLpKey] - appliedDamage } as DuelState;
@@ -8668,7 +8684,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
     attackerZone.ironScorpionDestroyTurn = Math.min(attackerZone.ironScorpionDestroyTurn ?? scorpionDestroyTurn, scorpionDestroyTurn);
   }
   if (guardianEffect) defenderZone.guardianEffectUsed = true;
-  const defenderActiveTraps = defenderSide === "player" ? state.playerActiveTraps : state.cpuActiveTraps;
+  const defenderActiveTraps = effectiveActiveTrapIds(state, defenderSide === "player" ? state.playerActiveTraps : state.cpuActiveTraps);
   const attackValue = guardianAdjustedAttack(
     mirrorWallAttack(effectiveAtk(attackerZone, state, attackerSide), defenderActiveTraps, areTrapEffectsNegated(state)) + battleAttackBonus(attacker.id, defender.attribute),
     guardianEffect,
@@ -8815,11 +8831,11 @@ function resolveBattleDamageEffect(state: DuelState, attackerSide: Side, attacke
       ? { ...next, playerDeck: deck.slice(2), playerHand: [...next.playerHand, ...deck.slice(0, 2)], log: appendLog(next.log, `${attackerName}の効果であなたはカードを2枚ドロー。`) }
       : { ...next, cpuDeck: deck.slice(2), cpuHand: [...next.cpuHand, ...deck.slice(0, 2)], log: appendLog(next.log, `${attackerName}の効果でCPUはカードを2枚ドロー。`) };
   }
-  if (attackerSide === "player" && !areTrapEffectsNegated(next) && robbinGoblinCanTrigger(next.playerSpellTrap, next.cpuHand.length)) {
+  if (attackerSide === "player" && !areTrapEffectsNegated(next) && !areContinuousTrapEffectsNegated(next) && robbinGoblinCanTrigger(next.playerSpellTrap, next.cpuHand.length)) {
     if (next.playerActiveTraps.includes("vol7-robbin-goblin")) return discardRandomHandCard(next, "cpu", "追い剥ぎゴブリン");
     return { ...next, pendingRobbinGoblin: { trapIndex: next.playerSpellTrap.indexOf("vol7-robbin-goblin") }, log: appendLog(next.log, "戦闘ダメージを与えた。追い剥ぎゴブリンを発動しますか？") };
   }
-  if (attackerSide === "cpu" && !areTrapEffectsNegated(next) && robbinGoblinCanTrigger(next.cpuSpellTrap, next.playerHand.length)) {
+  if (attackerSide === "cpu" && !areTrapEffectsNegated(next) && !areContinuousTrapEffectsNegated(next) && robbinGoblinCanTrigger(next.cpuSpellTrap, next.playerHand.length)) {
     const activated = next.cpuActiveTraps.includes("vol7-robbin-goblin")
       ? next
       : { ...next, cpuActiveTraps: [...next.cpuActiveTraps, "vol7-robbin-goblin"], log: appendLog(next.log, "CPUが追い剥ぎゴブリンを発動。") };
@@ -8828,15 +8844,38 @@ function resolveBattleDamageEffect(state: DuelState, attackerSide: Side, attacke
   return next;
 }
 
+function areContinuousSpellEffectsNegated(state: DuelState): boolean {
+  return state.continuousSpellEffectsNegatedTurn === state.turnNumber;
+}
+
+function areContinuousTrapEffectsNegated(state: DuelState): boolean {
+  return state.continuousTrapEffectsNegatedTurn === state.turnNumber;
+}
+
+function effectiveSpellTrapIds(state: DuelState, ids: string[]): string[] {
+  if (!areContinuousSpellEffectsNegated(state)) return ids;
+  return ids.filter((id) => cardById.get(id)?.kind !== "永続魔法");
+}
+
+function effectiveActiveTrapIds(state: DuelState, ids: string[]): string[] {
+  return areContinuousTrapEffectsNegated(state) ? [] : ids;
+}
+
 function areTrapEffectsNegated(state: DuelState): boolean {
   const faceUp = (field: ZoneCard[]) => field.filter((zone) => !zone.faceDown).map((zone) => zone.id);
-  return royalDecreeNegatesTraps(state.playerActiveTraps, state.cpuActiveTraps)
+  return royalDecreeNegatesTraps(
+    effectiveActiveTrapIds(state, state.playerActiveTraps),
+    effectiveActiveTrapIds(state, state.cpuActiveTraps),
+  )
     || jinzoNegatesTraps(faceUp(state.playerField), faceUp(state.cpuField));
 }
 
 function areSpellEffectsNegated(state: DuelState): boolean {
   return !areTrapEffectsNegated(state)
-    && [...state.playerActiveTraps, ...state.cpuActiveTraps].includes("ca-33");
+    && [
+      ...effectiveActiveTrapIds(state, state.playerActiveTraps),
+      ...effectiveActiveTrapIds(state, state.cpuActiveTraps),
+    ].includes("ca-33");
 }
 
 function advanceSealedHand(state: DuelState, side: Side): DuelState {
@@ -8856,7 +8895,7 @@ function advanceSealedHand(state: DuelState, side: Side): DuelState {
 }
 
 function applyImperialOrderStandby(state: DuelState, side: Side): DuelState {
-  if (areTrapEffectsNegated(state)) return state;
+  if (areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state)) return state;
   const spellTrapKey = side === "player" ? "playerSpellTrap" : "cpuSpellTrap";
   const activeTrapKey = side === "player" ? "playerActiveTraps" : "cpuActiveTraps";
   const graveyardKey = side === "player" ? "playerGraveyard" : "cpuGraveyard";
@@ -8881,7 +8920,7 @@ function applyImperialOrderStandby(state: DuelState, side: Side): DuelState {
 }
 
 function applyMirrorWallStandby(state: DuelState, side: Side): DuelState {
-  if (areTrapEffectsNegated(state)) return state;
+  if (areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state)) return state;
   const spellTrapKey = side === "player" ? "playerSpellTrap" : "cpuSpellTrap";
   const activeTrapKey = side === "player" ? "playerActiveTraps" : "cpuActiveTraps";
   const graveyardKey = side === "player" ? "playerGraveyard" : "cpuGraveyard";
@@ -8920,6 +8959,7 @@ function cpuSpellPriority(id: string) {
 
 function isLightOfInterventionActive(state: DuelState): boolean {
   return !areTrapEffectsNegated(state)
+    && !areContinuousTrapEffectsNegated(state)
     && [...state.playerActiveTraps, ...state.cpuActiveTraps].includes("ca-31");
 }
 
@@ -8928,7 +8968,7 @@ function isCpuHandRevealed(state: DuelState): boolean {
     .filter((zone) => !zone.faceDown)
     .map((zone) => zone.id);
   if (ceremonyBellRevealsHands(faceUpMonsters)) return true;
-  if (areTrapEffectsNegated(state)) return false;
+  if (areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state)) return false;
   return state.playerActiveTraps.includes("ca-10")
     || state.playerActiveTraps.includes("ca-32")
     || state.cpuActiveTraps.includes("ca-32");
@@ -8950,7 +8990,7 @@ function activateCpuContinuousTraps(state: DuelState): DuelState {
 }
 
 function applyEyeOfTruthStandby(state: DuelState, standbySide: Side): DuelState {
-  if (areTrapEffectsNegated(state)) return state;
+  if (areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state)) return state;
   const opposingActiveTraps = standbySide === "player" ? state.cpuActiveTraps : state.playerActiveTraps;
   const copies = opposingActiveTraps.filter((id) => id === "ca-10").length;
   if (copies === 0) return state;
@@ -8966,6 +9006,7 @@ function applyEyeOfTruthStandby(state: DuelState, standbySide: Side): DuelState 
 }
 
 function applyCardInspectionStandby(state: DuelState, standbySide: Side): DuelState {
+  if (areContinuousSpellEffectsNegated(state)) return state;
   const inspectorSide: Side = standbySide === "player" ? "cpu" : "player";
   const inspectorSpellTrap = inspectorSide === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
   const copies = inspectorSpellTrap.filter((id) => id === "ca-39").length;
@@ -9118,8 +9159,8 @@ function discardRandomHandCard(state: DuelState, side: Side, sourceName: string)
   let next = side === "player"
     ? { ...state, playerHand: hand.filter((_, handIndex) => handIndex !== index), playerGraveyard: [...state.playerGraveyard, discardedId], log: appendLog(state.log, `${sourceName}の効果で手札から${discardedName}を捨てた。`) }
     : { ...state, cpuHand: hand.filter((_, handIndex) => handIndex !== index), cpuGraveyard: [...state.cpuGraveyard, discardedId], log: appendLog(state.log, `${sourceName}の効果でCPUの手札から${discardedName}を捨てた。`) };
-  if (areTrapEffectsNegated(next)) return next;
-  const thornDamage = magicThornDamage(1, side === "cpu" ? next.playerActiveTraps : next.cpuActiveTraps);
+  if (areTrapEffectsNegated(next) || areContinuousTrapEffectsNegated(next)) return next;
+  const thornDamage = magicThornDamage(1, effectiveActiveTrapIds(next, side === "cpu" ? next.playerActiveTraps : next.cpuActiveTraps));
   if (thornDamage === 0) return next;
   const lifeKey = side === "cpu" ? "cpuLp" : "playerLp";
   const result = Math.max(0, next[lifeKey] - thornDamage);
@@ -10214,7 +10255,10 @@ function fieldCardType(cardId: string) {
 }
 
 function duelChainEnergyIds(state: DuelState) {
-  return [...state.playerSpellTrap, ...state.cpuSpellTrap];
+  return [
+    ...effectiveSpellTrapIds(state, state.playerSpellTrap),
+    ...effectiveSpellTrapIds(state, state.cpuSpellTrap),
+  ];
 }
 
 function duelChainEnergyCost(state: DuelState, actionCount = 1) {
@@ -10733,7 +10777,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  return id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-14" || id === "ca-15" || id === "ca-16" || id === "ca-17" || id === "ca-18" || id === "ca-19" || id === "ca-20" || id === "ca-23" || id === "ca-24" || id === "ca-25" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
+  return id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-14" || id === "ca-15" || id === "ca-16" || id === "ca-17" || id === "ca-18" || id === "ca-19" || id === "ca-20" || id === "ca-21" || id === "ca-22" || id === "ca-23" || id === "ca-24" || id === "ca-25" || id === "ca-28" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {
@@ -10825,6 +10869,7 @@ function applyPrematureBurialDestruction(previous: DuelState, next: DuelState): 
 }
 
 function applyCallHauntedDestruction(previous: DuelState, next: DuelState): DuelState {
+  if (areContinuousTrapEffectsNegated(next)) return next;
   let resolved = next;
   for (const side of ["player", "cpu"] as const) {
     const spellTrapKey = side === "player" ? "playerSpellTrap" : "cpuSpellTrap";
@@ -10970,6 +11015,63 @@ function applyAutomaticCurseResponses(previous: DuelState, initial: DuelState): 
     return index < 0 ? ids : ids.filter((_, itemIndex) => itemIndex !== index);
   };
 
+  const newlyActivatedContinuousCards = (side: Side, cardType: "spell" | "trap") => {
+    const previousIds = cardType === "spell"
+      ? (side === "player" ? previous.playerSpellTrap : previous.cpuSpellTrap)
+      : (side === "player" ? previous.playerActiveTraps : previous.cpuActiveTraps);
+    const currentIds = cardType === "spell"
+      ? (side === "player" ? initial.playerSpellTrap : initial.cpuSpellTrap)
+      : (side === "player" ? initial.playerActiveTraps : initial.cpuActiveTraps);
+    return currentIds.filter((id, index) => {
+      const currentOccurrence = currentIds.slice(0, index + 1).filter((candidate) => candidate === id).length;
+      const previousOccurrences = previousIds.filter((candidate) => candidate === id).length;
+      const card = cardById.get(id);
+      return currentOccurrence > previousOccurrences
+        && card?.cardType === cardType
+        && card.kind === (cardType === "spell" ? "永続魔法" : "永続罠");
+    });
+  };
+  const activateContinuousNegator = (state: DuelState, responder: Side, trapId: "ca-21" | "ca-22", activatedId: string) => {
+    const spellTrap = responder === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
+    if (!spellTrap.includes(trapId)) return state;
+    const sourceName = cardById.get(trapId)?.name ?? trapId;
+    const activatedName = cardById.get(activatedId)?.name ?? "永続カード";
+    return responder === "player"
+      ? {
+          ...state,
+          playerSpellTrap: removeFirst(state.playerSpellTrap, trapId),
+          playerGraveyard: [...state.playerGraveyard, trapId],
+          ...(trapId === "ca-21"
+            ? { continuousSpellEffectsNegatedTurn: state.turnNumber }
+            : { continuousTrapEffectsNegatedTurn: state.turnNumber }),
+          log: appendLog(state.log, `${sourceName}を発動。${activatedName}を含む永続${trapId === "ca-21" ? "魔法" : "罠"}の効果をこのターン無効化。`),
+        }
+      : {
+          ...state,
+          cpuSpellTrap: removeFirst(state.cpuSpellTrap, trapId),
+          cpuGraveyard: [...state.cpuGraveyard, trapId],
+          ...(trapId === "ca-21"
+            ? { continuousSpellEffectsNegatedTurn: state.turnNumber }
+            : { continuousTrapEffectsNegatedTurn: state.turnNumber }),
+          log: appendLog(state.log, `CPUが${sourceName}を発動。${activatedName}を含む永続${trapId === "ca-21" ? "魔法" : "罠"}の効果をこのターン無効化。`),
+        };
+  };
+  const resolveContinuousNegator = (state: DuelState, cardType: "spell" | "trap", trapId: "ca-21" | "ca-22") => {
+    for (const activatingSide of ["player", "cpu"] as const) {
+      const activatedId = newlyActivatedContinuousCards(activatingSide, cardType)[0];
+      if (!activatedId) continue;
+      const opponent: Side = activatingSide === "player" ? "cpu" : "player";
+      const opponentResolved = activateContinuousNegator(state, opponent, trapId, activatedId);
+      if (opponentResolved !== state) return opponentResolved;
+      const ownerResolved = activateContinuousNegator(state, activatingSide, trapId, activatedId);
+      if (ownerResolved !== state) return ownerResolved;
+    }
+    return state;
+  };
+
+  next = resolveContinuousNegator(next, "spell", "ca-21");
+  next = resolveContinuousNegator(next, "trap", "ca-22");
+
   const previousEquipCount = [...previous.playerField, ...previous.cpuField].reduce((sum, zone) => sum + zone.equipped.length, 0);
   const nextEquipCount = [...next.playerField, ...next.cpuField].reduce((sum, zone) => sum + zone.equipped.length, 0);
   if (nextEquipCount > previousEquipCount && !areTrapEffectsNegated(next)) {
@@ -11076,7 +11178,7 @@ function applyAutomaticCurseResponses(previous: DuelState, initial: DuelState): 
     };
   }
 
-  if (!areTrapEffectsNegated(next)) {
+  if (!areTrapEffectsNegated(next) && !areContinuousTrapEffectsNegated(next)) {
     const resolveForcedRequisition = (state: DuelState, side: Side, discardedCount: number) => {
       if (discardedCount <= 0) return state;
       const spellTrap = side === "player" ? state.playerSpellTrap : state.cpuSpellTrap;
@@ -11100,7 +11202,7 @@ function applyAutomaticCurseResponses(previous: DuelState, initial: DuelState): 
     next = resolveForcedRequisition(next, "cpu", cpuDiscarded);
   }
 
-  if (!areTrapEffectsNegated(next) && !next.result) {
+  if (!areTrapEffectsNegated(next) && !areContinuousTrapEffectsNegated(next) && !next.result) {
     const playerCopies = next.playerActiveTraps.filter((id) => id === "ca-24" && next.playerSpellTrap.includes(id)).length;
     const cpuCopies = next.cpuActiveTraps.filter((id) => id === "ca-24" && next.cpuSpellTrap.includes(id)).length;
     const playerTriggers = playerCopies * sharedRideTriggerCount(previous.log, initial.log, "cpu", previous.cpuDeck.length - initial.cpuDeck.length, initial.turn);

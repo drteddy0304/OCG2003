@@ -35,6 +35,19 @@ test("ガラスの鎧は発動ターン中の装備カード効果を無効化�
   assert.match(arena, /effectiveEquipIds/);
 });
 
+test("魔法探査の石版と金属探知器は発動ターンの永続効果を無効化する", async () => {
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-21"), true);
+  assert.equal(curseOfAnubisReadyCardIds.includes("ca-22"), true);
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  assert.match(arena, /continuousSpellEffectsNegatedTurn/);
+  assert.match(arena, /continuousTrapEffectsNegatedTurn/);
+  assert.match(arena, /newlyActivatedContinuousCards/);
+  assert.match(arena, /effectiveSpellTrapIds/);
+  assert.match(arena, /effectiveActiveTrapIds/);
+  assert.match(arena, /resolveContinuousNegator\(next, "spell", "ca-21"\)/);
+  assert.match(arena, /resolveContinuousNegator\(next, "trap", "ca-22"\)/);
+});
+
 test("突風と猛吹雪は破壊され墓地へ移ったカードだけを発動条件にする", async () => {
   assert.deepEqual(cardIdsMovedToGrave(["spell-a", "trap-b"], ["trap-b"], ["old"], ["old", "spell-a"]), ["spell-a"]);
   assert.deepEqual(cardIdsMovedToGrave(["spell-a"], [], [], ["different"]), []);
