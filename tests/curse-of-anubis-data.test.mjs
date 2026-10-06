@@ -273,6 +273,16 @@ test("DNA改造手術・一族の掟・大騒動は種族・維持・手札戻�
   assert.match(arena, /大騒動を発動/);
 });
 
+test("マジカルシルクハットと禁止令を双方の対戦処理へ接続して全52種類を完成する", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  for (const id of ["ca-34", "ca-40"]) assert.equal(curseOfAnubisReadyCardIds.includes(id), true);
+  assert.equal(curseOfAnubisReadyCardIds.length, 52);
+  assert.match(arena, /resolveMagicalHatsEffect/);
+  assert.match(arena, /cleanupMagicalHats/);
+  assert.match(arena, /isCardProhibited/);
+  assert.match(arena, /CPUが禁止令を発動/);
+});
+
 test("全カードに固有の説明文が用意される", async () => {
   const text = await readFile(new URL("../app/card-text.ts", import.meta.url), "utf8");
   curseOfAnubisCards.filter((card) => card.effect || card.cardType !== "monster").forEach((card) => {
