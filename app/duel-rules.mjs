@@ -204,6 +204,51 @@ export function goblinAttackForceEndPosition(id, attacked) {
   return id === "tb-44" && attacked ? "defense" : null;
 }
 
+export function monsterAttackLimit(id) {
+  return id === "tb-36" ? 2 : 1;
+}
+
+export function attackCountAfterDeclaration(id, attacksMadeTurn, attacksMadeCount, turnNumber) {
+  const previous = attacksMadeTurn === turnNumber ? Math.max(0, attacksMadeCount ?? 0) : 0;
+  const count = previous + 1;
+  return { count, exhausted: count >= monsterAttackLimit(id) };
+}
+
+export function swordHunterBonus(id, equippedMonsterCount) {
+  return id === "tb-27" ? Math.max(0, equippedMonsterCount ?? 0) * 200 : 0;
+}
+
+export function vampireBabyCanRevive(attackerId, defenderCard, defenderDestroyed, attackerDestroyed, freeMonsterZones) {
+  return attackerId === "tb-40"
+    && Boolean(defenderCard?.cardType === "monster")
+    && defenderDestroyed
+    && !attackerDestroyed
+    && freeMonsterZones > 0;
+}
+
+export function parasitePlacementAfterBattleDamage(attackerId, sourceDeckIds, opponentDeckIds) {
+  if (attackerId !== "tb-28") return { sourceDeck: [...sourceDeckIds], opponentDeck: [...opponentDeckIds], placed: false };
+  const index = sourceDeckIds.indexOf("ca-03");
+  if (index < 0) return { sourceDeck: [...sourceDeckIds], opponentDeck: [...opponentDeckIds], placed: false };
+  return {
+    sourceDeck: sourceDeckIds.filter((_, cardIndex) => cardIndex !== index),
+    opponentDeck: ["ca-03", ...opponentDeckIds],
+    placed: true,
+  };
+}
+
+export function deathHamsterDeckIndex(id, deckIds) {
+  return id === "tb-07" ? deckIds.indexOf("tb-07") : -1;
+}
+
+export function bombBugDestroys(id, targetCard, targetFaceDown) {
+  return id === "tb-37" && targetFaceDown && Boolean(targetCard?.effect);
+}
+
+export function ladybugDestroys(id, targetCard, targetFaceDown) {
+  return id === "tb-38" && !targetFaceDown && targetCard?.cardType === "monster" && targetCard?.level === 4;
+}
+
 export function electricLizardAttackLockTurn(defenderId, attackerKind, currentTurn) {
   return defenderId === "vol4-electric-lizard" && attackerKind !== "アンデット族"
     ? currentTurn + 2
@@ -511,6 +556,10 @@ const flipEffects = Object.freeze({
   "ps-26": "cyber-jar",
   "ca-03": "parasite-deck",
   "ca-41": "chaos-pot",
+  "tb-07": "summon-death-hamster",
+  "tb-30": "change-position",
+  "tb-37": "destroy-set-effect-monster",
+  "tb-38": "destroy-face-up-level-four",
 });
 
 export function flipEffect(id) {

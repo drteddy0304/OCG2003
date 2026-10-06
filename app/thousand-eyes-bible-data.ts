@@ -64,7 +64,7 @@ export const thousandEyesBiblePack: Pack = {
   cardIds: thousandEyesBibleCards.map((card) => card.id),
 };
 
-// 最初の公開では、基本情報とテキストを全52種、対戦処理を主要カードから段階実装する。
+// 基本情報とテキストは全52種。ここには対戦処理まで接続済みのカードを列挙する。
 export const thousandEyesBibleReadyCardIds = [
-  "tb-08", "tb-09", "tb-10", "tb-13", "tb-15", "tb-23", "tb-31", "tb-33", "tb-35", "tb-39", "tb-41", "tb-42", "tb-43", "tb-44", "tb-45", "tb-46", "tb-47", "tb-48", "tb-49", "tb-50", "tb-51", "tb-52",
+  "tb-07", "tb-08", "tb-09", "tb-10", "tb-13", "tb-15", "tb-23", "tb-27", "tb-28", "tb-30", "tb-31", "tb-33", "tb-35", "tb-36", "tb-37", "tb-38", "tb-39", "tb-40", "tb-41", "tb-42", "tb-43", "tb-44", "tb-45", "tb-46", "tb-47", "tb-48", "tb-49", "tb-50", "tb-51", "tb-52",
 ] as const;

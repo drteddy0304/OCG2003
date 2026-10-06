@@ -76,6 +76,14 @@ export function thousandEyesAttackBlocked(monster: { kind?: string; level?: numb
 export function piercingBattleDamage(attackerId: string, equippedIds: string[], attackerValue: number, defenderValue: number, defenderPosition: "attack" | "defense"): number;
 export function cyberSummonTributes(id: string, level: number, ownMonsterCount: number, opponentMonsterCount: number): number;
 export function goblinAttackForceEndPosition(id: string, attacked: boolean): "defense" | null;
+export function monsterAttackLimit(id: string): number;
+export function attackCountAfterDeclaration(id: string, attacksMadeTurn: number | undefined, attacksMadeCount: number | undefined, turnNumber: number): { count: number; exhausted: boolean };
+export function swordHunterBonus(id: string, equippedMonsterCount: number): number;
+export function vampireBabyCanRevive(attackerId: string, defenderCard: { cardType?: string } | undefined, defenderDestroyed: boolean, attackerDestroyed: boolean, freeMonsterZones: number): boolean;
+export function parasitePlacementAfterBattleDamage(attackerId: string, sourceDeckIds: string[], opponentDeckIds: string[]): { sourceDeck: string[]; opponentDeck: string[]; placed: boolean };
+export function deathHamsterDeckIndex(id: string, deckIds: string[]): number;
+export function bombBugDestroys(id: string, targetCard: { effect?: boolean } | undefined, targetFaceDown: boolean): boolean;
+export function ladybugDestroys(id: string, targetCard: { cardType?: string; level?: number } | undefined, targetFaceDown: boolean): boolean;
 export function electricLizardAttackLockTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
 export function canDeclareAttackOnTurn(attackLockedTurn: number | undefined, currentTurn: number): boolean;
 export function attackDeclarationCost(id: string, lifePoints: number): number | null;

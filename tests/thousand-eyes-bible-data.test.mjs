@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { thousandEyesBibleCards, thousandEyesBiblePack, thousandEyesBibleReadyCardIds } from "../app/thousand-eyes-bible-data.ts";
-import { cyberSummonTributes, goblinAttackForceEndPosition, piercingBattleDamage, thousandEyesAttackBlocked } from "../app/duel-rules.mjs";
+import { attackCountAfterDeclaration, bombBugDestroys, cyberSummonTributes, deathHamsterDeckIndex, flipEffect, goblinAttackForceEndPosition, ladybugDestroys, parasitePlacementAfterBattleDamage, piercingBattleDamage, swordHunterBonus, thousandEyesAttackBlocked, vampireBabyCanRevive } from "../app/duel-rules.mjs";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
 
 test("Thousand Eyes Bibleは2000年12月14日発売の全52種類", () => {
@@ -40,4 +40,29 @@ test("サウザンド・アイズ・サクリファイスの融合素材と初�
   for (const id of ["tb-13", "tb-15", "tb-23", "tb-41", "tb-44", "tb-50", "tb-51", "tb-52"]) {
     assert.equal(thousandEyesBibleReadyCardIds.includes(id), true);
   }
+});
+
+test("Thousand Eyes Bibleのリバース4種を対戦処理へ接続する", () => {
+  assert.equal(flipEffect("tb-07"), "summon-death-hamster");
+  assert.equal(flipEffect("tb-30"), "change-position");
+  assert.equal(flipEffect("tb-37"), "destroy-set-effect-monster");
+  assert.equal(flipEffect("tb-38"), "destroy-face-up-level-four");
+  assert.equal(deathHamsterDeckIndex("tb-07", ["vol1-cyclops", "tb-07"]), 1);
+  assert.equal(bombBugDestroys("tb-37", { effect: true }, true), true);
+  assert.equal(bombBugDestroys("tb-37", { effect: false }, true), false);
+  assert.equal(ladybugDestroys("tb-38", { cardType: "monster", level: 4 }, false), true);
+  assert.equal(ladybugDestroys("tb-38", { cardType: "monster", level: 3 }, false), false);
+});
+
+test("隼の騎士・ソードハンター・ヴァンパイアベビー・穿孔虫の戦闘効果を処理する", () => {
+  assert.deepEqual(attackCountAfterDeclaration("tb-36", undefined, undefined, 4), { count: 1, exhausted: false });
+  assert.deepEqual(attackCountAfterDeclaration("tb-36", 4, 1, 4), { count: 2, exhausted: true });
+  assert.equal(swordHunterBonus("tb-27", 3), 600);
+  assert.equal(vampireBabyCanRevive("tb-40", { cardType: "monster" }, true, false, 1), true);
+  assert.equal(vampireBabyCanRevive("tb-40", { cardType: "monster" }, true, true, 1), false);
+  assert.deepEqual(parasitePlacementAfterBattleDamage("tb-28", ["vol1-cyclops", "ca-03"], ["vol2-swords-revealing-light"]), {
+    sourceDeck: ["vol1-cyclops"],
+    opponentDeck: ["ca-03", "vol2-swords-revealing-light"],
+    placed: true,
+  });
 });
