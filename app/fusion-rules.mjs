@@ -43,6 +43,7 @@ export const FUSION_RECIPES = {
   "bo7-skull-bishop": ["bo7-wisdom-devil", "bo7-makenro"],
   "pr99-blue-eyes-ultimate": ["stb-blue-eyes", "stb-blue-eyes", "stb-blue-eyes"],
   "pr99-meteor-black-dragon": ["vol3-red-eyes", "pr99-meteor-dragon"],
+  "tb-34": ["mr-relinquished", "tb-33"],
 };
 
 export function fusionRecipe(fusionId) {

@@ -34,6 +34,8 @@ const universalSupport = [
   "vol1-trap-hole",
   "vol7-mirror-force",
   "vol7-tremendous-fire",
+  "tb-15",
+  "tb-23",
   "mr-upstart-goblin",
   "mr-confiscation",
   "mr-forceful-sentry",
@@ -172,10 +174,11 @@ const definitions: OpponentDefinition[] = [
   },
   {
     id: "pegasus", name: "ペガサス・J・クロフォード", title: "トゥーンを操る決闘王国の主", mark: "眼", difficulty: 5,
-    ace: "ブルーアイズ・トゥーン・ドラゴン／トゥーン・デーモン", strategy: "トゥーン・ワールドを軸に、直接攻撃と手札妨害で相手の計算を崩す。",
-    featured: ["ps-00", "ps-20", "ps-21", "ps-21", "ps-22", "ps-22", "vol7-toon-alligator"],
+    ace: "サウザンド・アイズ・サクリファイス／ブルーアイズ・トゥーン・ドラゴン", strategy: "トゥーンとサクリファイスを軸に、攻撃制限と手札妨害で相手の計算を崩す。",
+    featured: ["ps-00", "ps-20", "ps-21", "ps-21", "ps-22", "ps-22", "vol7-toon-alligator", "tb-33"],
     kinds: ["魔法使い族", "悪魔族", "ドラゴン族"],
-    support: ["ps-25", "ps-25", "mr-confiscation", "mr-forceful-sentry", "vol2-swords-revealing-light", "mr-spellbinding-circle"],
+    support: ["ps-25", "ps-25", "tb-23", "mr-confiscation", "mr-forceful-sentry", "vol2-swords-revealing-light", "mr-spellbinding-circle"],
+    fusionDeck: ["tb-34"],
   },
   {
     id: "bandit-keith", name: "バンデット・キース", title: "全米王者の機械デュエリスト", mark: "銃", difficulty: 5,

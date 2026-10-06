@@ -73,6 +73,7 @@ export const equipRules = Object.freeze({
   "ps-08": "迷宮壁",
   "ps-10": "全モンスター",
   "ca-04": "機械族",
+  "tb-13": "全モンスター",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -181,6 +182,26 @@ const directAttackMonsters = new Set([
 
 export function canMonsterAttackDirectly(id) {
   return directAttackMonsters.has(id);
+}
+
+export function thousandEyesAttackBlocked(monster, opponentSpellTrapIds = [], activeTrapIds = [], trapEffectsNegated = false) {
+  if (!monster) return false;
+  if (opponentSpellTrapIds.includes("tb-52") && monster.kind === "昆虫族") return true;
+  return !trapEffectsNegated && activeTrapIds.includes("tb-23") && (monster.level ?? 0) >= 4;
+}
+
+export function piercingBattleDamage(attackerId, equippedIds, attackerValue, defenderValue, defenderPosition) {
+  if (defenderPosition !== "defense" || attackerValue <= defenderValue) return 0;
+  return attackerId === "tb-41" || equippedIds.includes("tb-13") ? attackerValue - defenderValue : 0;
+}
+
+export function cyberSummonTributes(id, level, ownMonsterCount, opponentMonsterCount) {
+  if (id === "tb-50" && opponentMonsterCount - ownMonsterCount >= 2) return 0;
+  return requiredTributes(id, level);
+}
+
+export function goblinAttackForceEndPosition(id, attacked) {
+  return id === "tb-44" && attacked ? "defense" : null;
 }
 
 export function electricLizardAttackLockTurn(defenderId, attackerKind, currentTurn) {
@@ -1172,11 +1193,12 @@ export function cpuRaEffectPlan(lifePoints, currentAttack, opponentLifePoints, o
   };
 }
 
-export const competitiveCpuDeckLatestPackId = "curse-of-anubis";
+export const competitiveCpuDeckLatestPackId = "thousand-eyes-bible";
 
 export const competitiveCpuFusionDeck = Object.freeze([
   "vol3-gaia-dragon-champion",
   "pr99-meteor-black-dragon",
+  "tb-34",
 ]);
 
 export const competitiveCpuDeck = Object.freeze([

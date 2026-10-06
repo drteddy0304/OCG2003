@@ -72,6 +72,10 @@ export function shouldPlayerChooseFlipTarget(
 ): boolean;
 
 export function canMonsterAttackDirectly(id: string): boolean;
+export function thousandEyesAttackBlocked(monster: { kind?: string; level?: number } | undefined, opponentSpellTrapIds?: string[], activeTrapIds?: string[], trapEffectsNegated?: boolean): boolean;
+export function piercingBattleDamage(attackerId: string, equippedIds: string[], attackerValue: number, defenderValue: number, defenderPosition: "attack" | "defense"): number;
+export function cyberSummonTributes(id: string, level: number, ownMonsterCount: number, opponentMonsterCount: number): number;
+export function goblinAttackForceEndPosition(id: string, attacked: boolean): "defense" | null;
 export function electricLizardAttackLockTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
 export function canDeclareAttackOnTurn(attackLockedTurn: number | undefined, currentTurn: number): boolean;
 export function attackDeclarationCost(id: string, lifePoints: number): number | null;
