@@ -169,7 +169,7 @@ test("真実の眼・聖なる輝き・正々堂々は永続罠として対戦�
   assert.match(arena, /isCpuHandRevealed/);
   assert.match(arena, /applyEyeOfTruthStandby/);
   assert.match(arena, /isLightOfInterventionActive/);
-  assert.match(arena, /"ca-10", "ca-24", "ca-31", "ca-32"/);
+  for (const id of ["ca-10", "ca-24", "ca-31", "ca-32"]) assert.match(arena, new RegExp(`"${id}"`));
 });
 
 test("抹殺の使徒と撲滅の使徒は対象選択と同名カード除外へ接続される", async () => {
@@ -261,6 +261,16 @@ test("実装済み一覧は未接続効果を完成扱いしない", () => {
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-41"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-38"), true);
   assert.equal(curseOfAnubisReadyCardIds.includes("ca-47"), true);
+});
+
+test("DNA改造手術・一族の掟・大騒動は種族・維持・手札戻し処理へ接続される", async () => {
+  const arena = await readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8");
+  for (const id of ["ca-26", "ca-27", "ca-29"]) assert.equal(curseOfAnubisReadyCardIds.includes(id), true);
+  assert.match(arena, /effectiveMonsterKind/);
+  assert.match(arena, /tribalRulePreventsAttack/);
+  assert.match(arena, /applyTribalRuleStandby/);
+  assert.match(arena, /pendingMajorRiot/);
+  assert.match(arena, /大騒動を発動/);
 });
 
 test("全カードに固有の説明文が用意される", async () => {
