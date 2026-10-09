@@ -84,6 +84,12 @@ export function parasitePlacementAfterBattleDamage(attackerId: string, sourceDec
 export function deathHamsterDeckIndex(id: string, deckIds: string[]): number;
 export function bombBugDestroys(id: string, targetCard: { effect?: boolean } | undefined, targetFaceDown: boolean): boolean;
 export function ladybugDestroys(id: string, targetCard: { cardType?: string; level?: number } | undefined, targetFaceDown: boolean): boolean;
+export function burningLandStandbyDamage(spellTrapIds: string[], effectsNegated?: boolean): number;
+export function goblinOfficialStandbyDamage(activeTrapIds: string[], opponentLife: number, effectsNegated?: boolean): number;
+export function solemnWishesLifeGain(activeTrapIds: string[], drawCount?: number, effectsNegated?: boolean): number;
+export function skullInvitationDamage(activeTrapIds: string[], cardsSentToGrave: number, effectsNegated?: boolean): number;
+export function limiterRemovalAttack(atk: number, monsterKind: string | undefined, limiterRemovalTurn: number | undefined, currentTurn: number): number;
+export function messiahAntlionDestroys(card: { cardType?: string; level?: number } | undefined, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
 export function electricLizardAttackLockTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
 export function canDeclareAttackOnTurn(attackLockedTurn: number | undefined, currentTurn: number): boolean;
 export function attackDeclarationCost(id: string, lifePoints: number): number | null;

@@ -249,6 +249,34 @@ export function ladybugDestroys(id, targetCard, targetFaceDown) {
   return id === "tb-38" && !targetFaceDown && targetCard?.cardType === "monster" && targetCard?.level === 4;
 }
 
+export function burningLandStandbyDamage(spellTrapIds, effectsNegated = false) {
+  if (effectsNegated) return 0;
+  return spellTrapIds.filter((id) => id === "tb-11").length * 500;
+}
+
+export function goblinOfficialStandbyDamage(activeTrapIds, opponentLife, effectsNegated = false) {
+  if (effectsNegated || opponentLife > 3000) return 0;
+  return activeTrapIds.filter((id) => id === "tb-02").length * 500;
+}
+
+export function solemnWishesLifeGain(activeTrapIds, drawCount = 1, effectsNegated = false) {
+  if (effectsNegated) return 0;
+  return activeTrapIds.filter((id) => id === "tb-05").length * Math.max(0, drawCount) * 500;
+}
+
+export function skullInvitationDamage(activeTrapIds, cardsSentToGrave, effectsNegated = false) {
+  if (effectsNegated) return 0;
+  return activeTrapIds.filter((id) => id === "tb-06").length * Math.max(0, cardsSentToGrave) * 300;
+}
+
+export function limiterRemovalAttack(atk, monsterKind, limiterRemovalTurn, currentTurn) {
+  return monsterKind === "機械族" && limiterRemovalTurn === currentTurn ? Math.max(0, atk) * 2 : Math.max(0, atk);
+}
+
+export function messiahAntlionDestroys(card, faceDown, summonedTurn, currentTurn) {
+  return !faceDown && card?.cardType === "monster" && (card.level ?? 0) <= 3 && summonedTurn === currentTurn;
+}
+
 export function electricLizardAttackLockTurn(defenderId, attackerKind, currentTurn) {
   return defenderId === "vol4-electric-lizard" && attackerKind !== "アンデット族"
     ? currentTurn + 2

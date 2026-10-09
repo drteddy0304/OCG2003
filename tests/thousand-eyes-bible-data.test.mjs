@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { thousandEyesBibleCards, thousandEyesBiblePack, thousandEyesBibleReadyCardIds } from "../app/thousand-eyes-bible-data.ts";
-import { attackCountAfterDeclaration, bombBugDestroys, cyberSummonTributes, deathHamsterDeckIndex, flipEffect, goblinAttackForceEndPosition, ladybugDestroys, parasitePlacementAfterBattleDamage, piercingBattleDamage, swordHunterBonus, thousandEyesAttackBlocked, vampireBabyCanRevive } from "../app/duel-rules.mjs";
+import { attackCountAfterDeclaration, bombBugDestroys, burningLandStandbyDamage, cyberSummonTributes, deathHamsterDeckIndex, flipEffect, goblinAttackForceEndPosition, goblinOfficialStandbyDamage, ladybugDestroys, limiterRemovalAttack, messiahAntlionDestroys, parasitePlacementAfterBattleDamage, piercingBattleDamage, skullInvitationDamage, solemnWishesLifeGain, swordHunterBonus, thousandEyesAttackBlocked, vampireBabyCanRevive } from "../app/duel-rules.mjs";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
 
 test("Thousand Eyes Bibleは2000年12月14日発売の全52種類", () => {
@@ -65,4 +65,20 @@ test("隼の騎士・ソードハンター・ヴァンパイアベビー・穿�
     opponentDeck: ["ca-03", "vol2-swords-revealing-light"],
     placed: true,
   });
+});
+
+test("Thousand Eyes Bibleの永続魔法・罠とリミッター解除を処理する", () => {
+  assert.equal(burningLandStandbyDamage(["tb-11", "tb-11"]), 1000);
+  assert.equal(burningLandStandbyDamage(["tb-11"], true), 0);
+  assert.equal(goblinOfficialStandbyDamage(["tb-02"], 3000), 500);
+  assert.equal(goblinOfficialStandbyDamage(["tb-02"], 3001), 0);
+  assert.equal(solemnWishesLifeGain(["tb-05", "tb-05"], 2), 2000);
+  assert.equal(skullInvitationDamage(["tb-06"], 3), 900);
+  assert.equal(limiterRemovalAttack(1400, "機械族", 7, 7), 2800);
+  assert.equal(limiterRemovalAttack(1400, "戦士族", 7, 7), 1400);
+  assert.equal(messiahAntlionDestroys({ cardType: "monster", level: 3 }, false, 7, 7), true);
+  assert.equal(messiahAntlionDestroys({ cardType: "monster", level: 4 }, false, 7, 7), false);
+  for (const id of ["tb-02", "tb-05", "tb-06", "tb-11", "tb-14", "tb-22"]) {
+    assert.equal(thousandEyesBibleReadyCardIds.includes(id), true);
+  }
 });

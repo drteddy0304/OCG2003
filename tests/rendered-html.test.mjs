@@ -38,7 +38,7 @@ test("Vol.1・Vol.2を各1日10パック開封できる初期画面を表示す�
   assert.match(html, /Booster 4/);
   assert.match(html, /1999 プロモーションパック/);
   assert.match(html, /Thousand Eyes Bible/);
-  assert.match(html, /PHASE 2 · BUILD 177/);
+  assert.match(html, /PHASE 2 · BUILD 178/);
   assert.match(html, /Booster 5/);
   assert.match(html, /Booster 6/);
   assert.match(html, /Booster 7/);
