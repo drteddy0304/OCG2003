@@ -44,6 +44,31 @@ const universalSupport = [
   "mr-forceful-sentry",
 ];
 
+const competitiveSupport = [
+  "stb-raigeki",
+  "vol1-dark-hole",
+  "vol2-monster-reborn",
+  "vol2-swords-revealing-light",
+  "vol3-pot-of-greed",
+  "vol7-mirror-force",
+  "mr-axe-despair",
+  "mr-axe-despair",
+  "vol1-trap-hole",
+  "vol1-trap-hole",
+];
+
+const highImpactLowerMonsters = new Set([
+  "vol3-man-eater-bug",
+  "vol4-magician-faith",
+  "vol6-sangan",
+  "vol6-witch-black-forest",
+  "ps-23",
+  "tb-07",
+  "tb-38",
+  "tb-44",
+  "tb-51",
+]);
+
 const themeKeywords: Record<string, string[]> = {
   "yami-yugi": ["ブラック・マジシャン", "クリボー", "ガイア", "オシリス"],
   "seto-kaiba": ["青眼", "ブルーアイズ", "ドラゴン", "オベリスク"],
@@ -201,6 +226,17 @@ function combatScore(card: Card) {
   return Math.max(card.atk ?? 0, card.def ?? 0) + (card.effect ? 280 : 0) - levelPenalty;
 }
 
+function isBattleReadyLowerMonster(card: Card) {
+  return (card.level ?? 0) <= 4
+    && ((card.atk ?? 0) >= 1800 || (card.def ?? 0) >= 2000 || highImpactLowerMonsters.has(card.id));
+}
+
+function lowerMonsterScore(card: Card) {
+  return Math.max((card.atk ?? 0) + 150, card.def ?? 0)
+    + ((card.atk ?? 0) >= 1900 ? 900 : 0)
+    + (highImpactLowerMonsters.has(card.id) ? 1200 : 0);
+}
+
 export function createCpuOpponents(cards: Card[]): CpuOpponent[] {
   const byId = new Map(cards.map((card) => [card.id, card]));
   const mainMonsters = cards.filter((card) => card.cardType === "monster" && !card.fusion && !card.ritual && !card.id.startsWith("g4-"));
@@ -220,11 +256,15 @@ export function createCpuOpponents(cards: Card[]): CpuOpponent[] {
     const lowLevel = themed.filter((card) => (card.level ?? 0) <= 4);
     const highLevel = themed.filter((card) => (card.level ?? 0) > 4);
     const fallback = mainMonsters.slice().sort((a, b) => combatScore(b) - combatScore(a));
+    const themedBattleReady = lowLevel.filter(isBattleReadyLowerMonster)
+      .sort((a, b) => lowerMonsterScore(b) + (matchesKeyword(b) ? 1200 : 0) - lowerMonsterScore(a) - (matchesKeyword(a) ? 1200 : 0));
+    const globalBattleReady = mainMonsters.filter(isBattleReadyLowerMonster)
+      .sort((a, b) => lowerMonsterScore(b) - lowerMonsterScore(a));
 
-    for (const pool of [lowLevel, lowLevel, highLevel, themed, fallback]) {
+    for (const pool of [themedBattleReady, globalBattleReady, highLevel, lowLevel, themed, fallback]) {
       for (const card of pool) {
         if (monsters.length >= 24) break;
-        addWithLimit(monsters, card.id, pool === fallback ? 1 : 2);
+        addWithLimit(monsters, card.id, pool === fallback || pool === globalBattleReady ? 1 : 2);
       }
       if (monsters.length >= 24) break;
     }
@@ -234,7 +274,7 @@ export function createCpuOpponents(cards: Card[]): CpuOpponent[] {
       .filter((card) => card.cardType !== "monster" && matchesKeyword(card))
       .sort((a, b) => rarityScore[b.rarity] - rarityScore[a.rarity])
       .map((card) => card.id);
-    for (const id of [...automaticThemeSupport, ...(definition.support ?? []), ...universalSupport]) {
+    for (const id of [...(definition.support ?? []), ...competitiveSupport, ...automaticThemeSupport, ...universalSupport]) {
       const card = byId.get(id);
       if (support.length >= 16) break;
       if (card && card.cardType !== "monster") addWithLimit(support, id);
@@ -242,6 +282,20 @@ export function createCpuOpponents(cards: Card[]): CpuOpponent[] {
     for (const id of universalSupport) {
       if (support.length >= 16) break;
       if (byId.has(id)) addWithLimit(support, id);
+    }
+    const forcedSupport = [
+      ...automaticThemeSupport.slice(0, 4),
+      "mr-axe-despair",
+      byId.has("stb-raigeki") ? "stb-raigeki" : "vol1-dark-hole",
+    ];
+    for (const id of forcedSupport) {
+      if (!byId.has(id) || support.includes(id)) continue;
+      if (support.length < 16) support.push(id);
+      else {
+        const protectedIds = new Set([...forcedSupport, ...(definition.support ?? [])]);
+        const replaceIndex = support.findLastIndex((entry) => !protectedIds.has(entry));
+        support[replaceIndex >= 0 ? replaceIndex : support.length - 1] = id;
+      }
     }
 
     const deck = [...monsters, ...support].slice(0, 40);

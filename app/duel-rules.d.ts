@@ -90,6 +90,13 @@ export function solemnWishesLifeGain(activeTrapIds: string[], drawCount?: number
 export function skullInvitationDamage(activeTrapIds: string[], cardsSentToGrave: number, effectsNegated?: boolean): number;
 export function limiterRemovalAttack(atk: number, monsterKind: string | undefined, limiterRemovalTurn: number | undefined, currentTurn: number): number;
 export function messiahAntlionDestroys(card: { cardType?: string; level?: number } | undefined, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
+export function magicCrusherDamage(discardedCard: { cardType?: string } | undefined, activeTrapIds: string[], effectsNegated?: boolean): number;
+export function seaWarriorSpellImmune(monsterId: string, fieldSpellIds?: string[]): boolean;
+export function legendaryFishermanAttackTargetable(monsterId: string, fieldSpellIds?: string[]): boolean;
+export function thousandEyesRestrictsOtherMonster(faceUpMonsterIds: string[], monsterId: string): boolean;
+export function thousandEyesAbsorbedStats(monsterId: string, equippedIds: string[], cardsById: Map<string, { cardType?: string; atk?: number; def?: number }>): { atk: number; def: number } | null;
+export function luciferPreventsAttack(zone: { luciferLockedUntilTurn?: number } | undefined, currentTurn: number): boolean;
+export function coldWaveIsActive(expiresTurn: number | null | undefined, currentTurn: number): boolean;
 export function electricLizardAttackLockTurn(defenderId: string, attackerKind: string, currentTurn: number): number | null;
 export function canDeclareAttackOnTurn(attackLockedTurn: number | undefined, currentTurn: number): boolean;
 export function attackDeclarationCost(id: string, lifePoints: number): number | null;

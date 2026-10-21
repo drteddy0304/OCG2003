@@ -82,3 +82,16 @@ test("Curse of Anubisの永続罠をリシドとイシズが使用する", () =>
   assert.ok(deck("ishizu-ishtar").includes("ca-31"));
   assert.ok(deck("ishizu-ishtar").includes("ca-32"));
 });
+
+test("全CPUが高打点・高守備・強力効果を持つ下級戦力を十分に採用する", () => {
+  const impactIds = new Set(["vol3-man-eater-bug", "vol4-magician-faith", "vol6-sangan", "vol6-witch-black-forest", "ps-23", "tb-07", "tb-38", "tb-44", "tb-51"]);
+  for (const opponent of opponents) {
+    const lowerMonsters = opponent.deck
+      .map((id) => cardsById.get(id))
+      .filter((card) => card?.cardType === "monster" && card.level <= 4);
+    const battleReady = lowerMonsters.filter((card) => card.atk >= 1800 || card.def >= 2000 || impactIds.has(card.id));
+    assert.ok(battleReady.length >= 10, `${opponent.name}: battle-ready lower monsters=${battleReady.length}`);
+    assert.ok(opponent.deck.includes("mr-axe-despair"), `${opponent.name}: デーモンの斧`);
+    assert.ok(opponent.deck.some((id) => ["stb-raigeki", "vol1-dark-hole", "vol7-mirror-force"].includes(id)), `${opponent.name}: 除去札`);
+  }
+});

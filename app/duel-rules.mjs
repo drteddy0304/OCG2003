@@ -277,6 +277,37 @@ export function messiahAntlionDestroys(card, faceDown, summonedTurn, currentTurn
   return !faceDown && card?.cardType === "monster" && (card.level ?? 0) <= 3 && summonedTurn === currentTurn;
 }
 
+export function magicCrusherDamage(discardedCard, activeTrapIds, effectsNegated = false) {
+  if (effectsNegated || discardedCard?.cardType !== "spell") return 0;
+  return activeTrapIds.filter((id) => id === "tb-24").length * 500;
+}
+
+export function seaWarriorSpellImmune(monsterId, fieldSpellIds = []) {
+  return ["tb-26", "tb-29"].includes(monsterId) && fieldSpellIds.includes("stb-umi");
+}
+
+export function legendaryFishermanAttackTargetable(monsterId, fieldSpellIds = []) {
+  return monsterId !== "tb-26" || !fieldSpellIds.includes("stb-umi");
+}
+
+export function thousandEyesRestrictsOtherMonster(faceUpMonsterIds = [], monsterId) {
+  return monsterId !== "tb-34" && faceUpMonsterIds.includes("tb-34");
+}
+
+export function thousandEyesAbsorbedStats(monsterId, equippedIds = [], cardsById) {
+  if (monsterId !== "tb-34") return null;
+  const absorbed = [...equippedIds].reverse().map((id) => cardsById?.get?.(id)).find((card) => card?.cardType === "monster");
+  return absorbed ? { atk: absorbed.atk ?? 0, def: absorbed.def ?? 0 } : { atk: 0, def: 0 };
+}
+
+export function luciferPreventsAttack(zone, currentTurn) {
+  return zone?.luciferLockedUntilTurn != null && zone.luciferLockedUntilTurn >= currentTurn;
+}
+
+export function coldWaveIsActive(expiresTurn, currentTurn) {
+  return expiresTurn != null && currentTurn <= expiresTurn;
+}
+
 export function electricLizardAttackLockTurn(defenderId, attackerKind, currentTurn) {
   return defenderId === "vol4-electric-lizard" && attackerKind !== "アンデット族"
     ? currentTurn + 2

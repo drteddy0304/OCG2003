@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { thousandEyesBibleCards, thousandEyesBiblePack, thousandEyesBibleReadyCardIds } from "../app/thousand-eyes-bible-data.ts";
-import { attackCountAfterDeclaration, bombBugDestroys, burningLandStandbyDamage, cyberSummonTributes, deathHamsterDeckIndex, flipEffect, goblinAttackForceEndPosition, goblinOfficialStandbyDamage, ladybugDestroys, limiterRemovalAttack, messiahAntlionDestroys, parasitePlacementAfterBattleDamage, piercingBattleDamage, skullInvitationDamage, solemnWishesLifeGain, swordHunterBonus, thousandEyesAttackBlocked, vampireBabyCanRevive } from "../app/duel-rules.mjs";
+import { attackCountAfterDeclaration, bombBugDestroys, burningLandStandbyDamage, coldWaveIsActive, cyberSummonTributes, deathHamsterDeckIndex, flipEffect, goblinAttackForceEndPosition, goblinOfficialStandbyDamage, ladybugDestroys, legendaryFishermanAttackTargetable, limiterRemovalAttack, luciferPreventsAttack, magicCrusherDamage, messiahAntlionDestroys, parasitePlacementAfterBattleDamage, piercingBattleDamage, seaWarriorSpellImmune, skullInvitationDamage, solemnWishesLifeGain, swordHunterBonus, thousandEyesAbsorbedStats, thousandEyesAttackBlocked, thousandEyesRestrictsOtherMonster, vampireBabyCanRevive } from "../app/duel-rules.mjs";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
 
 test("Thousand Eyes Bibleは2000年12月14日発売の全52種類", () => {
@@ -80,5 +80,22 @@ test("Thousand Eyes Bibleの永続魔法・罠とリミッター解除を処理�
   assert.equal(messiahAntlionDestroys({ cardType: "monster", level: 4 }, false, 7, 7), false);
   for (const id of ["tb-02", "tb-05", "tb-06", "tb-11", "tb-14", "tb-22"]) {
     assert.equal(thousandEyesBibleReadyCardIds.includes(id), true);
+  }
+});
+
+test("Thousand Eyes Bibleの残る主要魔法・モンスター効果を処理する", () => {
+  const cards = new Map([["vol1-cyclops", { cardType: "monster", atk: 1200, def: 1000 }]]);
+  assert.equal(magicCrusherDamage({ cardType: "spell" }, ["tb-24"]), 500);
+  assert.equal(magicCrusherDamage({ cardType: "monster" }, ["tb-24"]), 0);
+  assert.equal(seaWarriorSpellImmune("tb-26", ["stb-umi"]), true);
+  assert.equal(seaWarriorSpellImmune("tb-29", []), false);
+  assert.equal(legendaryFishermanAttackTargetable("tb-26", ["stb-umi"]), false);
+  assert.equal(thousandEyesRestrictsOtherMonster(["tb-34"], "vol1-cyclops"), true);
+  assert.deepEqual(thousandEyesAbsorbedStats("tb-34", ["vol1-cyclops"], cards), { atk: 1200, def: 1000 });
+  assert.equal(luciferPreventsAttack({ luciferLockedUntilTurn: 4 }, 4), true);
+  assert.equal(coldWaveIsActive(4, 4), true);
+  assert.equal(coldWaveIsActive(4, 5), false);
+  for (const id of ["tb-12", "tb-24", "tb-26", "tb-29", "tb-32", "tb-34"]) {
+    assert.equal(thousandEyesBibleReadyCardIds.includes(id), true, `${id} should be ready`);
   }
 });
