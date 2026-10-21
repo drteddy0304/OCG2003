@@ -15,6 +15,7 @@ import { godCards, godCardsPack } from "./god-cards-data";
 import { pharaohsServantCards, pharaohsServantPack } from "./pharaohs-servant-data";
 import { curseOfAnubisCards, curseOfAnubisPack } from "./curse-of-anubis-data";
 import { thousandEyesBibleCards, thousandEyesBiblePack } from "./thousand-eyes-bible-data";
+import { spellOfMaskCards, spellOfMaskPack } from "./spell-of-mask-data";
 
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
@@ -241,6 +242,7 @@ export const cards: Card[] = [
   ...pharaohsServantCards,
   ...curseOfAnubisCards,
   ...thousandEyesBibleCards,
+  ...spellOfMaskCards,
 ];
 
 export const packs: Pack[] = [
@@ -307,6 +309,7 @@ export const packs: Pack[] = [
   pharaohsServantPack,
   curseOfAnubisPack,
   thousandEyesBiblePack,
+  spellOfMaskPack,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));

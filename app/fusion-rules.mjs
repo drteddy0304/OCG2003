@@ -44,6 +44,8 @@ export const FUSION_RECIPES = {
   "pr99-blue-eyes-ultimate": ["stb-blue-eyes", "stb-blue-eyes", "stb-blue-eyes"],
   "pr99-meteor-black-dragon": ["vol3-red-eyes", "pr99-meteor-dragon"],
   "tb-34": ["mr-relinquished", "tb-33"],
+  "sm-04": ["sm-03", "sm-02"],
+  "sm-44": ["sm-43", "sm-45"],
 };
 
 export function fusionRecipe(fusionId) {

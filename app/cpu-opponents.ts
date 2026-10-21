@@ -67,6 +67,9 @@ const highImpactLowerMonsters = new Set([
   "tb-38",
   "tb-44",
   "tb-51",
+  "sm-12",
+  "sm-30",
+  "sm-41",
 ]);
 
 const themeKeywords: Record<string, string[]> = {
@@ -103,7 +106,7 @@ const definitions: OpponentDefinition[] = [
   {
     id: "seto-kaiba", name: "海馬瀬人", title: "最強を求めるデュエリスト", mark: "海", difficulty: 5,
     ace: "青眼の白龍／オベリスクの巨神兵", strategy: "高攻撃力のドラゴンと機械で正面から制圧するパワーデッキ。",
-    featured: ["g4-01-obelisk", "stb-blue-eyes", "stb-blue-eyes", "pr99-seiyaryu", "vol7-barrel-dragon", "ex-084", "vol6-cannon-soldier"],
+    featured: ["g4-01-obelisk", "sm-51", "stb-blue-eyes", "pr99-seiyaryu", "vol7-barrel-dragon", "ex-084", "vol6-cannon-soldier"],
     kinds: ["ドラゴン族", "機械族"],
     support: ["stb-mountain", "vol3-dragon-treasure", "ex-085", "pr99-crush-card"],
     fusionDeck: ["pr99-blue-eyes-ultimate"],
@@ -119,7 +122,7 @@ const definitions: OpponentDefinition[] = [
   {
     id: "mai-valentine", name: "孔雀舞", title: "華麗なるハーピィ使い", mark: "舞", difficulty: 4,
     ace: "ハーピィ・レディ三姉妹", strategy: "鳥獣族を装備魔法で強化し、魔法・罠もまとめて吹き飛ばす。",
-    featured: ["vol4-harpie-lady", "vol4-harpie-lady", "vol4-harpie-lady", "vol4-harpie-sisters", "vol4-harpie-sisters"],
+    featured: ["vol4-harpie-lady", "vol4-harpie-lady", "vol4-harpie-lady", "vol4-harpie-sisters", "sm-31", "sm-41"],
     kinds: ["鳥獣族"], attributes: ["風"],
     support: ["vol4-elegant-egotist", "vol3-electro-whip", "pr99-cyber-bondage", "pr99-feather-duster", "stb-mountain"],
   },
@@ -140,7 +143,7 @@ const definitions: OpponentDefinition[] = [
   {
     id: "mako-tsunami", name: "梶木漁太", title: "海を知り尽くす決闘者", mark: "梶", difficulty: 4,
     ace: "海竜神／レインボー・フィッシュ", strategy: "海で水属性を強化し、高守備と奇襲で盤面を支配する。",
-    featured: ["bo6-kairyu-shin", "vol7-rainbow-fish", "vol7-rainbow-fish", "vol5-roaring-ocean-snake", "bo4-deepsea-shark", "bo7-jellyfish"],
+    featured: ["bo6-kairyu-shin", "sm-07", "sm-40", "vol7-rainbow-fish", "vol5-roaring-ocean-snake", "bo4-deepsea-shark", "bo7-jellyfish"],
     kinds: ["水族", "魚族", "海竜族"], attributes: ["水"],
     support: ["stb-umi", "vol1-power-kaishin", "bo2-steel-shell", "bo7-heavy-storm"],
   },
@@ -168,16 +171,16 @@ const definitions: OpponentDefinition[] = [
   {
     id: "strings", name: "人形", title: "寡黙なる神の操り手", mark: "人", difficulty: 5,
     ace: "オシリスの天空竜", strategy: "守備とドローで手札を蓄え、オシリスの攻撃力へ変える。",
-    featured: ["g4-02-slifer", "vol2-holy-elf", "vol2-spirit-harp", "vol3-giant-soldier-stone", "vol6-sangan", "vol6-witch-black-forest"],
+    featured: ["g4-02-slifer", "sm-05", "sm-02", "sm-02", "vol2-holy-elf", "vol3-giant-soldier-stone", "vol6-sangan"],
     kinds: ["岩石族", "魔法使い族", "天使族"],
     support: ["bo4-graceful-charity", "mr-upstart-goblin", "vol3-pot-of-greed", "vol2-swords-revealing-light", "ex-040"],
   },
   {
     id: "lumis-umbra", name: "光の仮面＆闇の仮面", title: "仮面コンビの刺客", mark: "仮", difficulty: 5,
-    ace: "仮面魔道士／闇の仮面", strategy: "光と闇のモンスター、罠、表示変更を絡めて動きを封じる。",
-    featured: ["vol5-masked-sorcerer", "vol5-masked-sorcerer", "vol4-mask-darkness", "vol4-mask-darkness", "stb-masked-clown", "vol7-dark-elf"],
+    ace: "仮面魔獣マスクド・ヘルレイザー", strategy: "仮面カードで生け贄と攻撃を封じ、儀式召喚した仮面魔獣で制圧する。",
+    featured: ["sm-00", "sm-12", "sm-10", "sm-10", "sm-11", "sm-11", "vol4-mask-darkness"],
     kinds: ["魔法使い族", "悪魔族"], attributes: ["光", "闇"],
-    support: ["mr-spellbinding-circle", "mr-darkness-approaches", "vol7-paralyzing-potion", "vol7-stop-attack", "mr-fairys-hand-mirror"],
+    support: ["sm-15", "sm-17", "sm-18", "sm-19", "sm-14", "mr-spellbinding-circle", "vol7-stop-attack"],
   },
   {
     id: "odion", name: "リシド", title: "忠節の罠使い", mark: "守", difficulty: 5,

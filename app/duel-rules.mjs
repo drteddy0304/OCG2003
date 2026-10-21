@@ -74,6 +74,12 @@ export const equipRules = Object.freeze({
   "ps-10": "全モンスター",
   "ca-04": "機械族",
   "tb-13": "全モンスター",
+  "sm-18": "全モンスター",
+  "sm-19": "全モンスター",
+  "sm-21": "戦士族",
+  "sm-47": "全モンスター",
+  "sm-48": "全モンスター",
+  "sm-49": "全モンスター",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -912,10 +918,10 @@ export function fakeTrapCanProtect(trapIds, targetIndex) {
   return trapIds[targetIndex] !== "vol5-fake-trap" && trapIds.includes("vol5-fake-trap");
 }
 
-export function equippedMonsterStats(atk, defense, equippedIds) {
+export function equippedMonsterStats(atk, defense, equippedIds, faceUpAllyCount = 0, spellTrapCount = 0) {
   const cocoonEquipped = equippedIds.includes("vol4-cocoon-evolution");
   const modifiers = equippedIds.reduce((result, id) => {
-    if (id === "vol4-cocoon-evolution" || id === "vol7-germ-infection" || id === "vol7-paralyzing-potion" || id === "mr-snatch-steal" || id === "ps-08" || id === "ps-10") return result;
+    if (id === "vol4-cocoon-evolution" || id === "vol7-germ-infection" || id === "vol7-paralyzing-potion" || id === "mr-snatch-steal" || id === "ps-08" || id === "ps-10" || id === "sm-18" || id === "sm-47") return result;
     if (id === "vol7-sword-deep-seated") return { atk: result.atk + 500, def: result.def + 500 };
     if (id === "bo7-magnetic-ring") return { atk: result.atk - 500, def: result.def - 500 };
     if (id === "bo7-doping") return { atk: result.atk + 700, def: result.def };
@@ -924,6 +930,10 @@ export function equippedMonsterStats(atk, defense, equippedIds) {
     if (id === "mr-horn-light") return { atk: result.atk, def: result.def + 800 };
     if (id === "mr-malevolent-nuzzler") return { atk: result.atk + 700, def: result.def };
     if (id === "ca-04") return { atk: result.atk + 700, def: result.def };
+    if (id === "sm-19") return { atk: result.atk + 1000, def: result.def - 1000 };
+    if (id === "sm-21") return { atk: result.atk + 800, def: result.def };
+    if (id === "sm-48") return { atk: result.atk + faceUpAllyCount * 800, def: result.def + faceUpAllyCount * 800 };
+    if (id === "sm-49") return { atk: result.atk + spellTrapCount * 500, def: result.def + spellTrapCount * 500 };
     if (id === "ps-03") return { atk: result.atk + 700, def: result.def + 700 };
     if (id === "ps-08") return result;
     if (id === "pr99-insect-armor" || id === "pr99-salamandra" || id === "pr99-shine-palace") return { atk: result.atk + 700, def: result.def };
@@ -946,7 +956,11 @@ export function dopingPenalty(equippedIds, standbyCount = 0) {
 }
 
 export function paralyzingPotionPreventsAttack(equippedIds) {
-  return equippedIds.includes("vol7-paralyzing-potion");
+  return equippedIds.includes("vol7-paralyzing-potion") || equippedIds.includes("sm-18");
+}
+
+export function maskOfRestrictBlocksTribute(activeTrapIds = [], effectsNegated = false) {
+  return !effectsNegated && activeTrapIds.includes("sm-17");
 }
 
 export function mirrorWallAttack(atk, defendingActiveTrapIds, trapsNegated = false) {
@@ -1016,6 +1030,7 @@ export function crushCardVirusDestroys(card, currentAtk = card?.atk ?? 0) {
 export function ritualSummonDefinition(spellId) {
   const rituals = {
     "pr99-skull-rider-ritual": { monsterId: "pr99-skull-rider", level: 6 },
+    "sm-15": { monsterId: "sm-00", level: 8 },
     "ps-11": { monsterId: "ps-16", level: 6 },
     "ps-12": { monsterId: "ps-17", level: 6 },
     "ps-15": { monsterId: "ps-18", level: 8 },

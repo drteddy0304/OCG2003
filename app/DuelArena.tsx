@@ -16,7 +16,7 @@ import { darknessApproachesDiscard, resolvePainfulChoice } from "./duel-rules.mj
 import { snatchStealStandbyGain } from "./duel-rules.mjs";
 import { curseOfFiendPosition } from "./duel-rules.mjs";
 import { blackPendantTriggerCounts, canPayChainEnergy, chainEnergyCost, monsterSentFromFieldToGrave } from "./duel-rules.mjs";
-import { cpuRaEffectPlan, isGodCard, raPointTransfer, raTributeStats, requiredTributes, ritualSummonDefinition, sliferDivineStats } from "./duel-rules.mjs";
+import { cpuRaEffectPlan, isGodCard, maskOfRestrictBlocksTribute, raPointTransfer, raTributeStats, requiredTributes, ritualSummonDefinition, sliferDivineStats } from "./duel-rules.mjs";
 import { banisherRedirectsToExile, canSpecialSummonToon, ceasefireDamage, ceremonyBellRevealsHands, chainDestructionResult, cyberJarReveal, destroyEquippedMonsterIndexes, earthquakeMovementChoice, holyElfBlessingGain, kotodamaDuplicateIndexes, megamorphAttack, messengerOfPeacePreventsAttack, messengerOfPeaceStandbyCost, pharaohSummonResponseTrap, shouldCpuKeepMessengerOfPeace, timeBomberEffect, toonAttackDeclaration, toonSummonTributeCount, toonWorldActivationCost, whiteRobeAngelGain } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
@@ -716,6 +716,7 @@ export function DuelArena({
     if (isGodCard(card.id) && position === "defense") return;
     const tributes = tributeCount(card, duel, "player");
     if (duel.playerField.length < tributes || duel.playerField.length - tributes >= FIELD_LIMIT) return;
+    if (tributes > 0 && isTributeBlocked(duel)) return;
     if (tributes > 0) {
       setPendingTribute({ handIndex, position, required: tributes, selected: [] });
       setSelectedAttacker(null);
@@ -732,6 +733,7 @@ export function DuelArena({
     const required = toonSummonTributeCount(id);
     const hasToonWorld = effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25");
     if (required === null || !canSpecialSummonToon(id, hasToonWorld, duel.playerField.length, duel.playerField.length, FIELD_LIMIT)) return;
+    if (required > 0 && isTributeBlocked(duel)) return;
     if (required > 0) {
       setPendingTribute({ handIndex, position, required, selected: [], special: true });
       setSelectedAttacker(null);
@@ -747,6 +749,7 @@ export function DuelArena({
     const card = cardById.get(id);
     const requiredTributeCount = special ? toonSummonTributeCount(id) : tributeCount(card, duel, "player");
     if (!card || card.cardType !== "monster" || requiredTributeCount === null || (!special && !canNormalSummonMonster(card.id, card.fusion)) || tributeIndexes.length !== requiredTributeCount) return;
+    if (requiredTributeCount > 0 && isTributeBlocked(duel)) return;
     if (special && !canSpecialSummonToon(id, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)) return;
     const tributedZones = duel.playerField.filter((_, index) => tributeIndexes.includes(index));
     const returnedTributes = tributedZones.filter((zone) => zone.controlReturn === "cpu");
@@ -1015,6 +1018,7 @@ export function DuelArena({
     }
     const ritualDefinition = ritualSummonDefinition(card.id);
     if (ritualDefinition) {
+      if (isTributeBlocked(duel)) return;
       const ritualIndex = duel.playerHand.findIndex((id, index) => id === ritualDefinition.monsterId && index !== handIndex);
       if (ritualIndex < 0 || ritualAvailableLevelTotal(duel, handIndex, ritualIndex) < ritualDefinition.level) return;
       setPendingRitual({ spellIndex: handIndex, ritualIndex, selected: [] });
@@ -2138,6 +2142,7 @@ export function DuelArena({
 
   function resolveSkullRiderRitual(position: Position) {
     if (!duel || !pendingRitual) return;
+    if (isTributeBlocked(duel)) return;
     const spellId = duel.playerHand[pendingRitual.spellIndex];
     const ritualDefinition = ritualSummonDefinition(spellId);
     if (!ritualDefinition || duel.playerHand[pendingRitual.ritualIndex] !== ritualDefinition.monsterId) return;
@@ -3210,7 +3215,7 @@ export function DuelArena({
       });
       return;
     }
-    if (!areTrapEffectsNegated(duel) && ["bo5-royal-decree", "bo6-magic-thorn", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(card.id)) {
+    if (!areTrapEffectsNegated(duel) && ["bo5-royal-decree", "bo6-magic-thorn", "sm-17", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(card.id)) {
       const next = removeHandCard(duel, handIndex);
       setDuel({
         ...next,
@@ -3565,7 +3570,7 @@ export function DuelArena({
       const card = cardById.get(id);
       if (!card || card.cardType !== "monster" || !canNormalSummonMonster(card.id, card.fusion)) return false;
       const tributes = tributeCount(card, state, "player");
-      return state.playerField.length >= tributes && state.playerField.length - tributes < FIELD_LIMIT;
+      return (tributes === 0 || !isTributeBlocked(state)) && state.playerField.length >= tributes && state.playerField.length - tributes < FIELD_LIMIT;
     });
   }
 
@@ -4878,7 +4883,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 179</strong>
+          <strong>17 DUELISTS · BUILD 180</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -6841,6 +6846,7 @@ export function DuelArena({
               && canPayDuelChainEnergy(duel, "player")
               && !duel.normalSummoned
               && !pendingTribute
+              && (tributes === 0 || !isTributeBlocked(duel))
               && duel.playerField.length >= tributes
               && duel.playerField.length - tributes < FIELD_LIMIT;
             return (
@@ -6855,8 +6861,8 @@ export function DuelArena({
                       <>
                         <small>{effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25") ? `トゥーン・ワールド発動中／リリース${toonSummonTributeCount(card.id)}体` : "トゥーン・ワールドが必要です"}</small>
                         <div>
-                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || !canSpecialSummonToon(card.id, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)} onClick={() => summonToon(index, "attack")}>特殊召喚（攻）</button>
-                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || !canSpecialSummonToon(card.id, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)} onClick={() => summonToon(index, "defense")}>特殊召喚（守）</button>
+                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || ((toonSummonTributeCount(card.id) ?? 0) > 0 && isTributeBlocked(duel)) || !canSpecialSummonToon(card.id, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)} onClick={() => summonToon(index, "attack")}>特殊召喚（攻）</button>
+                          <button disabled={!isPlayerMainPhase || !canPayDuelChainEnergy(duel, "player") || ((toonSummonTributeCount(card.id) ?? 0) > 0 && isTributeBlocked(duel)) || !canSpecialSummonToon(card.id, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.playerField.length, duel.playerField.length, FIELD_LIMIT)} onClick={() => summonToon(index, "defense")}>特殊召喚（守）</button>
                         </div>
                       </>
                     ) : card.id === "pr99-gate-guardian" ? (
@@ -7285,7 +7291,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
   const toonChoice = effectiveSpellTrapIds(state, state.cpuSpellTrap).includes("ps-25")
     ? state.cpuHand
         .map((id, index) => ({ card: cardById.get(id), index }))
-        .filter((item): item is { card: Card; index: number } => Boolean(item.card && !isCardProhibited(state, item.card.id) && toonSummonTributeCount(item.card.id) !== null && canSpecialSummonToon(item.card.id, true, state.cpuField.length, state.cpuField.length, FIELD_LIMIT)))
+        .filter((item): item is { card: Card; index: number } => Boolean(item.card && !isCardProhibited(state, item.card.id) && toonSummonTributeCount(item.card.id) !== null && ((toonSummonTributeCount(item.card.id) ?? 0) === 0 || !isTributeBlocked(state)) && canSpecialSummonToon(item.card.id, true, state.cpuField.length, state.cpuField.length, FIELD_LIMIT)))
         .sort((a, b) => (b.card.atk ?? 0) - (a.card.atk ?? 0))[0]
     : undefined;
   if (toonChoice) {
@@ -7311,7 +7317,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     .sort((a, b) => (b.card.atk ?? 0) - (a.card.atk ?? 0));
   const summonChoice = canPayDuelChainEnergy(state, "cpu") ? candidates.find(({ card }) => {
     const tributes = tributeCount(card, state, "cpu");
-    return state.cpuField.length >= tributes && state.cpuField.length - tributes < FIELD_LIMIT;
+    return (tributes === 0 || !isTributeBlocked(state)) && state.cpuField.length >= tributes && state.cpuField.length - tributes < FIELD_LIMIT;
   }) : undefined;
   if (summonChoice) {
     const tributes = tributeCount(summonChoice.card, state, "cpu");
@@ -8884,7 +8890,7 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     };
   }
 
-  for (const trapId of ["ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-16", "ca-17", "ca-18", "ca-19", "ca-21", "ca-22", "ca-24", "ca-25", "ca-26", "ca-27", "ca-28", "ca-29", "ca-31", "ca-32", "ca-33", "ca-34", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"]) {
+  for (const trapId of ["sm-17", "ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-16", "ca-17", "ca-18", "ca-19", "ca-21", "ca-22", "ca-24", "ca-25", "ca-26", "ca-27", "ca-28", "ca-29", "ca-31", "ca-32", "ca-33", "ca-34", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"]) {
     if (state.cpuSpellTrap.length >= FIELD_LIMIT || !state.cpuHand.includes(trapId) || isCardProhibited(state, trapId) || !canPayDuelChainEnergy(state, "cpu")) continue;
     state = {
       ...removeCpuHandCard(state, trapId),
@@ -9708,7 +9714,7 @@ function isCpuHandRevealed(state: DuelState): boolean {
 
 function activateCpuContinuousTraps(state: DuelState): DuelState {
   if (areTrapEffectsNegated(state)) return state;
-  const activating = state.cpuSpellTrap.filter((id) => ["ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(id));
+  const activating = state.cpuSpellTrap.filter((id) => ["sm-17", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(id));
   const nextActive = [...new Set([...state.cpuActiveTraps, ...activating])];
   if (nextActive.length === state.cpuActiveTraps.length) return state;
   const names = activating
@@ -10846,6 +10852,13 @@ function tributeCount(card: Card, state?: DuelState, side?: Side) {
   return cyberSummonTributes(card.id, card.level ?? 0, ownCount, opponentCount);
 }
 
+function isTributeBlocked(state: DuelState) {
+  return maskOfRestrictBlocksTribute(
+    [...effectiveActiveTrapIds(state, state.playerActiveTraps), ...effectiveActiveTrapIds(state, state.cpuActiveTraps)],
+    areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state),
+  );
+}
+
 function ritualAvailableLevelTotal(state: DuelState, spellIndex: number, ritualIndex: number) {
   const handLevels = state.playerHand.flatMap((id, index) => {
     if (index === spellIndex || index === ritualIndex) return [];
@@ -10946,7 +10959,13 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   const megamorphAtk = state && side && effectiveEquips.includes("ps-10")
     ? megamorphAttack(base.atk, side === "player" ? state.playerLp : state.cpuLp, side === "player" ? state.cpuLp : state.playerLp)
     : base.atk;
-  const equippedBase = equippedMonsterStats(megamorphAtk, base.def, spellEquips);
+  const equippedBase = equippedMonsterStats(
+    megamorphAtk,
+    base.def,
+    spellEquips,
+    state && side ? (side === "player" ? state.playerField : state.cpuField).filter((ally) => !ally.faceDown).length : 0,
+    state && side ? (side === "player" ? state.playerSpellTrap : state.cpuSpellTrap).length : 0,
+  );
   const sevenCardDefenseCount = Math.min(zone.sevenCardDefenseCount ?? 0, effectiveEquips.filter((id) => id === "ca-04").length);
   const equipped = {
     atk: Math.max(0, equippedBase.atk - sevenCardDefenseCount * 700),
@@ -11007,7 +11026,13 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
   const base = swappedMonsterStats(original.atk, original.def, Boolean(state && zone.statsSwappedTurn === state.turnNumber));
   const effectiveEquips = effectiveEquipIds(zone, state);
   const spellEquips = effectiveEquips.filter((id) => cardById.get(id)?.cardType !== "monster");
-  const equippedBase = equippedMonsterStats(base.atk, base.def, spellEquips);
+  const equippedBase = equippedMonsterStats(
+    base.atk,
+    base.def,
+    spellEquips,
+    state && side ? (side === "player" ? state.playerField : state.cpuField).filter((ally) => !ally.faceDown).length : 0,
+    state && side ? (side === "player" ? state.playerSpellTrap : state.cpuSpellTrap).length : 0,
+  );
   const sevenCardDefenseCount = Math.min(zone.sevenCardDefenseCount ?? 0, effectiveEquips.filter((id) => id === "ca-04").length);
   const equipped = {
     atk: Math.max(0, equippedBase.atk - sevenCardDefenseCount * 700),
@@ -11532,6 +11557,12 @@ function spellDescription(id: string) {
   if (id === "mr-horn-light") return "モンスター1体のDEFを800アップ";
   if (id === "mr-malevolent-nuzzler") return "モンスター1体のATKを700アップ";
   if (id === "ca-04") return "機械族モンスター1体のATKかDEFを選び、700アップ";
+  if (id === "sm-18") return "装備モンスターは攻撃できない。自分のスタンバイフェイズごとに装備モンスターのコントローラーへ500ダメージ";
+  if (id === "sm-19") return "装備モンスターのATKを1000アップし、DEFを1000ダウン";
+  if (id === "sm-21") return "戦士族モンスター1体のATKを800アップ";
+  if (id === "sm-47") return "装備モンスターの属性を選んだ属性として扱う";
+  if (id === "sm-48") return "自分の表側表示モンスター1体につき、装備モンスターのATK・DEFを800アップ";
+  if (id === "sm-49") return "自分の魔法・罠カード1枚につき、装備モンスターのATK・DEFを500アップ";
   if (id === "pr99-insect-armor") return "昆虫族モンスター1体のATKを700アップ";
   if (id === "pr99-cyber-bondage") return "ハーピィ・レディまたは三姉妹のATKを500アップ";
   if (id === "pr99-salamandra") return "炎属性モンスター1体のATKを700アップ";
@@ -11652,6 +11683,7 @@ function isSpellImplemented(id: string) {
       "ca-35",
       "ca-36",
       "pr99-skull-rider-ritual",
+      "sm-15",
       "vol7-stop-attack",
       "vol7-shield-sword",
       "bo2-light-reveal",
@@ -11728,7 +11760,7 @@ function trapDescription(id: string) {
 
 function isTrapImplemented(id: string) {
   if (id === "ca-34" || ["tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(id)) return true;
-  return id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-14" || id === "ca-15" || id === "ca-16" || id === "ca-17" || id === "ca-18" || id === "ca-19" || id === "ca-20" || id === "ca-21" || id === "ca-22" || id === "ca-23" || id === "ca-24" || id === "ca-25" || id === "ca-26" || id === "ca-27" || id === "ca-28" || id === "ca-29" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
+  return id === "sm-17" || id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-14" || id === "ca-15" || id === "ca-16" || id === "ca-17" || id === "ca-18" || id === "ca-19" || id === "ca-20" || id === "ca-21" || id === "ca-22" || id === "ca-23" || id === "ca-24" || id === "ca-25" || id === "ca-26" || id === "ca-27" || id === "ca-28" || id === "ca-29" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
 
 function monsterDescription(id: string) {

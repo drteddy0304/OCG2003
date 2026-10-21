@@ -12,7 +12,8 @@ export function battleOutcome(
 ): BattleOutcome;
 
 export const equipRules: Readonly<Record<string, string>>;
-export function equippedMonsterStats(atk: number, defense: number, equippedIds: string[]): { atk: number; def: number };
+export function equippedMonsterStats(atk: number, defense: number, equippedIds: string[], faceUpAllyCount?: number, spellTrapCount?: number): { atk: number; def: number };
+export function maskOfRestrictBlocksTribute(activeTrapIds?: string[], effectsNegated?: boolean): boolean;
 export function timeWizardCoinResult(heads: boolean, ownOriginalAttacks?: number[]): { destroysOpponent: boolean; destroysOwn: boolean; damage: number };
 export function goddessWhimMultiplier(heads: boolean): number;
 export function germInfectionPenalty(equippedIds: string[], standbyCount?: number): number;
