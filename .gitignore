@@ -42,3 +42,4 @@ next-env.d.ts
 /work/
 /.pnpm-store/
 .devserver.log
+/.tmp_bluesky_assets/
