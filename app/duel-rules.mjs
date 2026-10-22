@@ -80,6 +80,9 @@ export const equipRules = Object.freeze({
   "sm-47": "全モンスター",
   "sm-48": "全モンスター",
   "sm-49": "全モンスター",
+  "ln-44": "ビック・バイパー",
+  "ln-48": "全モンスター",
+  "ln-50": "戦士族",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -190,6 +193,18 @@ export function canMonsterAttackDirectly(id) {
   return directAttackMonsters.has(id);
 }
 
+export function monsterCannotAttackDirectly(id) {
+  return id === "ln-23";
+}
+
+export function darkDoorPreventsAttack(attacksAlreadyDeclared, activeSpellIds = [], effectsNegated = false) {
+  return !effectsNegated && activeSpellIds.includes("ln-42") && attacksAlreadyDeclared > 0;
+}
+
+export function vengefulBogPreventsAttack(summonedTurn, currentTurn, activeSpellIds = [], effectsNegated = false) {
+  return !effectsNegated && activeSpellIds.includes("ln-52") && summonedTurn === currentTurn;
+}
+
 export function thousandEyesAttackBlocked(monster, opponentSpellTrapIds = [], activeTrapIds = [], trapEffectsNegated = false) {
   if (!monster) return false;
   if (opponentSpellTrapIds.includes("tb-52") && monster.kind === "昆虫族") return true;
@@ -198,7 +213,7 @@ export function thousandEyesAttackBlocked(monster, opponentSpellTrapIds = [], ac
 
 export function piercingBattleDamage(attackerId, equippedIds, attackerValue, defenderValue, defenderPosition) {
   if (defenderPosition !== "defense" || attackerValue <= defenderValue) return 0;
-  return attackerId === "tb-41" || equippedIds.includes("tb-13") ? attackerValue - defenderValue : 0;
+  return attackerId === "tb-41" || equippedIds.includes("tb-13") || equippedIds.includes("ln-44") ? attackerValue - defenderValue : 0;
 }
 
 export function cyberSummonTributes(id, level, ownMonsterCount, opponentMonsterCount) {
@@ -934,6 +949,9 @@ export function equippedMonsterStats(atk, defense, equippedIds, faceUpAllyCount 
     if (id === "sm-21") return { atk: result.atk + 800, def: result.def };
     if (id === "sm-48") return { atk: result.atk + faceUpAllyCount * 800, def: result.def + faceUpAllyCount * 800 };
     if (id === "sm-49") return { atk: result.atk + spellTrapCount * 500, def: result.def + spellTrapCount * 500 };
+    if (id === "ln-44") return { atk: result.atk + 300, def: result.def };
+    if (id === "ln-48") return result;
+    if (id === "ln-50") return { atk: result.atk + 500, def: result.def + 500 };
     if (id === "ps-03") return { atk: result.atk + 700, def: result.def + 700 };
     if (id === "ps-08") return result;
     if (id === "pr99-insect-armor" || id === "pr99-salamandra" || id === "pr99-shine-palace") return { atk: result.atk + 700, def: result.def };
@@ -956,7 +974,7 @@ export function dopingPenalty(equippedIds, standbyCount = 0) {
 }
 
 export function paralyzingPotionPreventsAttack(equippedIds) {
-  return equippedIds.includes("vol7-paralyzing-potion") || equippedIds.includes("sm-18");
+  return equippedIds.includes("vol7-paralyzing-potion") || equippedIds.includes("sm-18") || equippedIds.includes("ln-48");
 }
 
 export function maskOfRestrictBlocksTribute(activeTrapIds = [], effectsNegated = false) {

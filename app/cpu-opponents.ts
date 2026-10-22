@@ -163,10 +163,10 @@ const definitions: OpponentDefinition[] = [
   },
   {
     id: "yami-bakura", name: "闇バクラ", title: "オカルトデッキの使い手", mark: "獏", difficulty: 5,
-    ace: "ゴースト王－パンプキング－", strategy: "悪魔・アンデットと墓地利用で相手をじわじわ追い詰める。",
-    featured: ["bo7-pumpking", "vol3-reaper-cards", "vol4-mask-darkness", "bo5-dragon-zombie", "vol5-armored-zombie", "vol5-magical-ghost"],
+    ace: "ダーク・ネクロフィア", strategy: "悪魔・アンデットと墓地利用で相手をじわじわ追い詰め、ダーク・ネクロフィアへつなぐ。",
+    featured: ["ln-14", "ln-11", "ln-13", "ln-23", "bo7-pumpking", "vol3-reaper-cards", "vol4-mask-darkness", "bo5-dragon-zombie"],
     kinds: ["悪魔族", "アンデット族"], attributes: ["闇"],
-    support: ["stb-yami", "vol1-violet-crystal", "mr-gravekeepers-servant", "vol3-gravedigger-ghoul", "vol5-soul-release"],
+    support: ["ln-42", "ln-52", "stb-yami", "vol1-violet-crystal", "mr-gravekeepers-servant", "vol3-gravedigger-ghoul", "vol5-soul-release"],
   },
   {
     id: "strings", name: "人形", title: "寡黙なる神の操り手", mark: "人", difficulty: 5,

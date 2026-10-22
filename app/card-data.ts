@@ -16,6 +16,7 @@ import { pharaohsServantCards, pharaohsServantPack } from "./pharaohs-servant-da
 import { curseOfAnubisCards, curseOfAnubisPack } from "./curse-of-anubis-data";
 import { thousandEyesBibleCards, thousandEyesBiblePack } from "./thousand-eyes-bible-data";
 import { spellOfMaskCards, spellOfMaskPack } from "./spell-of-mask-data";
+import { labyrinthOfNightmareCards, labyrinthOfNightmarePack } from "./labyrinth-of-nightmare-data";
 
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
@@ -243,6 +244,7 @@ export const cards: Card[] = [
   ...curseOfAnubisCards,
   ...thousandEyesBibleCards,
   ...spellOfMaskCards,
+  ...labyrinthOfNightmareCards,
 ];
 
 export const packs: Pack[] = [
@@ -310,6 +312,7 @@ export const packs: Pack[] = [
   curseOfAnubisPack,
   thousandEyesBiblePack,
   spellOfMaskPack,
+  labyrinthOfNightmarePack,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));

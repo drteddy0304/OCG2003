@@ -73,6 +73,9 @@ export function shouldPlayerChooseFlipTarget(
 ): boolean;
 
 export function canMonsterAttackDirectly(id: string): boolean;
+export function monsterCannotAttackDirectly(id: string): boolean;
+export function darkDoorPreventsAttack(attacksAlreadyDeclared: number, activeSpellIds?: string[], effectsNegated?: boolean): boolean;
+export function vengefulBogPreventsAttack(summonedTurn: number | undefined, currentTurn: number, activeSpellIds?: string[], effectsNegated?: boolean): boolean;
 export function thousandEyesAttackBlocked(monster: { kind?: string; level?: number } | undefined, opponentSpellTrapIds?: string[], activeTrapIds?: string[], trapEffectsNegated?: boolean): boolean;
 export function piercingBattleDamage(attackerId: string, equippedIds: string[], attackerValue: number, defenderValue: number, defenderPosition: "attack" | "defense"): number;
 export function cyberSummonTributes(id: string, level: number, ownMonsterCount: number, opponentMonsterCount: number): number;

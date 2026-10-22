@@ -46,6 +46,7 @@ export const FUSION_RECIPES = {
   "tb-34": ["mr-relinquished", "tb-33"],
   "sm-04": ["sm-03", "sm-02"],
   "sm-44": ["sm-43", "sm-45"],
+  "ln-26": ["ln-23", "ln-25"],
 };
 
 export function fusionRecipe(fusionId) {
