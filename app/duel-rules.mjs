@@ -632,6 +632,7 @@ const flipEffects = Object.freeze({
   "bo5-needle-ball": "pay-2000-damage-1000",
   "bo6-doppelganger": "destroy-two-set-spell-traps",
   "bo6-penguin-soldier": "return-two-monsters",
+  "ln-21": "return-two-spell-traps",
   "ex-033": "inspect-all-set",
   "ps-26": "cyber-jar",
   "ca-03": "parasite-deck",
@@ -644,6 +645,14 @@ const flipEffects = Object.freeze({
 
 export function flipEffect(id) {
   return flipEffects[id] ?? null;
+}
+
+export function royalCommandNegatesFlip(activeTrapIds, trapEffectsNegated = false) {
+  return !trapEffectsNegated && activeTrapIds.includes("ln-29");
+}
+
+export function zombairaAttackLossAfterDestroy(id, currentLoss = 0, destroyedMonster = false) {
+  return id === "ln-23" && destroyedMonster ? currentLoss + 200 : currentLoss;
 }
 
 export function chaosPotExcavate(deck, requiredMonsterCount, fieldLimit = 5) {

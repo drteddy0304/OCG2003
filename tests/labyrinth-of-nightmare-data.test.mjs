@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack, labyrinthOfNightmareReadyCardIds } from "../app/labyrinth-of-nightmare-data.ts";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
-import { darkDoorPreventsAttack, equippedMonsterStats, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, vengefulBogPreventsAttack } from "../app/duel-rules.mjs";
+import { darkDoorPreventsAttack, equippedMonsterStats, flipEffect, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
 
 test("悪夢の迷宮は発売時の全53種類を収録する", () => {
   assert.equal(labyrinthOfNightmareCards.length, 53);
@@ -36,12 +36,30 @@ test("先行実装した装備・攻撃制限を裁定する", () => {
   assert.equal(vengefulBogPreventsAttack(7, 8, ["ln-52"]), false);
 });
 
+test("トルネード・バード、ゾンバイア、王宮の号令を裁定する", () => {
+  assert.equal(flipEffect("ln-21"), "return-two-spell-traps");
+  assert.equal(zombairaAttackLossAfterDestroy("ln-23", 0, true), 200);
+  assert.equal(zombairaAttackLossAfterDestroy("ln-23", 400, true), 600);
+  assert.equal(zombairaAttackLossAfterDestroy("ln-23", 400, false), 400);
+  assert.equal(zombairaAttackLossAfterDestroy("ln-22", 0, true), 0);
+  assert.equal(royalCommandNegatesFlip(["ln-29"]), true);
+  assert.equal(royalCommandNegatesFlip(["ln-29"], true), false);
+  assert.equal(royalCommandNegatesFlip([]), false);
+});
+
 test("カード一覧・パック一覧へ統合され、対応済み表示を過大申告しない", () => {
   return readFile(new URL("../app/card-data.ts", import.meta.url), "utf8").then((source) => {
     assert.match(source, /\.\.\.labyrinthOfNightmareCards/);
     assert.match(source, /labyrinthOfNightmarePack/);
+  }).then(() => readFile(new URL("../app/DuelArena.tsx", import.meta.url), "utf8")).then((source) => {
+    assert.match(source, /pending\.effect === "return-two-spell-traps"/);
+    assert.match(source, /royalCommandNegatesFlip/);
+    assert.match(source, /zombairaAttackLossAfterDestroy/);
   }).then(() => {
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-44"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-21"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-23"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-29"));
   assert.ok(!labyrinthOfNightmareReadyCardIds.includes("ln-14"));
   });
 });

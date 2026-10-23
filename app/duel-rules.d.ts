@@ -253,9 +253,11 @@ export function blackPendantTriggerCounts(previousPlayerSpellTrapIds: string[], 
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle" | "swap-control" | "cyber-jar" | "parasite-deck";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "return-two-spell-traps" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle" | "swap-control" | "cyber-jar" | "parasite-deck";
 
 export function flipEffect(id: string): FlipEffect | null;
+export function royalCommandNegatesFlip(activeTrapIds: string[], trapEffectsNegated?: boolean): boolean;
+export function zombairaAttackLossAfterDestroy(id: string, currentLoss?: number, destroyedMonster?: boolean): number;
 export function controlChangeLifeEffect(id: string): { newControllerDamage: number; originalOwnerGain: number } | null;
 export function phantomWallReturnsAttacker(defenderId: string, attackerDestroyed: boolean): boolean;
 export function dragonTargetProtected(targetKind: string, targetFaceDown: boolean, faceUpLordCount: number): boolean;
