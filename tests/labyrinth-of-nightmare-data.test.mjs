@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack, labyrinthOfNightmareReadyCardIds } from "../app/labyrinth-of-nightmare-data.ts";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
-import { darkDoorPreventsAttack, equippedMonsterStats, flipEffect, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
+import { canNormalSummonMonster, darkDoorPreventsAttack, equippedMonsterStats, flipEffect, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
 
 test("悪夢の迷宮は発売時の全53種類を収録する", () => {
   assert.equal(labyrinthOfNightmareCards.length, 53);
@@ -47,6 +47,24 @@ test("トルネード・バード、ゾンバイア、王宮の号令を裁定�
   assert.equal(royalCommandNegatesFlip([]), false);
 });
 
+test("属性精霊3体の特殊召喚条件と継続効果を裁定する", () => {
+  assert.deepEqual(spiritSummonRequirement("ln-15"), { attribute: "光", count: 2 });
+  assert.deepEqual(spiritSummonRequirement("ln-16"), { attribute: "炎", count: 1 });
+  assert.deepEqual(spiritSummonRequirement("ln-18"), { attribute: "地", count: 1 });
+  assert.deepEqual(spiritSummonMaterialIndexes("ln-15", ["闇", "光", "光", "光"]), [1, 2]);
+  assert.deepEqual(spiritSummonMaterialIndexes("ln-16", ["炎", "地"]), [0]);
+  assert.deepEqual(spiritSummonMaterialIndexes("ln-15", ["光", "闇"]), [0]);
+  assert.equal(canNormalSummonMonster("ln-15"), false);
+  assert.equal(canNormalSummonMonster("ln-16"), false);
+  assert.equal(canNormalSummonMonster("ln-18"), false);
+  assert.equal(labyrinthBattleAttackAdjustment("ln-01", "player", "player", "battle", 2), -600);
+  assert.equal(labyrinthBattleAttackAdjustment("ln-18", "player", "cpu", "battle", 0), 300);
+  assert.equal(labyrinthBattleAttackAdjustment("ln-18", "player", "cpu", "main1", 0), 0);
+  assert.equal(ifritEndPhaseBonus("ln-16", 300, "player", "cpu"), 600);
+  assert.equal(ifritEndPhaseBonus("ln-16", 300, "player", "player"), 300);
+  assert.equal(ifritEndPhaseBonus("ln-18", 300, "player", "cpu"), 300);
+});
+
 test("カード一覧・パック一覧へ統合され、対応済み表示を過大申告しない", () => {
   return readFile(new URL("../app/card-data.ts", import.meta.url), "utf8").then((source) => {
     assert.match(source, /\.\.\.labyrinthOfNightmareCards/);
@@ -55,11 +73,17 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
     assert.match(source, /pending\.effect === "return-two-spell-traps"/);
     assert.match(source, /royalCommandNegatesFlip/);
     assert.match(source, /zombairaAttackLossAfterDestroy/);
+    assert.match(source, /beginSpiritSummon/);
+    assert.match(source, /summonCpuSpirits/);
+    assert.match(source, /applyIfritEndPhase/);
   }).then(() => {
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-44"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-21"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-23"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-29"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-15"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-16"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-18"));
   assert.ok(!labyrinthOfNightmareReadyCardIds.includes("ln-14"));
   });
 });

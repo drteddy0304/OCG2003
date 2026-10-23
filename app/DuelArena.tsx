@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { cardById, cards, type Card } from "./card-data";
 import { createCpuOpponents } from "./cpu-opponents";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackCountAfterDeclaration, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bombBugDestroys, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, cardIdsMovedToGrave, catapultTurtleDamage, chaosPotExcavate, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, cyberSummonTributes, darkCastleUndeadBoost, darkDoorPreventsAttack, deathHamsterDeckIndex, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goblinAttackForceEndPosition, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, handCardsMovedToGrave, hasNewLogText, hourglassOriginalStats, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, ladybugDestroys, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, mirrorWallAttack, mirrorWallStandbyCost, monsterCannotAttackDirectly, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, parasitePlacementAfterBattleDamage, patrolRoboCanInspect, phantomWallReturnsAttacker, piercingBattleDamage, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalCommandNegatesFlip, royalDecreeNegatesTraps, selectedCards, sharedRideTriggerCount, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, strongestAttackIndex, swappedMonsterStats, swordHunterBonus, takeGraveyardCard, temporaryBattleStatBonus, thousandEyesAttackBlocked, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, vampireBabyCanRevive, vengefulBogPreventsAttack, wormBeastReturns, zombairaAttackLossAfterDestroy } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackCountAfterDeclaration, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bombBugDestroys, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, cardIdsMovedToGrave, catapultTurtleDamage, chaosPotExcavate, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, cyberSummonTributes, darkCastleUndeadBoost, darkDoorPreventsAttack, deathHamsterDeckIndex, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goblinAttackForceEndPosition, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, handCardsMovedToGrave, hasNewLogText, hourglassOriginalStats, ifritEndPhaseBonus, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, labyrinthBattleAttackAdjustment, ladybugDestroys, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, mirrorWallAttack, mirrorWallStandbyCost, monsterCannotAttackDirectly, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, parasitePlacementAfterBattleDamage, patrolRoboCanInspect, phantomWallReturnsAttacker, piercingBattleDamage, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalCommandNegatesFlip, royalDecreeNegatesTraps, selectedCards, sharedRideTriggerCount, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, spiritSummonMaterialIndexes, spiritSummonRequirement, strongestAttackIndex, swappedMonsterStats, swordHunterBonus, takeGraveyardCard, temporaryBattleStatBonus, thousandEyesAttackBlocked, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, vampireBabyCanRevive, vengefulBogPreventsAttack, wormBeastReturns, zombairaAttackLossAfterDestroy } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { duelBgmTitle, playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
@@ -38,6 +38,7 @@ type PendingTribute = {
   special?: boolean;
 };
 type PendingGodTribute = { kind: "obelisk" | "ra"; sourceIndex: number; selected: number[] };
+type PendingSpiritSummon = { handIndex: number; position: Position; required: number; attribute: string; selected: number[] };
 type CpuPlayback = {
   finalState: DuelState;
   messages: string[];
@@ -253,6 +254,7 @@ type ZoneCard = {
   godSpecialSummoned?: boolean;
   magicalHat?: boolean;
   zombairaAttackLoss?: number;
+  ifritAttackBonus?: number;
 };
 
 type DuelState = {
@@ -364,6 +366,7 @@ export function DuelArena({
   const [selectedEquip, setSelectedEquip] = useState<number | null>(null);
   const [selectedSevenCardStat, setSelectedSevenCardStat] = useState<"atk" | "def" | null>(null);
   const [pendingTribute, setPendingTribute] = useState<PendingTribute | null>(null);
+  const [pendingSpiritSummon, setPendingSpiritSummon] = useState<PendingSpiritSummon | null>(null);
   const [pendingReborn, setPendingReborn] = useState<number | null>(null);
   const [pendingDeSpell, setPendingDeSpell] = useState<number | null>(null);
   const [pendingEgotist, setPendingEgotist] = useState<number | null>(null);
@@ -479,6 +482,7 @@ export function DuelArena({
     && pendingRitual === null
     && pendingLastWill === null
     && pendingDragonFlute === null
+    && pendingSpiritSummon === null
     && pendingChangeOfHeart === null
     && pendingCannonSoldier === null
     && pendingCatapultTurtle === null
@@ -576,6 +580,7 @@ export function DuelArena({
     setRewardDiscarded(false);
     setSelectedAttacker(null);
     setPendingTribute(null);
+    setPendingSpiritSummon(null);
     setPendingReborn(null);
     setPendingDeSpell(null);
     setPendingEgotist(null);
@@ -709,7 +714,7 @@ export function DuelArena({
   }
 
   function summon(handIndex: number, position: Position) {
-    if (!duel || !isPlayerMainPhase || duel.normalSummoned || duel.result || pendingReborn !== null || pendingDeSpell !== null) return;
+    if (!duel || !isPlayerMainPhase || duel.normalSummoned || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingSpiritSummon !== null) return;
     if (!canPayDuelChainEnergy(duel, "player")) return;
     const id = duel.playerHand[handIndex];
     const card = cardById.get(id);
@@ -728,7 +733,7 @@ export function DuelArena({
   }
 
   function summonToon(handIndex: number, position: Position) {
-    if (!duel || !isPlayerMainPhase || duel.result || !canPayDuelChainEnergy(duel, "player")) return;
+    if (!duel || !isPlayerMainPhase || duel.result || pendingSpiritSummon !== null || !canPayDuelChainEnergy(duel, "player")) return;
     const id = duel.playerHand[handIndex];
     if (isCardProhibited(duel, id)) return;
     const required = toonSummonTributeCount(id);
@@ -742,6 +747,59 @@ export function DuelArena({
       return;
     }
     performSummon(handIndex, position, [], true);
+  }
+
+  function beginSpiritSummon(handIndex: number, position: Position) {
+    if (!duel || !isPlayerMainPhase || duel.result || duel.playerField.length >= FIELD_LIMIT || !canPayDuelChainEnergy(duel, "player")) return;
+    const id = duel.playerHand[handIndex];
+    const requirement = spiritSummonRequirement(id);
+    if (!requirement || isCardProhibited(duel, id)) return;
+    const eligible = duel.playerGraveyard.filter((graveId) => cardById.get(graveId)?.attribute === requirement.attribute);
+    if (eligible.length < requirement.count) return;
+    setPendingSpiritSummon({ handIndex, position, required: requirement.count, attribute: requirement.attribute, selected: [] });
+    setSelectedAttacker(null);
+    setSelectedEquip(null);
+  }
+
+  function toggleSpiritMaterial(index: number) {
+    setPendingSpiritSummon((current) => {
+      if (!current) return null;
+      if (current.selected.includes(index)) return { ...current, selected: current.selected.filter((value) => value !== index) };
+      if (current.selected.length >= current.required) return current;
+      return { ...current, selected: [...current.selected, index] };
+    });
+  }
+
+  function resolveSpiritSummon() {
+    if (!duel || !pendingSpiritSummon || pendingSpiritSummon.selected.length !== pendingSpiritSummon.required) return;
+    const { handIndex, position, selected, attribute } = pendingSpiritSummon;
+    const id = duel.playerHand[handIndex];
+    const card = cardById.get(id);
+    const requirement = spiritSummonRequirement(id);
+    if (!card || !requirement || requirement.attribute !== attribute || duel.playerField.length >= FIELD_LIMIT) return;
+    if (selected.some((index) => cardById.get(duel.playerGraveyard[index])?.attribute !== attribute)) return;
+    const selectedSet = new Set(selected);
+    const paid = applyChainEnergyPayment(duel, "player");
+    let nextState: DuelState = {
+      ...paid,
+      playerHand: paid.playerHand.filter((_, index) => index !== handIndex),
+      playerGraveyard: paid.playerGraveyard.filter((_, index) => !selectedSet.has(index)),
+      playerField: [...paid.playerField, {
+        id,
+        position,
+        faceDown: false,
+        attacked: false,
+        equipped: [],
+        summonedTurn: duel.turnNumber,
+        faceUpTurn: duel.turnNumber,
+        positionChanged: false,
+      }],
+      log: appendLog(paid.log, `${card.name}を墓地の${attribute}属性モンスター${selected.length}体を除外して${position === "attack" ? "攻撃" : "守備"}表示で特殊召喚。`),
+    };
+    nextState = applyMysteriousPuppeteerGain(nextState);
+    nextState = applySliferSummonThunder(nextState, "player", nextState.playerField.length - 1);
+    setDuel(nextState);
+    setPendingSpiritSummon(null);
   }
 
   function performSummon(handIndex: number, position: Position, tributeIndexes: number[], special = false) {
@@ -943,7 +1001,7 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingLastWill !== null || pendingRitual !== null || pendingCurseRemoval !== null) return;
+    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingSpiritSummon !== null || pendingLastWill !== null || pendingRitual !== null || pendingCurseRemoval !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell" || isCardProhibited(duel, card.id)) return;
     if (coldWaveIsActive(duel.coldWaveExpiresTurn, duel.turnNumber)) return;
@@ -3706,7 +3764,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null || pendingMagicCrusher !== null || pendingThousandEyes !== null || pendingLucifer) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null || pendingMagicCrusher !== null || pendingThousandEyes !== null || pendingLucifer) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "standby") {
@@ -3746,7 +3804,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -3766,6 +3824,7 @@ export function DuelArena({
           : playerEnd.log,
       };
     }
+    playerEnd = applyIfritEndPhase(playerEnd, "player");
     playerEnd = resolveThousandEyesEndPhase(playerEnd, "player");
     playerEnd = resolveIronScorpionEndPhase(playerEnd);
     playerEnd = returnWormBeastAtEndPhase(playerEnd, "player");
@@ -4896,7 +4955,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 182</strong>
+          <strong>17 DUELISTS · BUILD 183</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -6846,6 +6905,32 @@ export function DuelArena({
         </div>
       )}
 
+      {pendingSpiritSummon && (
+        <div className="card-overlay">
+          <article className="effect-choice-panel">
+            <p className="section-label">SPECIAL SUMMON</p>
+            <h2>{cardById.get(duel.playerHand[pendingSpiritSummon.handIndex])?.name}</h2>
+            <p>墓地から{pendingSpiritSummon.attribute}属性モンスターを{pendingSpiritSummon.required}体選んで除外します。</p>
+            <div className="target-list">
+              {duel.playerGraveyard.map((id, index) => cardById.get(id)?.attribute === pendingSpiritSummon.attribute ? (
+                <button
+                  key={`spirit-${index}`}
+                  className={pendingSpiritSummon.selected.includes(index) ? "selected" : ""}
+                  onClick={() => toggleSpiritMaterial(index)}
+                >
+                  <strong>{cardById.get(id)?.name}</strong>
+                  <small>{cardById.get(id)?.attribute}属性　★{cardById.get(id)?.level}</small>
+                </button>
+              ) : null)}
+            </div>
+            <div className="overlay-actions">
+              <button disabled={pendingSpiritSummon.selected.length !== pendingSpiritSummon.required} onClick={resolveSpiritSummon}>選んだカードを除外して特殊召喚</button>
+              <button onClick={() => setPendingSpiritSummon(null)}>キャンセル</button>
+            </div>
+          </article>
+        </div>
+      )}
+
       <div className="duel-controls">
         <div className="duel-hand">
           {duel.playerHand.map((id, index) => {
@@ -6870,7 +6955,15 @@ export function DuelArena({
                 {card.cardType === "monster" ? (
                   <>
                     <small>★{card.level}　ATK {card.atk} / DEF {card.def}</small>
-                    {toonSummonTributeCount(card.id) !== null ? (
+                    {spiritSummonRequirement(card.id) ? (
+                      <>
+                        <small>墓地の{spiritSummonRequirement(card.id)?.attribute}属性を{spiritSummonRequirement(card.id)?.count}体除外して特殊召喚</small>
+                        <div>
+                          <button disabled={!isPlayerMainPhase || pendingSpiritSummon !== null || !canPayDuelChainEnergy(duel, "player") || duel.playerField.length >= FIELD_LIMIT || spiritSummonMaterialIndexes(card.id, duel.playerGraveyard.map((graveId) => cardById.get(graveId)?.attribute ?? "")).length !== spiritSummonRequirement(card.id)?.count} onClick={() => beginSpiritSummon(index, "attack")}>特殊召喚（攻）</button>
+                          <button disabled={!isPlayerMainPhase || pendingSpiritSummon !== null || !canPayDuelChainEnergy(duel, "player") || duel.playerField.length >= FIELD_LIMIT || spiritSummonMaterialIndexes(card.id, duel.playerGraveyard.map((graveId) => cardById.get(graveId)?.attribute ?? "")).length !== spiritSummonRequirement(card.id)?.count} onClick={() => beginSpiritSummon(index, "defense")}>特殊召喚（守）</button>
+                        </div>
+                      </>
+                    ) : toonSummonTributeCount(card.id) !== null ? (
                       <>
                         <small>{effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25") ? `トゥーン・ワールド発動中／リリース${toonSummonTributeCount(card.id)}体` : "トゥーン・ワールドが必要です"}</small>
                         <div>
@@ -7025,7 +7118,7 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || Boolean(duel.pendingTribalRuleTribute) || Boolean(duel.pendingMajorRiot) || Boolean(duel.pendingMagicalHats) || pendingRaceTrapChoice !== null || pendingProhibition !== null || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || Boolean(duel.pendingTribalRuleTribute) || Boolean(duel.pendingMajorRiot) || Boolean(duel.pendingMagicalHats) || pendingRaceTrapChoice !== null || pendingProhibition !== null || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "standby"
               ? "メイン1へ"
               : duel.phase === "main1"
@@ -7033,7 +7126,7 @@ export function DuelArena({
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {(duel.phase === "main1" || duel.phase === "battle") && (
-            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || Boolean(duel.pendingTribalRuleTribute) || Boolean(duel.pendingMajorRiot) || Boolean(duel.pendingMagicalHats) || pendingRaceTrapChoice !== null || pendingProhibition !== null || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || Boolean(duel.pendingTribalRuleTribute) || Boolean(duel.pendingMajorRiot) || Boolean(duel.pendingMagicalHats) || pendingRaceTrapChoice !== null || pendingProhibition !== null || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -7324,6 +7417,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     };
     state = applyDeckSearchTriggers(state, [], tributes);
   }
+  state = summonCpuSpirits(state);
   const candidates = state.cpuHand
     .map((id, index) => ({ card: cardById.get(id), index }))
     .filter((item): item is { card: Card; index: number } => item.card?.cardType === "monster" && !isCardProhibited(state, item.card.id) && canNormalSummonMonster(item.card.id, item.card.fusion))
@@ -7425,6 +7519,41 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
     }
   }
   return finishCpuTurn(state);
+}
+
+function summonCpuSpirits(initial: DuelState): DuelState {
+  let state = initial;
+  while (state.cpuField.length < FIELD_LIMIT && canPayDuelChainEnergy(state, "cpu")) {
+    const choice = state.cpuHand
+      .map((id, index) => ({ card: cardById.get(id), index, materials: spiritSummonMaterialIndexes(id, state.cpuGraveyard.map((graveId) => cardById.get(graveId)?.attribute ?? "")) }))
+      .filter((item): item is { card: Card; index: number; materials: number[] } => {
+        const requirement = item.card ? spiritSummonRequirement(item.card.id) : null;
+        return Boolean(item.card && requirement && !isCardProhibited(state, item.card.id) && item.materials.length === requirement.count);
+      })
+      .sort((a, b) => (b.card.atk ?? 0) - (a.card.atk ?? 0))[0];
+    if (!choice) break;
+    const removed = new Set(choice.materials);
+    const paid = applyChainEnergyPayment(state, "cpu");
+    state = {
+      ...paid,
+      cpuHand: paid.cpuHand.filter((_, index) => index !== choice.index),
+      cpuGraveyard: paid.cpuGraveyard.filter((_, index) => !removed.has(index)),
+      cpuField: [...paid.cpuField, {
+        id: choice.card.id,
+        position: "attack",
+        faceDown: false,
+        attacked: true,
+        equipped: [],
+        summonedTurn: paid.turnNumber,
+        faceUpTurn: paid.turnNumber,
+        positionChanged: false,
+      }],
+      log: appendLog(paid.log, `CPUが墓地のモンスターを除外し、${choice.card.name}を特殊召喚。`),
+    };
+    state = applyMysteriousPuppeteerGain(state);
+    state = applySliferSummonThunder(state, "cpu", state.cpuField.length - 1);
+  }
+  return state;
 }
 
 function useCpuMagicCrusher(state: DuelState): DuelState {
@@ -7928,6 +8057,25 @@ function resolveIronScorpionEndPhase(state: DuelState): DuelState {
   return next;
 }
 
+function applyIfritEndPhase(state: DuelState, turnSide: Side): DuelState {
+  const targetSide: Side = turnSide === "player" ? "cpu" : "player";
+  const fieldKey = targetSide === "player" ? "playerField" : "cpuField";
+  let gained = 0;
+  const field = state[fieldKey].map((zone) => {
+    if (zone.faceDown || zone.id !== "ln-16") return zone;
+    const current = zone.ifritAttackBonus ?? 0;
+    const next = ifritEndPhaseBonus(zone.id, current, targetSide, turnSide);
+    if (next === current) return zone;
+    gained += 1;
+    return { ...zone, ifritAttackBonus: next };
+  });
+  return gained === 0 ? state : {
+    ...state,
+    [fieldKey]: field,
+    log: appendLog(state.log, `${targetSide === "player" ? "あなた" : "CPU"}の炎の精霊 イフリート${gained}体が相手エンドフェイズの効果でATKを300アップ。`),
+  } as DuelState;
+}
+
 function resolveThousandEyesEndPhase(state: DuelState, turnSide: Side): DuelState {
   const antlionActive = !areTrapEffectsNegated(state)
     && !areContinuousTrapEffectsNegated(state)
@@ -8110,6 +8258,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
 
   state = resolveGoblinAttackForceEnd(state, "cpu");
   state = cleanupMagicalHats(state, "player");
+  state = applyIfritEndPhase(state, "cpu");
   state = resolveThousandEyesEndPhase(state, "cpu");
   state = resolveIronScorpionEndPhase(state);
   state = returnWormBeastAtEndPhase(state, "cpu");
@@ -11098,6 +11247,14 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
   const adjusted = stats.atk
     + swordHunterBonus(zone.id, capturedMonsterCount)
     + (zone.godAtkBonus ?? 0)
+    + (zone.ifritAttackBonus ?? 0)
+    + labyrinthBattleAttackAdjustment(
+      zone.id,
+      side,
+      state.turn,
+      state.phase,
+      (side === "player" ? state.cpuField : state.playerField).filter((opponent) => opponent.id === "ln-15" && !opponent.faceDown).length,
+    )
     + timedFieldBonus(zone, state)
     + aileSwordsmanAttackBonus(zone.aileBoostTurn, zone.aileTributeCount, state.turnNumber)
     + temporaryBattleStatBonus(zone.battleAtkBonusTurn, state.turnNumber, zone.battleAtkBonusValue)

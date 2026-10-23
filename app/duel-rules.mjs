@@ -816,7 +816,42 @@ export function canNormalSummonMonster(id, fusion = false) {
     "ps-20",
     "ps-21",
     "ps-22",
+    "ln-15",
+    "ln-16",
+    "ln-18",
   ]).has(id);
+}
+
+const spiritSummonRequirements = Object.freeze({
+  "ln-15": { attribute: "光", count: 2 },
+  "ln-16": { attribute: "炎", count: 1 },
+  "ln-18": { attribute: "地", count: 1 },
+});
+
+export function spiritSummonRequirement(id) {
+  return spiritSummonRequirements[id] ?? null;
+}
+
+export function spiritSummonMaterialIndexes(id, graveyardAttributes = []) {
+  const requirement = spiritSummonRequirement(id);
+  if (!requirement) return [];
+  return graveyardAttributes
+    .map((attribute, index) => ({ attribute, index }))
+    .filter(({ attribute }) => attribute === requirement.attribute)
+    .slice(0, requirement.count)
+    .map(({ index }) => index);
+}
+
+export function labyrinthBattleAttackAdjustment(id, monsterSide, turnSide, phase, opposingSacredSoulCount = 0) {
+  if (phase !== "battle") return 0;
+  let adjustment = 0;
+  if (monsterSide === turnSide) adjustment -= Math.max(0, opposingSacredSoulCount) * 300;
+  if (id === "ln-18" && monsterSide !== turnSide) adjustment += 300;
+  return adjustment;
+}
+
+export function ifritEndPhaseBonus(id, currentBonus = 0, monsterSide, turnSide) {
+  return id === "ln-16" && monsterSide !== turnSide ? currentBonus + 300 : currentBonus;
 }
 
 export function canSpecialSummonLarvaeMoth(currentTurn, cocoonEquippedTurn) {
