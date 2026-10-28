@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack, labyrinthOfNightmareReadyCardIds } from "../app/labyrinth-of-nightmare-data.ts";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
-import { blindDestructionDestroys, canNormalSummonMonster, darkDoorPreventsAttack, equippedMonsterStats, flipEffect, graveyardRetributionDamage, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
+import { blindDestructionDestroys, canNormalSummonMonster, darkDoorPreventsAttack, destinyBoardProgress, equippedMonsterStats, flipEffect, graveyardRetributionDamage, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
 
 test("悪夢の迷宮は発売時の全53種類を収録する", () => {
   assert.equal(labyrinthOfNightmareCards.length, 53);
@@ -63,16 +63,28 @@ test("墓荒らしの報いは除外された相手モンスター1体につき1
   assert.equal(graveyardRetributionDamage(["ln-32"], 5, true), 0);
 });
 
+test("ウィジャ盤は死のメッセージをE・A・T・Hの順に出して完成する", () => {
+  assert.deepEqual(destinyBoardProgress(["ln-37"], ["ln-37"]), { nextMessageId: "ln-38", completed: false, orphanedMessageIds: [] });
+  assert.equal(destinyBoardProgress(["ln-37"], ["ln-37", "ln-38", "ln-39"]).nextMessageId, "ln-40");
+  assert.deepEqual(destinyBoardProgress(["ln-37"], ["ln-37", "ln-38", "ln-39", "ln-40", "ln-41"]), { nextMessageId: null, completed: true, orphanedMessageIds: [] });
+  assert.deepEqual(destinyBoardProgress([], ["ln-38", "ln-39"]), { nextMessageId: null, completed: false, orphanedMessageIds: ["ln-38", "ln-39"] });
+  assert.equal(destinyBoardProgress(["ln-37"], ["ln-37"], true).nextMessageId, null);
+});
+
 test("属性精霊3体の特殊召喚条件と継続効果を裁定する", () => {
   assert.deepEqual(spiritSummonRequirement("ln-15"), { attribute: "光", count: 2 });
   assert.deepEqual(spiritSummonRequirement("ln-16"), { attribute: "炎", count: 1 });
+  assert.deepEqual(spiritSummonRequirement("ln-17"), { attribute: "水", count: 1 });
   assert.deepEqual(spiritSummonRequirement("ln-18"), { attribute: "地", count: 1 });
+  assert.deepEqual(spiritSummonRequirement("ln-19"), { attribute: "風", count: 1 });
   assert.deepEqual(spiritSummonMaterialIndexes("ln-15", ["闇", "光", "光", "光"]), [1, 2]);
   assert.deepEqual(spiritSummonMaterialIndexes("ln-16", ["炎", "地"]), [0]);
   assert.deepEqual(spiritSummonMaterialIndexes("ln-15", ["光", "闇"]), [0]);
   assert.equal(canNormalSummonMonster("ln-15"), false);
   assert.equal(canNormalSummonMonster("ln-16"), false);
+  assert.equal(canNormalSummonMonster("ln-17"), false);
   assert.equal(canNormalSummonMonster("ln-18"), false);
+  assert.equal(canNormalSummonMonster("ln-19"), false);
   assert.equal(labyrinthBattleAttackAdjustment("ln-01", "player", "player", "battle", 2), -600);
   assert.equal(labyrinthBattleAttackAdjustment("ln-18", "player", "cpu", "battle", 0), 300);
   assert.equal(labyrinthBattleAttackAdjustment("ln-18", "player", "cpu", "main1", 0), 0);
@@ -98,6 +110,7 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
     assert.match(source, /applyGraveyardRetributionStandby/);
     assert.match(source, /pendingMiracleDig/);
     assert.match(source, /playerBanished/);
+    assert.match(source, /advanceDestinyBoard/);
   }).then(() => {
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-44"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-21"));
@@ -107,6 +120,8 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-43"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-32"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-49"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-37"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-41"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-15"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-16"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-18"));

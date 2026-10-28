@@ -818,14 +818,18 @@ export function canNormalSummonMonster(id, fusion = false) {
     "ps-22",
     "ln-15",
     "ln-16",
+    "ln-17",
     "ln-18",
+    "ln-19",
   ]).has(id);
 }
 
 const spiritSummonRequirements = Object.freeze({
   "ln-15": { attribute: "光", count: 2 },
   "ln-16": { attribute: "炎", count: 1 },
+  "ln-17": { attribute: "水", count: 1 },
   "ln-18": { attribute: "地", count: 1 },
+  "ln-19": { attribute: "風", count: 1 },
 });
 
 export function spiritSummonRequirement(id) {
@@ -863,6 +867,17 @@ export function graveyardRetributionDamage(activeTrapIds = [], banishedMonsterCo
   if (negated) return 0;
   const copies = activeTrapIds.filter((id) => id === "ln-32").length;
   return Math.max(0, banishedMonsterCount) * 100 * copies;
+}
+
+const destinyMessageIds = Object.freeze(["ln-38", "ln-39", "ln-40", "ln-41"]);
+
+export function destinyBoardProgress(activeTrapIds = [], spellTrapIds = [], negated = false) {
+  const boardActive = activeTrapIds.includes("ln-37") && spellTrapIds.includes("ln-37");
+  const presentMessages = destinyMessageIds.filter((id) => spellTrapIds.includes(id));
+  if (!boardActive) return { nextMessageId: null, completed: false, orphanedMessageIds: presentMessages };
+  if (negated) return { nextMessageId: null, completed: false, orphanedMessageIds: [] };
+  const nextMessageId = destinyMessageIds.find((id, index) => destinyMessageIds.slice(0, index).every((previous) => presentMessages.includes(previous)) && !presentMessages.includes(id)) ?? null;
+  return { nextMessageId, completed: nextMessageId === null && presentMessages.length === destinyMessageIds.length, orphanedMessageIds: [] };
 }
 
 export function canSpecialSummonLarvaeMoth(currentTurn, cocoonEquippedTurn) {
