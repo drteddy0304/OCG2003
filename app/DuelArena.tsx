@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { cardById, cards, type Card } from "./card-data";
 import { createCpuOpponents } from "./cpu-opponents";
 import { cardDescription } from "./card-text";
-import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackCountAfterDeclaration, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bombBugDestroys, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, cardIdsMovedToGrave, catapultTurtleDamage, chaosPotExcavate, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, cyberSummonTributes, darkCastleUndeadBoost, darkDoorPreventsAttack, deathHamsterDeckIndex, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goblinAttackForceEndPosition, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, handCardsMovedToGrave, hasNewLogText, hourglassOriginalStats, ifritEndPhaseBonus, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, labyrinthBattleAttackAdjustment, ladybugDestroys, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, mirrorWallAttack, mirrorWallStandbyCost, monsterCannotAttackDirectly, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, parasitePlacementAfterBattleDamage, patrolRoboCanInspect, phantomWallReturnsAttacker, piercingBattleDamage, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalCommandNegatesFlip, royalDecreeNegatesTraps, selectedCards, sharedRideTriggerCount, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, spiritSummonMaterialIndexes, spiritSummonRequirement, strongestAttackIndex, swappedMonsterStats, swordHunterBonus, takeGraveyardCard, temporaryBattleStatBonus, thousandEyesAttackBlocked, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, vampireBabyCanRevive, vengefulBogPreventsAttack, wormBeastReturns, zombairaAttackLossAfterDestroy } from "./duel-rules.mjs";
+import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackCountAfterDeclaration, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bazooBoostActive, bazooBoostAmount, bestCpuBattleTargetIndex, bestCpuFieldSpell, bombBugDestroys, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, cardIdsMovedToGrave, catapultTurtleDamage, chaosPotExcavate, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, cyberSummonTributes, darkCastleUndeadBoost, darkDoorPreventsAttack, deathHamsterDeckIndex, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goblinAttackForceEndPosition, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, handCardsMovedToGrave, hasNewLogText, hourglassOriginalStats, ifritEndPhaseBonus, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, labyrinthBattleAttackAdjustment, ladybugDestroys, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, mirrorWallAttack, mirrorWallStandbyCost, monsterCannotAttackDirectly, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, parasitePlacementAfterBattleDamage, patrolRoboCanInspect, phantomWallReturnsAttacker, piercingBattleDamage, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalCommandNegatesFlip, royalDecreeNegatesTraps, selectedCards, sharedRideTriggerCount, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, spiritSummonMaterialIndexes, spiritSummonRequirement, strongestAttackIndex, swappedMonsterStats, swordHunterBonus, takeGraveyardCard, temporaryBattleStatBonus, thousandEyesAttackBlocked, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, vampireBabyCanRevive, vengefulBogPreventsAttack, wormBeastReturns, zombairaAttackLossAfterDestroy } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
 import { blindDestructionDestroys, destinyBoardProgress, graveyardRetributionDamage } from "./duel-rules.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
@@ -196,6 +196,7 @@ type PendingMajorRiot = { playerCount: number; cpuCount: number; selected: numbe
 type PendingMagicalHats = { trapIndex: number };
 type PendingMagicCrusher = { trapIndex: number };
 type PendingThousandEyes = { monsterIndex: number };
+type PendingBazoo = { monsterIndex: number; selected: number[] };
 type SealedHandCard = { id: string; remainingStandbys: number };
 type DuelFeedback = { kind: DuelSound; title: string; detail: string; message: string; duration: number };
 
@@ -257,6 +258,9 @@ type ZoneCard = {
   magicalHat?: boolean;
   zombairaAttackLoss?: number;
   ifritAttackBonus?: number;
+  bazooAttackBonus?: number;
+  bazooBoostExpiresTurn?: number;
+  bazooEffectUsedTurn?: number;
 };
 
 type DuelState = {
@@ -384,6 +388,7 @@ export function DuelArena({
   const [pendingDragonFlute, setPendingDragonFlute] = useState<PendingDragonFlute | null>(null);
   const [pendingChangeOfHeart, setPendingChangeOfHeart] = useState<number | null>(null);
   const [pendingCannonSoldier, setPendingCannonSoldier] = useState<number | null>(null);
+  const [pendingBazoo, setPendingBazoo] = useState<PendingBazoo | null>(null);
   const [pendingCatapultTurtle, setPendingCatapultTurtle] = useState<number | null>(null);
   const [pendingBarrelDragon, setPendingBarrelDragon] = useState<number | null>(null);
   const [pendingGaleDogra, setPendingGaleDogra] = useState<number | null>(null);
@@ -493,6 +498,7 @@ export function DuelArena({
     && pendingSpiritSummon === null
     && pendingChangeOfHeart === null
     && pendingCannonSoldier === null
+    && pendingBazoo === null
     && pendingCatapultTurtle === null
     && pendingBarrelDragon === null
     && pendingGaleDogra === null
@@ -607,6 +613,7 @@ export function DuelArena({
     setPendingLastWill(null);
     setPendingChangeOfHeart(null);
     setPendingCannonSoldier(null);
+    setPendingBazoo(null);
     setPendingCatapultTurtle(null);
     setPendingBarrelDragon(null);
     setPendingGaleDogra(null);
@@ -2753,6 +2760,36 @@ export function DuelArena({
     setPendingCannonSoldier(monsterIndex);
   }
 
+  function toggleBazooMaterial(graveyardIndex: number) {
+    setPendingBazoo((pending) => {
+      if (!pending) return pending;
+      const selected = pending.selected.includes(graveyardIndex)
+        ? pending.selected.filter((index) => index !== graveyardIndex)
+        : pending.selected.length < 3 ? [...pending.selected, graveyardIndex] : pending.selected;
+      return { ...pending, selected };
+    });
+  }
+
+  function activateBazoo() {
+    if (!duel || !pendingBazoo || !isPlayerMainPhase || pendingBazoo.selected.length < 1 || pendingBazoo.selected.length > 3) return;
+    const source = duel.playerField[pendingBazoo.monsterIndex];
+    if (!source || source.id !== "ln-13" || source.faceDown || source.bazooEffectUsedTurn === duel.turnNumber) return;
+    const selected = new Set(pendingBazoo.selected);
+    const banished = duel.playerGraveyard.filter((id, index) => selected.has(index) && cardById.get(id)?.cardType === "monster");
+    if (banished.length !== selected.size) return;
+    const boost = bazooBoostAmount(banished.length);
+    setDuel({
+      ...duel,
+      playerGraveyard: duel.playerGraveyard.filter((_, index) => !selected.has(index)),
+      playerBanished: [...duel.playerBanished, ...banished],
+      playerField: duel.playerField.map((zone, index) => index === pendingBazoo.monsterIndex
+        ? { ...zone, bazooAttackBonus: boost, bazooBoostExpiresTurn: duel.turnNumber + 1, bazooEffectUsedTurn: duel.turnNumber }
+        : zone),
+      log: appendLog(duel.log, `魂を喰らう者 バズーの効果で墓地のモンスター${banished.length}体を除外。ATKが${boost}アップ。`),
+    });
+    setPendingBazoo(null);
+  }
+
   function activateMagicCrusher(discardIndex: number) {
     if (!duel || !pendingMagicCrusher || !isPlayerMainPhase || areTrapEffectsNegated(duel) || areContinuousTrapEffectsNegated(duel)) return;
     const discardedId = duel.playerHand[discardIndex];
@@ -3838,6 +3875,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
+    if (pendingBazoo !== null) return;
     if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingMiracleDig !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null || pendingMagicCrusher !== null || pendingThousandEyes !== null || pendingLucifer) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
@@ -3878,6 +3916,7 @@ export function DuelArena({
   }
 
   function endTurn() {
+    if (pendingBazoo !== null) return;
     if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingMiracleDig !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
@@ -5034,7 +5073,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 186</strong>
+          <strong>17 DUELISTS · BUILD 187</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -6360,6 +6399,14 @@ export function DuelArena({
             キャノン・ソルジャーの効果を使う
           </button>
         )}
+        {isPlayerMainPhase && duel.playerGraveyard.some((id) => cardById.get(id)?.cardType === "monster") && duel.playerField.some((zone) => zone.id === "ln-13" && !zone.faceDown && zone.bazooEffectUsedTurn !== duel.turnNumber) && (
+          <button
+            className="effect-action-button"
+            onClick={() => setPendingBazoo({ monsterIndex: duel.playerField.findIndex((zone) => zone.id === "ln-13" && !zone.faceDown && zone.bazooEffectUsedTurn !== duel.turnNumber), selected: [] })}
+          >
+            魂を喰らう者 バズーの効果を使う
+          </button>
+        )}
         {isPlayerMainPhase && duel.playerField.some((zone) => zone.id === "vol7-catapult-turtle" && !zone.faceDown && zone.catapultUsedTurn !== duel.turnNumber) && (
           <button
             className="effect-action-button"
@@ -6510,6 +6557,29 @@ export function DuelArena({
               ))}
             </div>
             <button className="overlay-close" onClick={() => setPendingCannonSoldier(null)}>キャンセル</button>
+          </article>
+        </div>
+      )}
+      {pendingBazoo !== null && (
+        <div className="card-overlay cannon-soldier-overlay">
+          <article className="cannon-soldier-panel">
+            <p className="section-label">MONSTER EFFECT</p>
+            <h2>魂を喰らう者 バズー</h2>
+            <p>墓地から除外するモンスターを1～3体選んでください。1体につきATKが300アップします。</p>
+            <div className="target-list cannon-target-list">
+              {duel.playerGraveyard.map((id, index) => cardById.get(id)?.cardType === "monster" ? (
+                <button
+                  className={pendingBazoo.selected.includes(index) ? "selected" : ""}
+                  key={`${id}-${index}`}
+                  onClick={() => toggleBazooMaterial(index)}
+                >
+                  <strong>{cardById.get(id)?.name}</strong>
+                  <small>{pendingBazoo.selected.includes(index) ? "選択中" : "墓地から除外"}</small>
+                </button>
+              ) : null)}
+            </div>
+            <button disabled={pendingBazoo.selected.length < 1 || pendingBazoo.selected.length > 3} onClick={activateBazoo}>選択した{pendingBazoo.selected.length}体を除外する</button>
+            <button className="overlay-close" onClick={() => setPendingBazoo(null)}>キャンセル</button>
           </article>
         </div>
       )}
@@ -7646,6 +7716,7 @@ function continueCpuTurnAfterSpells(initial: DuelState): DuelState {
       };
     }
   }
+  state = useCpuBazoo(state);
   return finishCpuTurn(state);
 }
 
@@ -11501,6 +11572,7 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     + swordHunterBonus(zone.id, capturedMonsterCount)
     + (zone.godAtkBonus ?? 0)
     + (zone.ifritAttackBonus ?? 0)
+    + (state && bazooBoostActive(zone.bazooBoostExpiresTurn, state.turnNumber) ? (zone.bazooAttackBonus ?? 0) : 0)
     + labyrinthBattleAttackAdjustment(
       zone.id,
       side,
@@ -11901,6 +11973,29 @@ function forceFaceUpDragonsToPosition(zones: ZoneCard[], position: Position) {
   return zones.map((zone) => !zone.faceDown && cardById.get(zone.id)?.kind === "ドラゴン族"
     ? { ...zone, position, positionChanged: true }
     : zone);
+}
+
+function useCpuBazoo(state: DuelState): DuelState {
+  const sourceIndex = state.cpuField.findIndex((zone) => zone.id === "ln-13" && !zone.faceDown && zone.bazooEffectUsedTurn !== state.turnNumber);
+  if (sourceIndex < 0) return state;
+  const materials = state.cpuGraveyard
+    .map((id, index) => ({ id, index, atk: cardById.get(id)?.atk ?? 0 }))
+    .filter(({ id }) => cardById.get(id)?.cardType === "monster")
+    .sort((a, b) => a.atk - b.atk)
+    .slice(0, 3);
+  if (materials.length === 0) return state;
+  const selected = new Set(materials.map(({ index }) => index));
+  const banished = state.cpuGraveyard.filter((_, index) => selected.has(index));
+  const boost = bazooBoostAmount(banished.length);
+  return {
+    ...state,
+    cpuGraveyard: state.cpuGraveyard.filter((_, index) => !selected.has(index)),
+    cpuBanished: [...state.cpuBanished, ...banished],
+    cpuField: state.cpuField.map((zone, index) => index === sourceIndex
+      ? { ...zone, bazooAttackBonus: boost, bazooBoostExpiresTurn: state.turnNumber + 1, bazooEffectUsedTurn: state.turnNumber }
+      : zone),
+    log: appendLog(state.log, `CPUの魂を喰らう者 バズーが墓地のモンスター${banished.length}体を除外し、ATKを${boost}アップ。`),
+  };
 }
 
 function useCpuCannonSoldierForLethal(state: DuelState): DuelState {

@@ -11,6 +11,9 @@ export function battleOutcome(
   defenderPosition: "attack" | "defense",
 ): BattleOutcome;
 
+export function bazooBoostAmount(selectedMonsterCount: number): number;
+export function bazooBoostActive(expiresTurn: number | undefined, currentTurn: number): boolean;
+
 export const equipRules: Readonly<Record<string, string>>;
 export function equippedMonsterStats(atk: number, defense: number, equippedIds: string[], faceUpAllyCount?: number, spellTrapCount?: number): { atk: number; def: number };
 export function maskOfRestrictBlocksTribute(activeTrapIds?: string[], effectsNegated?: boolean): boolean;

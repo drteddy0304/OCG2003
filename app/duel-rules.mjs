@@ -17,6 +17,16 @@ export function battleOutcome(attack, defense, defenderPosition) {
   return { attackerDestroyed: false, defenderDestroyed: false, attackerDamage: 0, defenderDamage: 0 };
 }
 
+export function bazooBoostAmount(selectedMonsterCount) {
+  return Number.isInteger(selectedMonsterCount) && selectedMonsterCount >= 1 && selectedMonsterCount <= 3
+    ? selectedMonsterCount * 300
+    : 0;
+}
+
+export function bazooBoostActive(expiresTurn, currentTurn) {
+  return Number.isInteger(expiresTurn) && currentTurn <= expiresTurn;
+}
+
 export function dimensionalWarriorBanishes(attackerId, defenderId) {
   return Boolean(defenderId) && (attackerId === "vol7-dimensional-warrior" || defenderId === "vol7-dimensional-warrior");
 }

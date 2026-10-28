@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack, labyrinthOfNightmareReadyCardIds } from "../app/labyrinth-of-nightmare-data.ts";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
-import { blindDestructionDestroys, canNormalSummonMonster, darkDoorPreventsAttack, destinyBoardProgress, equippedMonsterStats, flipEffect, graveyardRetributionDamage, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
+import { bazooBoostActive, bazooBoostAmount, blindDestructionDestroys, canNormalSummonMonster, darkDoorPreventsAttack, destinyBoardProgress, equippedMonsterStats, flipEffect, graveyardRetributionDamage, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
 
 test("悪夢の迷宮は発売時の全53種類を収録する", () => {
   assert.equal(labyrinthOfNightmareCards.length, 53);
@@ -63,6 +63,16 @@ test("墓荒らしの報いは除外された相手モンスター1体につき1
   assert.equal(graveyardRetributionDamage(["ln-32"], 5, true), 0);
 });
 
+test("魂を喰らう者 バズーは墓地から1～3体を除外し次の相手ターンまで強化する", () => {
+  assert.equal(bazooBoostAmount(1), 300);
+  assert.equal(bazooBoostAmount(3), 900);
+  assert.equal(bazooBoostAmount(0), 0);
+  assert.equal(bazooBoostAmount(4), 0);
+  assert.equal(bazooBoostActive(11, 10), true);
+  assert.equal(bazooBoostActive(11, 11), true);
+  assert.equal(bazooBoostActive(11, 12), false);
+});
+
 test("ウィジャ盤は死のメッセージをE・A・T・Hの順に出して完成する", () => {
   assert.deepEqual(destinyBoardProgress(["ln-37"], ["ln-37"]), { nextMessageId: "ln-38", completed: false, orphanedMessageIds: [] });
   assert.equal(destinyBoardProgress(["ln-37"], ["ln-37", "ln-38", "ln-39"]).nextMessageId, "ln-40");
@@ -111,6 +121,8 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
     assert.match(source, /pendingMiracleDig/);
     assert.match(source, /playerBanished/);
     assert.match(source, /advanceDestinyBoard/);
+    assert.match(source, /pendingBazoo/);
+    assert.match(source, /useCpuBazoo/);
   }).then(() => {
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-44"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-21"));
@@ -125,6 +137,7 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-15"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-16"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-18"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-13"));
   assert.ok(!labyrinthOfNightmareReadyCardIds.includes("ln-14"));
   });
 });
