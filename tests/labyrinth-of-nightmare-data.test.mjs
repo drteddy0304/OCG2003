@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack, labyrinthOfNightmareReadyCardIds } from "../app/labyrinth-of-nightmare-data.ts";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
-import { canNormalSummonMonster, darkDoorPreventsAttack, equippedMonsterStats, flipEffect, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
+import { blindDestructionDestroys, canNormalSummonMonster, darkDoorPreventsAttack, equippedMonsterStats, flipEffect, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
 
 test("悪夢の迷宮は発売時の全53種類を収録する", () => {
   assert.equal(labyrinthOfNightmareCards.length, 53);
@@ -47,6 +47,15 @@ test("トルネード・バード、ゾンバイア、王宮の号令を裁定�
   assert.equal(royalCommandNegatesFlip([]), false);
 });
 
+test("無差別破壊は出目と一致する表側モンスターを破壊する", () => {
+  assert.equal(blindDestructionDestroys(4, 4), true);
+  assert.equal(blindDestructionDestroys(4, 5), false);
+  assert.equal(blindDestructionDestroys(5, 6), false);
+  assert.equal(blindDestructionDestroys(6, 6), true);
+  assert.equal(blindDestructionDestroys(8, 6), true);
+  assert.equal(blindDestructionDestroys(4, 0), false);
+});
+
 test("属性精霊3体の特殊召喚条件と継続効果を裁定する", () => {
   assert.deepEqual(spiritSummonRequirement("ln-15"), { attribute: "光", count: 2 });
   assert.deepEqual(spiritSummonRequirement("ln-16"), { attribute: "炎", count: 1 });
@@ -76,11 +85,16 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
     assert.match(source, /beginSpiritSummon/);
     assert.match(source, /summonCpuSpirits/);
     assert.match(source, /applyIfritEndPhase/);
+    assert.match(source, /pendingPoltergeist/);
+    assert.match(source, /bounceSpellTrapWithPoltergeist/);
+    assert.match(source, /applyBlindDestructionStandby/);
   }).then(() => {
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-44"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-21"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-23"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-29"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-35"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-43"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-15"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-16"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-18"));

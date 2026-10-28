@@ -854,6 +854,11 @@ export function ifritEndPhaseBonus(id, currentBonus = 0, monsterSide, turnSide) 
   return id === "ln-16" && monsterSide !== turnSide ? currentBonus + 300 : currentBonus;
 }
 
+export function blindDestructionDestroys(level, dieRoll) {
+  if (!Number.isInteger(level) || !Number.isInteger(dieRoll) || dieRoll < 1 || dieRoll > 6) return false;
+  return dieRoll === 6 ? level >= 6 : level === dieRoll;
+}
+
 export function canSpecialSummonLarvaeMoth(currentTurn, cocoonEquippedTurn) {
   return canSpecialSummonMoth("vol5-larvae-moth", currentTurn, cocoonEquippedTurn);
 }
