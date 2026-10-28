@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack, labyrinthOfNightmareReadyCardIds } from "../app/labyrinth-of-nightmare-data.ts";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
-import { blindDestructionDestroys, canNormalSummonMonster, darkDoorPreventsAttack, equippedMonsterStats, flipEffect, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
+import { blindDestructionDestroys, canNormalSummonMonster, darkDoorPreventsAttack, equippedMonsterStats, flipEffect, graveyardRetributionDamage, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
 
 test("悪夢の迷宮は発売時の全53種類を収録する", () => {
   assert.equal(labyrinthOfNightmareCards.length, 53);
@@ -56,6 +56,13 @@ test("無差別破壊は出目と一致する表側モンスターを破壊す�
   assert.equal(blindDestructionDestroys(4, 0), false);
 });
 
+test("墓荒らしの報いは除外された相手モンスター1体につき100ダメージ", () => {
+  assert.equal(graveyardRetributionDamage(["ln-32"], 4), 400);
+  assert.equal(graveyardRetributionDamage(["ln-32", "ln-32"], 3), 600);
+  assert.equal(graveyardRetributionDamage([], 5), 0);
+  assert.equal(graveyardRetributionDamage(["ln-32"], 5, true), 0);
+});
+
 test("属性精霊3体の特殊召喚条件と継続効果を裁定する", () => {
   assert.deepEqual(spiritSummonRequirement("ln-15"), { attribute: "光", count: 2 });
   assert.deepEqual(spiritSummonRequirement("ln-16"), { attribute: "炎", count: 1 });
@@ -88,6 +95,9 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
     assert.match(source, /pendingPoltergeist/);
     assert.match(source, /bounceSpellTrapWithPoltergeist/);
     assert.match(source, /applyBlindDestructionStandby/);
+    assert.match(source, /applyGraveyardRetributionStandby/);
+    assert.match(source, /pendingMiracleDig/);
+    assert.match(source, /playerBanished/);
   }).then(() => {
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-44"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-21"));
@@ -95,6 +105,8 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-29"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-35"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-43"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-32"));
+  assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-49"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-15"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-16"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-18"));

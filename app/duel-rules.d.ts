@@ -239,6 +239,7 @@ export function spiritSummonMaterialIndexes(id: string, graveyardAttributes?: st
 export function labyrinthBattleAttackAdjustment(id: string, monsterSide: "player" | "cpu", turnSide: "player" | "cpu", phase: string, opposingSacredSoulCount?: number): number;
 export function ifritEndPhaseBonus(id: string, currentBonus: number | undefined, monsterSide: "player" | "cpu", turnSide: "player" | "cpu"): number;
 export function blindDestructionDestroys(level: number | undefined, dieRoll: number): boolean;
+export function graveyardRetributionDamage(activeTrapIds?: string[], banishedMonsterCount?: number, negated?: boolean): number;
 export function wormBeastReturns(id: string, faceDown: boolean, summonedTurn: number, currentTurn: number): boolean;
 export function bestCpuFieldSpell(fieldSpellIds: string[], cpuKinds: string[], opponentKinds: string[], cpuAttributes?: string[], opponentAttributes?: string[]): string | null;
 export function monsterSentFromFieldToGrave(previousFieldIds: string[], nextFieldIds: string[], previousGraveIds: string[], nextGraveIds: string[]): boolean;

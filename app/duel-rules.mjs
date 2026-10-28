@@ -859,6 +859,12 @@ export function blindDestructionDestroys(level, dieRoll) {
   return dieRoll === 6 ? level >= 6 : level === dieRoll;
 }
 
+export function graveyardRetributionDamage(activeTrapIds = [], banishedMonsterCount = 0, negated = false) {
+  if (negated) return 0;
+  const copies = activeTrapIds.filter((id) => id === "ln-32").length;
+  return Math.max(0, banishedMonsterCount) * 100 * copies;
+}
+
 export function canSpecialSummonLarvaeMoth(currentTurn, cocoonEquippedTurn) {
   return canSpecialSummonMoth("vol5-larvae-moth", currentTurn, cocoonEquippedTurn);
 }

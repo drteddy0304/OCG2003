@@ -6,7 +6,7 @@ import { createCpuOpponents } from "./cpu-opponents";
 import { cardDescription } from "./card-text";
 import { advanceSwordsTurns, aileSwordsmanAttackBonus, attackCountAfterDeclaration, attackDeclarationCost, barrelDragonCoinResult, battleAttackBonus, battleDamageEffect, battleDefenseValue, battleOutcome, battleRemovalOutcome, bestCpuBattleTargetIndex, bestCpuFieldSpell, bombBugDestroys, bottomDeckSelection, canActivateChangeOfHeart, canActivateCheerfulCoffin, canActivateHornOfHeaven, canActivateMagicJammer, canActivateSevenTools, canActivateTributeToDoomed, canActivateTwoProngedAttack, canBlastJugglerTarget, canDeclareAttackOnTurn, canDeckSearchTarget, canMonsterAttackDirectly, canNormalSummonMonster, canPayMonsterEffect, canRespondWithAntiRaigeki, canSpecialSummonMoth, canStopAttackTarget, canTransferMatango, canUseKuriboh, canUseUltimateOffering, cardIdsMovedToGrave, catapultTurtleDamage, chaosPotExcavate, cockroachKnightReturns, continuousMonsterStats, controlChangeLifeEffect, crushCardVirusDestroys, crushCardVirusEligibleTribute, cyberSummonTributes, darkCastleUndeadBoost, darkDoorPreventsAttack, deathHamsterDeckIndex, deSpellDestroys, dopingPenalty, dragonTargetProtected, electricLizardAttackLockTurn, endsBattlePhaseOnBattleDestruction, equipRules, equippedMonsterStats, fakeTrapCanProtect, firstFaceUpTrapIndex, firstSpellTargetIndex, flipEffect, flipLifeAmount, foreignSwordsmanDestroyTurn, gateGuardianMaterialIndexes, germInfectionPenalty, giantSpiderAttackLife, goblinAttackForceEndPosition, goddessWhimMultiplier, gracefulCharityDraw, graveyardLifeLoss, guardianAdjustedAttack, handCardsMovedToGrave, hasNewLogText, hourglassOriginalStats, ifritEndPhaseBonus, ironScorpionDestroyTurn, isDragonCaptureJarLocked, isElegantEgotistTarget, isFaceUpTrapTarget, isGuardianMonster, isIronScorpionDestructionDue, isMirrorForceDestructionTarget, isMonsterRebornBlocked, isRaceDestructionTarget, jinzoNegatesTraps, justDessertsDamage, labyrinthBattleAttackAdjustment, ladybugDestroys, magicThornDamage, matangoStandbyDamage, mechanicalSpiderDestroys, mirrorWallAttack, mirrorWallStandbyCost, monsterCannotAttackDirectly, moveDeckCard, mysteriousPuppeteerLifeGain, paralyzingPotionPreventsAttack, parasitePlacementAfterBattleDamage, patrolRoboCanInspect, phantomWallReturnsAttacker, piercingBattleDamage, positionChangeEffect, pumpkingTimedBonus, raceDestructionKind, resolveSimpleSpellLife, resolveUpstartGoblin, reverseAdjustedStat, ritualMaterialLevelTotal, robbinGoblinCanTrigger, royalCommandNegatesFlip, royalDecreeNegatesTraps, selectedCards, sharedRideTriggerCount, shouldCpuActivateSwords, shouldCpuUseHeavyStorm, shouldCpuUseRaceDestructionSpell, shouldCpuUseSimpleSpell, shouldPlayerChooseFlipTarget, simpleSpellEffect, solemnJudgmentRemainingLp, spellSpecificTrapResponse, spiritSummonMaterialIndexes, spiritSummonRequirement, strongestAttackIndex, swappedMonsterStats, swordHunterBonus, takeGraveyardCard, temporaryBattleStatBonus, thousandEyesAttackBlocked, thunderDragonSearchIndexes, timeWizardCoinResult, toggleLimitedSelection, vampireBabyCanRevive, vengefulBogPreventsAttack, wormBeastReturns, zombairaAttackLossAfterDestroy } from "./duel-rules.mjs";
 import { cardCopyLimit } from "./limit-regulation.mjs";
-import { blindDestructionDestroys } from "./duel-rules.mjs";
+import { blindDestructionDestroys, graveyardRetributionDamage } from "./duel-rules.mjs";
 import { feedbackForMessage, isPendingActionMessage } from "./duel-feedback.mjs";
 import { duelBgmTitle, playDuelSound, startDuelBgm, stopDuelBgm, unlockDuelAudio, type DuelSound } from "./duel-audio";
 import { bestFusionChoice, canSelectFusionMaterial, fusionChoices, fusionMaterialSelection, fusionRecipe, isValidFusionSelection } from "./fusion-rules.mjs";
@@ -174,6 +174,7 @@ type PendingSoulRelease = {
   spellIndex: number;
   selected: string[];
 };
+type PendingMiracleDig = { spellIndex: number; selected: number[] };
 type PendingCheerfulCoffin = {
   spellIndex: number;
   selected: string[];
@@ -279,6 +280,8 @@ type DuelState = {
   cpuExtraBattles: number;
   playerGraveyard: string[];
   cpuGraveyard: string[];
+  playerBanished: string[];
+  cpuBanished: string[];
   playerSealedHand: SealedHandCard[];
   cpuSealedHand: SealedHandCard[];
   playerGraverobbedCards: string[];
@@ -373,6 +376,7 @@ export function DuelArena({
   const [pendingEgotist, setPendingEgotist] = useState<number | null>(null);
   const [pendingTributeToDoomed, setPendingTributeToDoomed] = useState<PendingTributeToDoomed | null>(null);
   const [pendingSoulRelease, setPendingSoulRelease] = useState<PendingSoulRelease | null>(null);
+  const [pendingMiracleDig, setPendingMiracleDig] = useState<PendingMiracleDig | null>(null);
   const [pendingCheerfulCoffin, setPendingCheerfulCoffin] = useState<PendingCheerfulCoffin | null>(null);
   const [pendingFusion, setPendingFusion] = useState<PendingFusion | null>(null);
   const [pendingRitual, setPendingRitual] = useState<PendingRitual | null>(null);
@@ -470,6 +474,7 @@ export function DuelArena({
     && !duel.pendingDeckSearch
     && pendingTributeToDoomed === null
     && pendingSoulRelease === null
+    && pendingMiracleDig === null
     && pendingCurseRemoval === null
     && pendingDustTornado === null
     && pendingPoltergeist === null
@@ -589,6 +594,7 @@ export function DuelArena({
     setPendingEgotist(null);
     setPendingTributeToDoomed(null);
     setPendingSoulRelease(null);
+    setPendingMiracleDig(null);
     setPendingCurseRemoval(null);
     setPendingDustTornado(null);
     setPendingPoltergeist(null);
@@ -645,6 +651,8 @@ export function DuelArena({
       cpuExtraBattles: 0,
       playerGraveyard: [],
       cpuGraveyard: [],
+      playerBanished: [],
+      cpuBanished: [],
       playerSealedHand: [],
       cpuSealedHand: [],
       playerGraverobbedCards: [],
@@ -788,6 +796,7 @@ export function DuelArena({
       ...paid,
       playerHand: paid.playerHand.filter((_, index) => index !== handIndex),
       playerGraveyard: paid.playerGraveyard.filter((_, index) => !selectedSet.has(index)),
+      playerBanished: [...paid.playerBanished, ...selected.map((index) => paid.playerGraveyard[index]).filter(Boolean)],
       playerField: [...paid.playerField, {
         id,
         position,
@@ -1005,7 +1014,7 @@ export function DuelArena({
   }
 
   function useSpell(handIndex: number) {
-    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingSpiritSummon !== null || pendingPoltergeist !== null || pendingLastWill !== null || pendingRitual !== null || pendingCurseRemoval !== null) return;
+    if (!duel || duel.result || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingDragonFlute !== null || pendingSpiritSummon !== null || pendingPoltergeist !== null || pendingMiracleDig !== null || pendingLastWill !== null || pendingRitual !== null || pendingCurseRemoval !== null) return;
     const card = cardById.get(duel.playerHand[handIndex]);
     if (!card || card.cardType !== "spell" || isCardProhibited(duel, card.id)) return;
     if (coldWaveIsActive(duel.coldWaveExpiresTurn, duel.turnNumber)) return;
@@ -1068,6 +1077,14 @@ export function DuelArena({
         playerSpellTrap: [...next.playerSpellTrap, card.id],
         log: appendLog(next.log, `${card.name}を発動。${card.id === "ln-42" ? "各バトルフェイズに攻撃できるモンスターは1体だけになる。" : "召喚・反転召喚・特殊召喚されたモンスターは、そのターン攻撃できない。"}`),
       });
+      return;
+    }
+    if (card.id === "ln-49") {
+      const monsterCount = duel.playerBanished.filter((id) => cardById.get(id)?.cardType === "monster").length;
+      if (monsterCount < 5) return;
+      setPendingMiracleDig({ spellIndex: handIndex, selected: [] });
+      setSelectedAttacker(null);
+      setSelectedEquip(null);
       return;
     }
     if (card.id === "tb-11") {
@@ -1733,6 +1750,8 @@ export function DuelArena({
         cpuSpellTrap: discardEquips(next.cpuSpellTrap, [target]),
         playerGraveyard: [...next.playerGraveyard, spellId],
         cpuGraveyard: [...next.cpuGraveyard, ...target.equipped],
+        playerBanished: [...next.playerBanished, ...Array(playerCopies).fill(target.id)],
+        cpuBanished: [...next.cpuBanished, target.id, ...Array(cpuCopies).fill(target.id)],
         log: appendLog(next.log, `抹殺の使徒を発動。裏側モンスターを除外。${removeDeckCopies ? `リバースモンスターだったため、両デッキの同名カード${playerCopies + cpuCopies}枚も除外。` : ""}`),
       };
     } else {
@@ -1747,6 +1766,8 @@ export function DuelArena({
         cpuDeck: next.cpuDeck.filter((id) => id !== targetId),
         cpuSpellTrap: next.cpuSpellTrap.filter((_, index) => index !== targetIndex),
         playerGraveyard: [...next.playerGraveyard, spellId],
+        playerBanished: [...next.playerBanished, ...Array(playerCopies).fill(targetId)],
+        cpuBanished: [...next.cpuBanished, targetId, ...Array(cpuCopies).fill(targetId)],
         log: appendLog(next.log, `撲滅の使徒を発動。セットされていた${targetCard?.name ?? "罠カード"}を除外し、両デッキの同名カード${playerCopies + cpuCopies}枚も除外。`),
       };
     }
@@ -2593,13 +2614,41 @@ export function DuelArena({
       .filter((key) => key.startsWith("cpu:"))
       .map((key) => Number(key.split(":")[1])));
     const next = removeHandCard(duel, pendingSoulRelease.spellIndex);
+    const banishedPlayer = next.playerGraveyard.filter((_, index) => playerIndexes.has(index));
+    const banishedCpu = next.cpuGraveyard.filter((_, index) => cpuIndexes.has(index));
     setDuel({
       ...next,
       playerGraveyard: [...next.playerGraveyard.filter((_, index) => !playerIndexes.has(index)), "vol5-soul-release"],
       cpuGraveyard: next.cpuGraveyard.filter((_, index) => !cpuIndexes.has(index)),
+      playerBanished: [...next.playerBanished, ...banishedPlayer],
+      cpuBanished: [...next.cpuBanished, ...banishedCpu],
       log: appendLog(next.log, `魂の解放を発動。墓地から${pendingSoulRelease.selected.length}枚を除外。`),
     });
     setPendingSoulRelease(null);
+  }
+
+  function toggleMiracleDigCard(index: number) {
+    setPendingMiracleDig((current) => {
+      if (!current) return null;
+      if (current.selected.includes(index)) return { ...current, selected: current.selected.filter((value) => value !== index) };
+      return current.selected.length < 3 ? { ...current, selected: [...current.selected, index] } : current;
+    });
+  }
+
+  function confirmMiracleDig() {
+    if (!duel || !pendingMiracleDig || pendingMiracleDig.selected.length !== 3) return;
+    if (duel.playerHand[pendingMiracleDig.spellIndex] !== "ln-49") return;
+    const selected = new Set(pendingMiracleDig.selected);
+    const returned = duel.playerBanished.filter((id, index) => selected.has(index) && cardById.get(id)?.cardType === "monster");
+    if (returned.length !== 3) return;
+    const next = removeHandCard(duel, pendingMiracleDig.spellIndex);
+    setDuel({
+      ...next,
+      playerBanished: next.playerBanished.filter((_, index) => !selected.has(index)),
+      playerGraveyard: [...next.playerGraveyard, "ln-49", ...returned],
+      log: appendLog(next.log, `奇跡の発掘を発動。除外されていたモンスター${returned.length}体を墓地に戻した。`),
+    });
+    setPendingMiracleDig(null);
   }
 
   function toggleCheerfulCoffinCard(index: number) {
@@ -3295,7 +3344,7 @@ export function DuelArena({
       });
       return;
     }
-    if (!areTrapEffectsNegated(duel) && ["bo5-royal-decree", "bo6-magic-thorn", "sm-17", "ln-29", "ln-35", "ln-36", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(card.id)) {
+    if (!areTrapEffectsNegated(duel) && ["bo5-royal-decree", "bo6-magic-thorn", "sm-17", "ln-29", "ln-32", "ln-35", "ln-36", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(card.id)) {
       const next = removeHandCard(duel, handIndex);
       setDuel({
         ...next,
@@ -3789,7 +3838,7 @@ export function DuelArena({
   }
 
   function advancePhase() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null || pendingMagicCrusher !== null || pendingThousandEyes !== null || pendingLucifer) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingMiracleDig !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingHandDisruption !== null || pendingFinalDestiny !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null || pendingMagicCrusher !== null || pendingThousandEyes !== null || pendingLucifer) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     if (duel.phase === "standby") {
@@ -3829,7 +3878,7 @@ export function DuelArena({
   }
 
   function endTurn() {
-    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
+    if (!duel || duel.turn !== "player" || duel.result || duel.pendingSevenTools || duel.pendingFlipTarget || duel.pendingMultiTarget || duel.pendingDeckReorder || duel.pendingDeckSearch || duel.pendingBlastJuggler || duel.pendingFakeTrap || duel.pendingRobbinGoblin || duel.pendingJustDesserts || duel.pendingMagicalHats || duel.pendingBattleStatTrap || duel.pendingMirrorWallUpkeep || duel.pendingTribalRuleTribute || duel.pendingMajorRiot || pendingRaceTrapChoice || pendingProhibition !== null || pendingTribute || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingMiracleDig !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingCannonSoldier !== null || pendingCatapultTurtle !== null || pendingBarrelDragon !== null || pendingGaleDogra !== null || pendingCyberStein !== null || pendingAileSwordsman !== null || pendingGodTribute !== null || pendingYadoKaru !== null || pendingGracefulCharity !== null || pendingCardInspection !== null || pendingSharePain !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingAcidTrapHole !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || pendingMatangoTransfer !== null || pendingStopAttack !== null) return;
     setSelectedAttacker(null);
     setSelectedEquip(null);
     let playerEnd = duel;
@@ -4980,7 +5029,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 184</strong>
+          <strong>17 DUELISTS · BUILD 185</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -5946,6 +5995,25 @@ export function DuelArena({
             </div>
             <button className="overlay-close" disabled={pendingSoulRelease.selected.length === 0} onClick={confirmSoulRelease}>選んだカードを除外</button>
             <button onClick={() => setPendingSoulRelease(null)}>キャンセル</button>
+          </div>
+        </div>
+      )}
+      {pendingMiracleDig && (
+        <div className="card-overlay spell-target-overlay">
+          <div className="graveyard-panel spell-target-panel">
+            <p className="section-label">MIRACLE DIG</p>
+            <h2>墓地に戻すモンスターを3体選ぶ</h2>
+            <p>除外されている自分のモンスターから3体を選択します（選択中 {pendingMiracleDig.selected.length}/3）。</p>
+            <div className="spell-target-list">
+              {duel.playerBanished.map((id, index) => cardById.get(id)?.cardType === "monster" ? (
+                <button className={pendingMiracleDig.selected.includes(index) ? "selected" : ""} key={`${id}-${index}`} onClick={() => toggleMiracleDigCard(index)}>
+                  <span>{pendingMiracleDig.selected.includes(index) ? "選択中" : "除外ゾーン"}</span>
+                  <strong>{cardById.get(id)?.name ?? "モンスター"}</strong>
+                </button>
+              ) : null)}
+            </div>
+            <button className="overlay-close" disabled={pendingMiracleDig.selected.length !== 3} onClick={confirmMiracleDig}>選んだ3体を墓地へ戻す</button>
+            <button onClick={() => setPendingMiracleDig(null)}>キャンセル</button>
           </div>
         </div>
       )}
@@ -7083,6 +7151,7 @@ export function DuelArena({
                         || pendingEgotist !== null
                         || pendingTributeToDoomed !== null
                         || pendingSoulRelease !== null
+                        || pendingMiracleDig !== null
                         || pendingCurseRemoval !== null
                         || pendingEarthquakeMovement !== null
                         || pendingCheerfulCoffin !== null
@@ -7093,6 +7162,7 @@ export function DuelArena({
                         || pendingStopAttack !== null
                         || pendingPoltergeist !== null
                         || (card.id === "ln-43" && duel.cpuSpellTrap.length === 0 && !duel.cpuFieldSpell)
+                        || (card.id === "ln-49" && duel.playerBanished.filter((id) => cardById.get(id)?.cardType === "monster").length < 5)
                         || (card.id === "vol2-swords-revealing-light" && duel.playerSpellTrap.length >= FIELD_LIMIT)
                         || (card.id === "vol1-fissure" && lowestFaceUpAttackIndex(duel.cpuField, duel, "cpu") === null)
                         || (card.id === "vol2-monster-reborn" && (
@@ -7169,7 +7239,7 @@ export function DuelArena({
           })}
         </div>
         <div className="phase-actions">
-          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || Boolean(duel.pendingTribalRuleTribute) || Boolean(duel.pendingMajorRiot) || Boolean(duel.pendingMagicalHats) || pendingRaceTrapChoice !== null || pendingProhibition !== null || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
+          <button className="end-turn" disabled={duel.turn !== "player" || Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || Boolean(duel.pendingTribalRuleTribute) || Boolean(duel.pendingMajorRiot) || Boolean(duel.pendingMagicalHats) || pendingRaceTrapChoice !== null || pendingProhibition !== null || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingMiracleDig !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={advancePhase}>
             {duel.phase === "standby"
               ? "メイン1へ"
               : duel.phase === "main1"
@@ -7177,7 +7247,7 @@ export function DuelArena({
               : duel.phase === "battle" ? "メイン2へ" : "ターン終了"}
           </button>
           {(duel.phase === "main1" || duel.phase === "battle") && (
-            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || Boolean(duel.pendingTribalRuleTribute) || Boolean(duel.pendingMajorRiot) || Boolean(duel.pendingMagicalHats) || pendingRaceTrapChoice !== null || pendingProhibition !== null || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
+            <button className="skip-turn" disabled={Boolean(duel.pendingBlastJuggler) || Boolean(duel.pendingFakeTrap) || Boolean(duel.pendingTribalRuleTribute) || Boolean(duel.pendingMajorRiot) || Boolean(duel.pendingMagicalHats) || pendingRaceTrapChoice !== null || pendingProhibition !== null || pendingTribute !== null || pendingReborn !== null || pendingDeSpell !== null || pendingEgotist !== null || pendingSpiritSummon !== null || pendingTributeToDoomed !== null || pendingSoulRelease !== null || pendingMiracleDig !== null || pendingCurseRemoval !== null || pendingEarthquakeMovement !== null || pendingCheerfulCoffin !== null || pendingChangeOfHeart !== null || pendingTemporaryStat !== null || pendingSpellbindingCircle !== null || pendingPainfulChoice !== null || pendingDarknessApproaches !== null || pendingTailor !== null || Boolean(duel.result)} onClick={endTurn}>ターン終了</button>
           )}
         </div>
       </div>
@@ -7417,6 +7487,7 @@ function runCpuTurn(initial: DuelState): DuelState {
     state = applyPatrolRoboStandby(state, "cpu");
     state = applyThousandEyesStandby(state, "cpu");
     state = applyBlindDestructionStandby(state, "cpu");
+    state = applyGraveyardRetributionStandby(state, "cpu");
   }
   if (state.result) return state;
   state = useCpuCurseOfFiend(state);
@@ -7586,10 +7657,12 @@ function summonCpuSpirits(initial: DuelState): DuelState {
     if (!choice) break;
     const removed = new Set(choice.materials);
     const paid = applyChainEnergyPayment(state, "cpu");
+    const banished = paid.cpuGraveyard.filter((_, index) => removed.has(index));
     state = {
       ...paid,
       cpuHand: paid.cpuHand.filter((_, index) => index !== choice.index),
       cpuGraveyard: paid.cpuGraveyard.filter((_, index) => !removed.has(index)),
+      cpuBanished: [...paid.cpuBanished, ...banished],
       cpuField: [...paid.cpuField, {
         id: choice.card.id,
         position: "attack",
@@ -8379,6 +8452,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
     playerStart = applyPatrolRoboStandby(playerStart, "player");
     playerStart = applyThousandEyesStandby(playerStart, "player");
     playerStart = applyBlindDestructionStandby(playerStart, "player");
+    playerStart = applyGraveyardRetributionStandby(playerStart, "player");
   } else {
     playerStart = { ...playerStart, phase: "main1" };
   }
@@ -8611,6 +8685,20 @@ function playCpuNormalSpells(initial: DuelState, skipMagicJammerPrompt = false):
   }
   if (areSpellEffectsNegated(state)) return state;
   if (!canPayDuelChainEnergy(state, "cpu")) return state;
+  if (cpuCanUse("ln-49")) {
+    const monsterIndexes = state.cpuBanished.flatMap((id, index) => cardById.get(id)?.cardType === "monster" ? [index] : []);
+    if (monsterIndexes.length >= 5) {
+      const selected = new Set(monsterIndexes.slice(0, 3));
+      const returned = state.cpuBanished.filter((_, index) => selected.has(index));
+      const paidState = removeCpuHandCard(state, "ln-49");
+      state = {
+        ...paidState,
+        cpuBanished: paidState.cpuBanished.filter((_, index) => !selected.has(index)),
+        cpuGraveyard: [...paidState.cpuGraveyard, "ln-49", ...returned],
+        log: appendLog(paidState.log, `CPUが奇跡の発掘を発動。除外されていたモンスター${returned.length}体を墓地に戻した。`),
+      };
+    }
+  }
   if (cpuCanUse("tb-12") && state.phase === "main1") {
     const paidState = removeCpuHandCard(state, "tb-12");
     return {
@@ -9605,6 +9693,8 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
       ...graveCards(destroyedCpuZones).filter((id) => id !== "mr-snatch-steal"),
       ...equipGraveCards(banishedCpuZones).filter((id) => id !== "mr-snatch-steal"),
     ],
+    playerBanished: [...state.playerBanished, ...banishedPlayerZones.map((zone) => zone.id)],
+    cpuBanished: [...state.cpuBanished, ...banishedCpuZones.map((zone) => zone.id)],
     log: appendLog(
       attackLog,
       `${attacker.name}が${defender.name}を攻撃。${
@@ -9899,6 +9989,25 @@ function applyBlindDestructionStandby(state: DuelState, standbySide: Side): Duel
   return applyDeckSearchTriggers(next, destroyedPlayer, destroyedCpu);
 }
 
+function applyGraveyardRetributionStandby(state: DuelState, standbySide: Side): DuelState {
+  if (areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state)) return state;
+  const activeTraps = standbySide === "player" ? state.playerActiveTraps : state.cpuActiveTraps;
+  if (!activeTraps.includes("ln-32")) return state;
+  const opposingBanished = standbySide === "player" ? state.cpuBanished : state.playerBanished;
+  const monsterCount = opposingBanished.filter((id) => cardById.get(id)?.cardType === "monster").length;
+  const damage = graveyardRetributionDamage(activeTraps, monsterCount);
+  if (damage === 0) return state;
+  const playerLp = standbySide === "cpu" ? Math.max(0, state.playerLp - damage) : state.playerLp;
+  const cpuLp = standbySide === "player" ? Math.max(0, state.cpuLp - damage) : state.cpuLp;
+  return {
+    ...state,
+    playerLp,
+    cpuLp,
+    result: playerLp === 0 ? "lose" : cpuLp === 0 ? "win" : state.result,
+    log: appendLog(state.log, `墓荒らしの報いで${standbySide === "player" ? "CPU" : "プレイヤー"}に${damage}ダメージ。`),
+  };
+}
+
 function applySolemnWishesDraw(state: DuelState, side: Side, drawCount = 1): DuelState {
   const active = side === "player" ? state.playerActiveTraps : state.cpuActiveTraps;
   const gain = solemnWishesLifeGain(active, drawCount, areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state));
@@ -9990,7 +10099,7 @@ function isCpuHandRevealed(state: DuelState): boolean {
 
 function activateCpuContinuousTraps(state: DuelState): DuelState {
   if (areTrapEffectsNegated(state)) return state;
-  const activating = state.cpuSpellTrap.filter((id) => ["sm-17", "ln-29", "ln-35", "ln-36", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(id));
+  const activating = state.cpuSpellTrap.filter((id) => ["sm-17", "ln-29", "ln-32", "ln-35", "ln-36", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(id));
   const nextActive = [...new Set([...state.cpuActiveTraps, ...activating])];
   if (nextActive.length === state.cpuActiveTraps.length) return state;
   const names = activating
@@ -12057,6 +12166,7 @@ function isSpellImplemented(id: string) {
       "ps-51",
       "ln-42",
       "ln-43",
+      "ln-49",
       "ln-52",
       ...FIELD_SPELL_IDS,
     ].includes(id);
@@ -12113,7 +12223,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  if (id === "ln-29" || id === "ln-35" || id === "ln-36") return true;
+  if (id === "ln-29" || id === "ln-32" || id === "ln-35" || id === "ln-36") return true;
   if (id === "ca-34" || ["tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(id)) return true;
   return id === "sm-17" || id === "ca-05" || id === "ca-06" || id === "ca-07" || id === "ca-08" || id === "ca-09" || id === "ca-10" || id === "ca-11" || id === "ca-12" || id === "ca-13" || id === "ca-14" || id === "ca-15" || id === "ca-16" || id === "ca-17" || id === "ca-18" || id === "ca-19" || id === "ca-20" || id === "ca-21" || id === "ca-22" || id === "ca-23" || id === "ca-24" || id === "ca-25" || id === "ca-26" || id === "ca-27" || id === "ca-28" || id === "ca-29" || id === "ca-30" || id === "ca-31" || id === "ca-32" || id === "ca-33" || id === "ps-13" || id === "ps-14" || id === "vol1-trap-hole" || id === "vol5-anti-raigeki" || id === "vol5-call-darkness" || id === "vol5-fake-trap" || id === "stb-dragon-capture-jar" || id === "stb-two-pronged-attack" || id === "vol6-seven-tools" || id === "vol6-magic-jammer" || id === "vol6-horn-heaven" || id === "vol6-solemn-judgment" || id === "vol7-mirror-force" || id === "vol7-robbin-goblin" || id === "bo5-just-desserts" || id === "bo3-reinforcements" || id === "bo3-castle-walls" || id === "bo3-ultimate-offering" || id === "bo3-reverse-trap" || id === "bo4-white-hole" || id === "bo4-call-grave" || id === "bo5-royal-decree" || id === "bo6-magic-thorn" || id === "bo7-griffin-wing" || id === "mr-snake-fang" || id === "mr-spellbinding-circle" || id === "mr-fairys-hand-mirror" || id === "pr99-kunai-chain" || id === "pr99-acid-trap-hole" || id === "ex-040";
 }
@@ -12291,6 +12401,7 @@ function removeNewGraveCards(previous: string[], next: string[]) {
   const oldCounts = new Map<string, number>();
   previous.forEach((id) => oldCounts.set(id, (oldCounts.get(id) ?? 0) + 1));
   let removed = 0;
+  const removedIds: string[] = [];
   const kept = next.filter((id) => {
     const count = oldCounts.get(id) ?? 0;
     if (count > 0) {
@@ -12298,9 +12409,10 @@ function removeNewGraveCards(previous: string[], next: string[]) {
       return true;
     }
     removed += 1;
+    removedIds.push(id);
     return false;
   });
-  return { kept, removed };
+  return { kept, removed, removedIds };
 }
 
 function moveHornFromGraveToDeck(graveyard: string[], deck: string[], count: number) {
@@ -12366,7 +12478,13 @@ function applyPharaohContinuousRules(previous: DuelState, initial: DuelState): D
   if (banisherActive) {
     const playerRedirect = removeNewGraveCards(previous.playerGraveyard, next.playerGraveyard);
     const cpuRedirect = removeNewGraveCards(previous.cpuGraveyard, next.cpuGraveyard);
-    next = { ...next, playerGraveyard: playerRedirect.kept, cpuGraveyard: cpuRedirect.kept };
+    next = {
+      ...next,
+      playerGraveyard: playerRedirect.kept,
+      cpuGraveyard: cpuRedirect.kept,
+      playerBanished: [...next.playerBanished, ...playerRedirect.removedIds],
+      cpuBanished: [...next.cpuBanished, ...cpuRedirect.removedIds],
+    };
     const removed = playerRedirect.removed + cpuRedirect.removed;
     if (removed > 0) log = appendLog(log, `光の追放者の効果で墓地へ送られるカード${removed}枚を除外。`);
   }
