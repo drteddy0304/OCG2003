@@ -27,6 +27,12 @@ export function bazooBoostActive(expiresTurn, currentTurn) {
   return Number.isInteger(expiresTurn) && currentTurn <= expiresTurn;
 }
 
+export function guardianSpiritCharmBoost(graveyardMonsterCount) {
+  return Number.isInteger(graveyardMonsterCount) && graveyardMonsterCount > 0
+    ? graveyardMonsterCount * 100
+    : 0;
+}
+
 export function dimensionalWarriorBanishes(attackerId, defenderId) {
   return Boolean(defenderId) && (attackerId === "vol7-dimensional-warrior" || defenderId === "vol7-dimensional-warrior");
 }

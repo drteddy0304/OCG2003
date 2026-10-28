@@ -13,6 +13,7 @@ export function battleOutcome(
 
 export function bazooBoostAmount(selectedMonsterCount: number): number;
 export function bazooBoostActive(expiresTurn: number | undefined, currentTurn: number): boolean;
+export function guardianSpiritCharmBoost(graveyardMonsterCount: number): number;
 
 export const equipRules: Readonly<Record<string, string>>;
 export function equippedMonsterStats(atk: number, defense: number, equippedIds: string[], faceUpAllyCount?: number, spellTrapCount?: number): { atk: number; def: number };
