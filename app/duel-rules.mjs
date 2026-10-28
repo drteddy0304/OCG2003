@@ -33,6 +33,89 @@ export function guardianSpiritCharmBoost(graveyardMonsterCount) {
     : 0;
 }
 
+export function jowgenBlocksSpecialSummon(faceUpMonsterIds = []) {
+  return faceUpMonsterIds.includes("ln-10");
+}
+
+export function finalWarriorBlocksSummon(faceUpMonsterIds = []) {
+  return faceUpMonsterIds.includes("ln-26");
+}
+
+export function jowgenDestroyIndexes(zones = []) {
+  return zones.flatMap((zone, index) => zone?.specialSummoned || zone?.revivedByMonsterReborn || zone?.callHauntedLinked || zone?.godSpecialSummoned || Array.isArray(zone?.fusionMaterials) ? [index] : []);
+}
+
+export function necrofearMaterialIndexes(graveyardKinds = []) {
+  return graveyardKinds.flatMap((kind, index) => kind === "悪魔族" ? [index] : []).slice(0, 3);
+}
+
+export function blackDustDestroys(standbyCount) {
+  return Number.isInteger(standbyCount) && standbyCount >= 2;
+}
+
+export function kycooBanishIndexes(graveyardIds = [], cardTypes = [], maximum = 2) {
+  const result = [];
+  for (let index = graveyardIds.length - 1; index >= 0 && result.length < maximum; index -= 1) {
+    if (cardTypes[index] === "monster") result.push(index);
+  }
+  return result;
+}
+
+export function kycooBlocksGraveyardBanish(faceUpMonsterIds = []) {
+  return faceUpMonsterIds.includes("ln-11");
+}
+
+export function positionChangeTargetIndex(zones = []) {
+  const candidates = zones
+    .map((zone, index) => ({ zone, index }))
+    .filter(({ zone }) => zone && !zone.faceDown)
+    .sort((a, b) => Math.max(b.zone.atk ?? 0, b.zone.def ?? 0) - Math.max(a.zone.atk ?? 0, a.zone.def ?? 0));
+  return candidates[0]?.index ?? null;
+}
+
+export function supplyOfficerRecoverableMaterials(zone, graveyard = []) {
+  if (!Array.isArray(zone?.fusionMaterials) || zone.fusionMaterials.length !== 2) return [];
+  const remaining = [...graveyard];
+  const recovered = [];
+  for (const id of zone.fusionMaterials) {
+    const index = remaining.indexOf(id);
+    if (index < 0) return [];
+    recovered.push(id);
+    remaining.splice(index, 1);
+  }
+  return recovered;
+}
+
+export function finalWarriorDestroyIndexes(zones = [], summonedIndex = -1) {
+  return zones.flatMap((_, index) => index === summonedIndex ? [] : [index]);
+}
+
+export function counterPunchDestroys(attackerAtk, defenderDef, defenderPosition = "defense") {
+  return defenderPosition === "defense" && Number(defenderDef) > Number(attackerAtk);
+}
+
+export function fusionReleaseMaterials(zone, graveyard = [], freeZones = 0) {
+  if (!Array.isArray(zone?.fusionMaterials) || zone.fusionMaterials.length !== 2 || freeZones < 2) return [];
+  return supplyOfficerRecoverableMaterials(zone, graveyard);
+}
+
+export function spiritEliminationCanSubstitute(activeTurn, turnNumber) {
+  return activeTurn === turnNumber;
+}
+
+export function decoyDollResolution(cardType, canActivate) {
+  if (cardType !== "trap") return "invalid";
+  return canActivate ? "activate" : "destroy";
+}
+
+export function aggregateEquipTargetIndex(zones = []) {
+  const candidates = zones
+    .map((zone, index) => ({ zone, index }))
+    .filter(({ zone }) => zone && !zone.faceDown)
+    .sort((a, b) => (b.zone.atk ?? 0) - (a.zone.atk ?? 0));
+  return candidates[0]?.index ?? null;
+}
+
 export function dimensionalWarriorBanishes(attackerId, defenderId) {
   return Boolean(defenderId) && (attackerId === "vol7-dimensional-warrior" || defenderId === "vol7-dimensional-warrior");
 }
@@ -649,6 +732,8 @@ const flipEffects = Object.freeze({
   "bo6-doppelganger": "destroy-two-set-spell-traps",
   "bo6-penguin-soldier": "return-two-monsters",
   "ln-21": "return-two-spell-traps",
+  "ln-12": "illusion-summoner",
+  "ln-24": "recover-fusion-materials",
   "ex-033": "inspect-all-set",
   "ps-26": "cyber-jar",
   "ca-03": "parasite-deck",

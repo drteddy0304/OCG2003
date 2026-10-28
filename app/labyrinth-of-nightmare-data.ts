@@ -67,5 +67,9 @@ export const labyrinthOfNightmarePack: Pack = {
 
 export const labyrinthOfNightmareReadyCardIds = [
   "ln-01", "ln-02", "ln-03", "ln-04", "ln-05", "ln-06", "ln-07", "ln-08", "ln-09",
-  "ln-13", "ln-15", "ln-16", "ln-18", "ln-21", "ln-23", "ln-29", "ln-32", "ln-33", "ln-35", "ln-36", "ln-37", "ln-38", "ln-39", "ln-40", "ln-41", "ln-42", "ln-43", "ln-44", "ln-49", "ln-50", "ln-52", "ln-53",
+  "ln-10", "ln-11", "ln-12", "ln-13", "ln-14", "ln-15", "ln-16", "ln-17", "ln-18", "ln-19",
+  "ln-20", "ln-21", "ln-22", "ln-23", "ln-24", "ln-25", "ln-26", "ln-27", "ln-28", "ln-29",
+  "ln-30", "ln-31", "ln-32", "ln-33", "ln-34", "ln-35", "ln-36", "ln-37", "ln-38", "ln-39",
+  "ln-40", "ln-41", "ln-42", "ln-43", "ln-44", "ln-45", "ln-46", "ln-47", "ln-48", "ln-49",
+  "ln-50", "ln-51", "ln-52", "ln-53",
 ] as const;

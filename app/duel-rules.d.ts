@@ -14,6 +14,21 @@ export function battleOutcome(
 export function bazooBoostAmount(selectedMonsterCount: number): number;
 export function bazooBoostActive(expiresTurn: number | undefined, currentTurn: number): boolean;
 export function guardianSpiritCharmBoost(graveyardMonsterCount: number): number;
+export function jowgenBlocksSpecialSummon(faceUpMonsterIds?: string[]): boolean;
+export function finalWarriorBlocksSummon(faceUpMonsterIds?: string[]): boolean;
+export function jowgenDestroyIndexes(zones?: Array<{ specialSummoned?: boolean; revivedByMonsterReborn?: boolean; callHauntedLinked?: boolean; godSpecialSummoned?: boolean; fusionMaterials?: string[] }>): number[];
+export function necrofearMaterialIndexes(graveyardKinds?: string[]): number[];
+export function blackDustDestroys(standbyCount: number | undefined): boolean;
+export function kycooBanishIndexes(graveyardIds?: string[], cardTypes?: string[], maximum?: number): number[];
+export function kycooBlocksGraveyardBanish(faceUpMonsterIds?: string[]): boolean;
+export function positionChangeTargetIndex(zones?: Array<{ faceDown?: boolean; atk?: number; def?: number }>): number | null;
+export function supplyOfficerRecoverableMaterials(zone: { fusionMaterials?: string[] } | undefined, graveyard?: string[]): string[];
+export function finalWarriorDestroyIndexes(zones?: unknown[], summonedIndex?: number): number[];
+export function counterPunchDestroys(attackerAtk: number, defenderDef: number, defenderPosition?: string): boolean;
+export function fusionReleaseMaterials(zone: { fusionMaterials?: string[] } | undefined, graveyard?: string[], freeZones?: number): string[];
+export function spiritEliminationCanSubstitute(activeTurn: number | undefined, turnNumber: number): boolean;
+export function decoyDollResolution(cardType: string | undefined, canActivate: boolean): "invalid" | "activate" | "destroy";
+export function aggregateEquipTargetIndex(zones?: Array<{ faceDown?: boolean; atk?: number }>): number | null;
 
 export const equipRules: Readonly<Record<string, string>>;
 export function equippedMonsterStats(atk: number, defense: number, equippedIds: string[], faceUpAllyCount?: number, spellTrapCount?: number): { atk: number; def: number };

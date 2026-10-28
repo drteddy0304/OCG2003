@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack, labyrinthOfNightmareReadyCardIds } from "../app/labyrinth-of-nightmare-data.ts";
 import { fusionRecipe } from "../app/fusion-rules.mjs";
-import { bazooBoostActive, bazooBoostAmount, blindDestructionDestroys, canNormalSummonMonster, darkDoorPreventsAttack, destinyBoardProgress, equippedMonsterStats, flipEffect, graveyardRetributionDamage, guardianSpiritCharmBoost, ifritEndPhaseBonus, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, paralyzingPotionPreventsAttack, piercingBattleDamage, royalCommandNegatesFlip, spiritSummonMaterialIndexes, spiritSummonRequirement, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
+import { aggregateEquipTargetIndex, bazooBoostActive, bazooBoostAmount, blackDustDestroys, blindDestructionDestroys, canNormalSummonMonster, counterPunchDestroys, darkDoorPreventsAttack, decoyDollResolution, destinyBoardProgress, equippedMonsterStats, finalWarriorBlocksSummon, finalWarriorDestroyIndexes, flipEffect, fusionReleaseMaterials, graveyardRetributionDamage, guardianSpiritCharmBoost, ifritEndPhaseBonus, jowgenBlocksSpecialSummon, jowgenDestroyIndexes, kycooBanishIndexes, kycooBlocksGraveyardBanish, labyrinthBattleAttackAdjustment, monsterCannotAttackDirectly, necrofearMaterialIndexes, paralyzingPotionPreventsAttack, piercingBattleDamage, positionChangeTargetIndex, royalCommandNegatesFlip, spiritEliminationCanSubstitute, spiritSummonMaterialIndexes, spiritSummonRequirement, supplyOfficerRecoverableMaterials, vengefulBogPreventsAttack, zombairaAttackLossAfterDestroy } from "../app/duel-rules.mjs";
 
 test("悪夢の迷宮は発売時の全53種類を収録する", () => {
   assert.equal(labyrinthOfNightmareCards.length, 53);
@@ -109,6 +109,35 @@ test("属性精霊3体の特殊召喚条件と継続効果を裁定する", () =
   assert.equal(ifritEndPhaseBonus("ln-18", 300, "player", "cpu"), 300);
 });
 
+test("未実装だった効果モンスター群の召喚・除外・リバース処理を裁定する", () => {
+  assert.equal(jowgenBlocksSpecialSummon(["ln-10"]), true);
+  assert.deepEqual(jowgenDestroyIndexes([{ specialSummoned: true }, {}, { revivedByMonsterReborn: true }]), [0, 2]);
+  assert.deepEqual(kycooBanishIndexes(["spell", "monster-a", "monster-b"], ["spell", "monster", "monster"]), [2, 1]);
+  assert.equal(kycooBlocksGraveyardBanish(["ln-11"]), true);
+  assert.equal(flipEffect("ln-12"), "illusion-summoner");
+  assert.equal(flipEffect("ln-24"), "recover-fusion-materials");
+  assert.deepEqual(necrofearMaterialIndexes(["悪魔族", "戦士族", "悪魔族", "悪魔族"]), [0, 2, 3]);
+  assert.equal(positionChangeTargetIndex([{ faceDown: false, atk: 1500, def: 1000 }, { faceDown: false, atk: 1000, def: 2000 }]), 1);
+  assert.deepEqual(supplyOfficerRecoverableMaterials({ fusionMaterials: ["a", "b"] }, ["b", "a"]), ["a", "b"]);
+  assert.deepEqual(supplyOfficerRecoverableMaterials({ fusionMaterials: ["a", "b"] }, ["a"]), []);
+});
+
+test("異星の最終戦士・罠・融合解除・ブラックダスト・霊魂消滅を裁定する", () => {
+  assert.equal(finalWarriorBlocksSummon(["ln-26"]), true);
+  assert.deepEqual(finalWarriorDestroyIndexes([{}, {}, {}], 1), [0, 2]);
+  assert.equal(counterPunchDestroys(1800, 2000, "defense"), true);
+  assert.equal(counterPunchDestroys(2000, 1800, "defense"), false);
+  assert.deepEqual(fusionReleaseMaterials({ fusionMaterials: ["a", "b"] }, ["a", "b"], 2), ["a", "b"]);
+  assert.deepEqual(fusionReleaseMaterials({ fusionMaterials: ["a", "b"] }, ["a", "b"], 1), []);
+  assert.equal(decoyDollResolution("trap", true), "activate");
+  assert.equal(decoyDollResolution("trap", false), "destroy");
+  assert.equal(blackDustDestroys(1), false);
+  assert.equal(blackDustDestroys(2), true);
+  assert.equal(spiritEliminationCanSubstitute(7, 7), true);
+  assert.equal(spiritEliminationCanSubstitute(7, 8), false);
+  assert.equal(aggregateEquipTargetIndex([{ faceDown: false, atk: 1200 }, { faceDown: false, atk: 1900 }]), 1);
+});
+
 test("カード一覧・パック一覧へ統合され、対応済み表示を過大申告しない", () => {
   return readFile(new URL("../app/card-data.ts", import.meta.url), "utf8").then((source) => {
     assert.match(source, /\.\.\.labyrinthOfNightmareCards/);
@@ -128,9 +157,21 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
     assert.match(source, /playerBanished/);
     assert.match(source, /advanceDestinyBoard/);
     assert.match(source, /pendingBazoo/);
-    assert.match(source, /useCpuBazoo/);
+    assert.match(source, /activateCpuBazoo/);
     assert.match(source, /beginGuardianSpiritCharm/);
     assert.match(source, /activateCpuMirrorWall\(duel, defenderIndex\)/);
+    assert.match(source, /activateJowgen/);
+    assert.match(source, /beginNecrofearSummon/);
+    assert.match(source, /applyElementSpiritPositionChange/);
+    assert.match(source, /summonGilasaurus/);
+    assert.match(source, /illusion-summoner/);
+    assert.match(source, /recover-fusion-materials/);
+    assert.match(source, /activatePowerConvergence/);
+    assert.match(source, /activateSpiritNest/);
+    assert.match(source, /counterPunchActivated/);
+    assert.match(source, /beginFusionGate/);
+    assert.match(source, /applyBlackDustEndPhase/);
+    assert.match(source, /playerSpiritEliminationTurn/);
   }).then(() => {
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-44"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-21"));
@@ -147,6 +188,7 @@ test("カード一覧・パック一覧へ統合され、対応済み表示を�
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-18"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-13"));
   assert.ok(labyrinthOfNightmareReadyCardIds.includes("ln-33"));
-  assert.ok(!labyrinthOfNightmareReadyCardIds.includes("ln-14"));
+  assert.equal(labyrinthOfNightmareReadyCardIds.length, 53);
+  assert.deepEqual([...labyrinthOfNightmareReadyCardIds], labyrinthOfNightmareCards.map((card) => card.id));
   });
 });
