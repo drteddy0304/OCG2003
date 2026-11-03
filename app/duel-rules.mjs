@@ -310,9 +310,15 @@ export function thousandEyesAttackBlocked(monster, opponentSpellTrapIds = [], ac
   return !trapEffectsNegated && activeTrapIds.includes("tb-23") && (monster.level ?? 0) >= 4;
 }
 
-export function piercingBattleDamage(attackerId, equippedIds, attackerValue, defenderValue, defenderPosition) {
+export function piercingBattleDamage(attackerId, equippedIds, attackerValue, defenderValue, defenderPosition, activeTrapIds = [], attackerKind = "") {
   if (defenderPosition !== "defense" || attackerValue <= defenderValue) return 0;
-  return attackerId === "tb-41" || equippedIds.includes("tb-13") || equippedIds.includes("ln-44") ? attackerValue - defenderValue : 0;
+  return attackerId === "tb-41"
+    || attackerId === "sc-35"
+    || equippedIds.includes("tb-13")
+    || equippedIds.includes("ln-44")
+    || (attackerKind === "ドラゴン族" && activeTrapIds.includes("sc-48"))
+    ? attackerValue - defenderValue
+    : 0;
 }
 
 export function cyberSummonTributes(id, level, ownMonsterCount, opponentMonsterCount) {
@@ -324,14 +330,59 @@ export function goblinAttackForceEndPosition(id, attacked) {
   return id === "tb-44" && attacked ? "defense" : null;
 }
 
-export function monsterAttackLimit(id) {
-  return id === "tb-36" ? 2 : 1;
+export function monsterAttackLimit(id, tyrantHasOpponent = false, grayWingEnabled = false) {
+  if (id === "tb-36") return 2;
+  if (id === "sc-34" && tyrantHasOpponent) return 2;
+  if (id === "sc-41" && grayWingEnabled) return 2;
+  return 1;
 }
 
-export function attackCountAfterDeclaration(id, attacksMadeTurn, attacksMadeCount, turnNumber) {
+export function attackCountAfterDeclaration(id, attacksMadeTurn, attacksMadeCount, turnNumber, tyrantHasOpponent = false, grayWingEnabled = false) {
   const previous = attacksMadeTurn === turnNumber ? Math.max(0, attacksMadeCount ?? 0) : 0;
   const count = previous + 1;
-  return { count, exhausted: count >= monsterAttackLimit(id) };
+  return { count, exhausted: count >= monsterAttackLimit(id, tyrantHasOpponent, grayWingEnabled) };
+}
+
+export function struggleUnionAttackBonus(monsterKind, faceUpAllyKinds = [], activeSpellIds = [], effectsNegated = false) {
+  if (effectsNegated || monsterKind !== "戦士族" || !activeSpellIds.includes("sc-27")) return 0;
+  return faceUpAllyKinds.filter((kind) => kind === "戦士族" || kind === "魔法使い族").length * 200;
+}
+
+export function struggleHunterBattleBonus(attackerId, defenderKind, declaredKind = "") {
+  return attackerId === "sc-24" && declaredKind && defenderKind === declaredKind ? 1000 : 0;
+}
+
+export function struggleBattleBanishes(attackerId, defenderDestroyed) {
+  return attackerId === "sc-03" && defenderDestroyed;
+}
+
+export function struggleFlipNegated(attackerId, faceUpAllyKinds = []) {
+  if (attackerId === "sc-01" || attackerId === "sc-02" || attackerId === "sc-39") return true;
+  return attackerId === "sc-08" && faceUpAllyKinds.filter((kind) => kind === "悪魔族").length >= 2;
+}
+
+export function struggleAttackBlockedByFormation(kind, summonedTurn, currentTurn, fieldSpellActive, declaredKind) {
+  return Boolean(fieldSpellActive && declaredKind && kind === declaredKind && summonedTurn === currentTurn);
+}
+
+export function deathCalculatorDamage(activeTrapIds = [], monsterCardsSent = 0, effectsNegated = false) {
+  return effectsNegated || !activeTrapIds.includes("sc-11") ? 0 : Math.max(0, monsterCardsSent) * 500;
+}
+
+export function lifeAbsorbingMachineGain(activeTrapIds = [], lifePaidPreviousTurn = 0, effectsNegated = false) {
+  return effectsNegated || !activeTrapIds.includes("sc-12") ? 0 : Math.floor(Math.max(0, lifePaidPreviousTurn) / 2);
+}
+
+export function burstBreathDestroyedIndexes(cards = [], tributeAttack = 0) {
+  return cards.flatMap((card, index) => card && !card.faceDown && (card.def ?? 0) <= tributeAttack ? [index] : []);
+}
+
+export function armyDragonDeckIndex(id, deckIds = [], destroyedByBattle = false) {
+  return id === "sc-42" && destroyedByBattle ? deckIds.indexOf("sc-42") : -1;
+}
+
+export function spearDragonEndPosition(id, attacked) {
+  return id === "sc-35" && attacked ? "defense" : null;
 }
 
 export function swordHunterBonus(id, equippedMonsterCount) {
@@ -742,6 +793,9 @@ const flipEffects = Object.freeze({
   "tb-30": "change-position",
   "tb-37": "destroy-set-effect-monster",
   "tb-38": "destroy-face-up-level-four",
+  "sc-21": "return-monster",
+  "sc-25": "take-control-fiend",
+  "sc-26": "take-control-dragon",
 });
 
 export function flipEffect(id) {
@@ -1505,7 +1559,7 @@ export function cpuRaEffectPlan(lifePoints, currentAttack, opponentLifePoints, o
   };
 }
 
-export const competitiveCpuDeckLatestPackId = "thousand-eyes-bible";
+export const competitiveCpuDeckLatestPackId = "struggle-of-chaos";
 
 export const competitiveCpuFusionDeck = Object.freeze([
   "vol3-gaia-dragon-champion",

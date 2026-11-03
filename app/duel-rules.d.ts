@@ -47,7 +47,7 @@ export function sliferDivineStats(handSize: number): { atk: number; def: number 
 export function raTributeStats(tributes: Array<{ atk?: number; def?: number }>): { atk: number; def: number };
 export function raPointTransfer(lifePoints: number): { lifePoints: number; attackBonus: number };
 export function cpuRaEffectPlan(lifePoints: number, currentAttack: number, opponentLifePoints: number, opponentMonsterCount: number): { usePhoenix: boolean; usePointTransfer: boolean };
-export const competitiveCpuDeckLatestPackId: "curse-of-anubis";
+export const competitiveCpuDeckLatestPackId: "struggle-of-chaos";
 export const competitiveCpuDeck: readonly string[];
 export const competitiveCpuFusionDeck: readonly string[];
 
@@ -96,11 +96,21 @@ export function monsterCannotAttackDirectly(id: string): boolean;
 export function darkDoorPreventsAttack(attacksAlreadyDeclared: number, activeSpellIds?: string[], effectsNegated?: boolean): boolean;
 export function vengefulBogPreventsAttack(summonedTurn: number | undefined, currentTurn: number, activeSpellIds?: string[], effectsNegated?: boolean): boolean;
 export function thousandEyesAttackBlocked(monster: { kind?: string; level?: number } | undefined, opponentSpellTrapIds?: string[], activeTrapIds?: string[], trapEffectsNegated?: boolean): boolean;
-export function piercingBattleDamage(attackerId: string, equippedIds: string[], attackerValue: number, defenderValue: number, defenderPosition: "attack" | "defense"): number;
+export function piercingBattleDamage(attackerId: string, equippedIds: string[], attackerValue: number, defenderValue: number, defenderPosition: "attack" | "defense", activeTrapIds?: string[], attackerKind?: string): number;
 export function cyberSummonTributes(id: string, level: number, ownMonsterCount: number, opponentMonsterCount: number): number;
 export function goblinAttackForceEndPosition(id: string, attacked: boolean): "defense" | null;
-export function monsterAttackLimit(id: string): number;
-export function attackCountAfterDeclaration(id: string, attacksMadeTurn: number | undefined, attacksMadeCount: number | undefined, turnNumber: number): { count: number; exhausted: boolean };
+export function monsterAttackLimit(id: string, tyrantHasOpponent?: boolean, grayWingEnabled?: boolean): number;
+export function attackCountAfterDeclaration(id: string, attacksMadeTurn: number | undefined, attacksMadeCount: number | undefined, turnNumber: number, tyrantHasOpponent?: boolean, grayWingEnabled?: boolean): { count: number; exhausted: boolean };
+export function struggleUnionAttackBonus(monsterKind: string, faceUpAllyKinds?: string[], activeSpellIds?: string[], effectsNegated?: boolean): number;
+export function struggleHunterBattleBonus(attackerId: string, defenderKind: string, declaredKind?: string): number;
+export function struggleBattleBanishes(attackerId: string, defenderDestroyed: boolean): boolean;
+export function struggleFlipNegated(attackerId: string, faceUpAllyKinds?: string[]): boolean;
+export function struggleAttackBlockedByFormation(kind: string, summonedTurn: number | undefined, currentTurn: number, fieldSpellActive: boolean, declaredKind: string | null): boolean;
+export function deathCalculatorDamage(activeTrapIds?: string[], monsterCardsSent?: number, effectsNegated?: boolean): number;
+export function lifeAbsorbingMachineGain(activeTrapIds?: string[], lifePaidPreviousTurn?: number, effectsNegated?: boolean): number;
+export function burstBreathDestroyedIndexes(cards?: Array<{ faceDown?: boolean; def?: number }>, tributeAttack?: number): number[];
+export function armyDragonDeckIndex(id: string, deckIds?: string[], destroyedByBattle?: boolean): number;
+export function spearDragonEndPosition(id: string, attacked: boolean): "defense" | null;
 export function swordHunterBonus(id: string, equippedMonsterCount: number): number;
 export function vampireBabyCanRevive(attackerId: string, defenderCard: { cardType?: string } | undefined, defenderDestroyed: boolean, attackerDestroyed: boolean, freeMonsterZones: number): boolean;
 export function parasitePlacementAfterBattleDamage(attackerId: string, sourceDeckIds: string[], opponentDeckIds: string[]): { sourceDeck: string[]; opponentDeck: string[]; placed: boolean };
@@ -279,7 +289,7 @@ export function blackPendantTriggerCounts(previousPlayerSpellTrapIds: string[], 
 
 export function firstSpellTargetIndex(cardTypes: Array<"monster" | "spell" | "trap">): number | null;
 
-export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "return-two-spell-traps" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle" | "swap-control" | "cyber-jar" | "parasite-deck";
+export type FlipEffect = "destroy-trap" | "destroy-spell" | "destroy-monster" | "draw" | "return-monster" | "recover-spell" | "recover-trap" | "reorder-five" | "destroy-dragon-jar" | "mill-five" | "reload-five" | "gain-3000" | "damage-spell-traps" | "pay-2000-damage-1000" | "destroy-two-set-spell-traps" | "return-two-monsters" | "return-two-spell-traps" | "inspect-all-set" | "opponent-draw-three-discard-spells" | "destroy-swords-extra-battle" | "swap-control" | "take-control-fiend" | "take-control-dragon" | "cyber-jar" | "parasite-deck";
 
 export function flipEffect(id: string): FlipEffect | null;
 export function royalCommandNegatesFlip(activeTrapIds: string[], trapEffectsNegated?: boolean): boolean;
