@@ -182,6 +182,10 @@ export const equipRules = Object.freeze({
   "ln-44": "ビック・バイパー",
   "ln-48": "全モンスター",
   "ln-50": "戦士族",
+  "ma-29": "全モンスター",
+  "ma-31": "戦士族",
+  "ma-32": "全モンスター",
+  "ma-40": "全モンスター",
 });
 
 const simpleSpellEffects = Object.freeze({
@@ -286,6 +290,7 @@ const directAttackMonsters = new Set([
   "vol5-jinzo-7",
   "vol5-rainbow-flower",
   "vol5-queens-double",
+  "ma-16",
 ]);
 
 export function canMonsterAttackDirectly(id) {
@@ -314,6 +319,7 @@ export function piercingBattleDamage(attackerId, equippedIds, attackerValue, def
   if (defenderPosition !== "defense" || attackerValue <= defenderValue) return 0;
   return attackerId === "tb-41"
     || attackerId === "sc-35"
+    || attackerId === "ma-13"
     || equippedIds.includes("tb-13")
     || equippedIds.includes("ln-44")
     || (attackerKind === "ドラゴン族" && activeTrapIds.includes("sc-48"))
@@ -334,7 +340,64 @@ export function monsterAttackLimit(id, tyrantHasOpponent = false, grayWingEnable
   if (id === "tb-36") return 2;
   if (id === "sc-34" && tyrantHasOpponent) return 2;
   if (id === "sc-41" && grayWingEnabled) return 2;
+  if (id === "ma-23") return 5;
   return 1;
+}
+
+export const MYTHOLOGICAL_AGE_SPIRIT_IDS = Object.freeze(["ma-15", "ma-16", "ma-17", "ma-18", "ma-19", "ma-20", "ma-21", "ma-22", "ma-23", "ma-24"]);
+
+export function isSpiritMonster(id) {
+  return MYTHOLOGICAL_AGE_SPIRIT_IDS.includes(id);
+}
+
+export function spiritReturnsAtEnd(id, faceDown, summonedTurn, currentTurn, spiritualEnergyActive = false) {
+  return isSpiritMonster(id) && !faceDown && summonedTurn === currentTurn && !spiritualEnergyActive;
+}
+
+export function mythologicalBattleAttackBonus(id, directAttack, battlingMonster = true, lifePoints = 0, activateLily = true) {
+  if (id === "ma-11" && activateLily && lifePoints > 2000) return 3000;
+  if (id === "ma-25" && directAttack) return 1000;
+  if (id === "ma-26" && battlingMonster) return 1000;
+  return 0;
+}
+
+export function mythologicalBattleDamage(id, rawDamage) {
+  return id === "ma-18" ? Math.floor(Math.max(0, rawDamage) / 2) : Math.max(0, rawDamage);
+}
+
+export function mythologicalBattleDamageEffect(id, damage, handSize = 0) {
+  const amount = Math.max(0, damage);
+  return {
+    draw: id === "ma-13" && amount > 0 ? 1 : id === "ma-19" && amount > 0 ? Math.max(0, 5 - handSize) : 0,
+    heal: id === "ma-24" ? amount : 0,
+    skipDraw: id === "ma-17" && amount > 0,
+    skipBattle: id === "ma-20" && amount > 0,
+    discardHandBeforeDraw: id === "ma-22" && amount > 0,
+  };
+}
+
+export function mythologicalTrapOutcome(id, context = {}) {
+  if (id === "ma-44") return { activate: (context.summonedAttack ?? 0) >= 1500, banishSummoned: (context.summonedAttack ?? 0) >= 1500 };
+  if (id === "ma-48") return { activate: (context.battleDamage ?? 0) >= 2000, heal: (context.battleDamage ?? 0) >= 2000 ? 4000 : 0 };
+  if (id === "ma-49") return { activate: Boolean(context.normalDraw), discardDrawn: Boolean(context.normalDraw) };
+  if (id === "ma-43") return { activate: Boolean(context.specialSummon) && (context.lifePoints ?? 0) > 800, lifeCost: Boolean(context.specialSummon) ? 800 : 0, negateSummon: Boolean(context.specialSummon) };
+  return { activate: false };
+}
+
+export function fiberJarReset(playerZones = [], cpuZones = [], playerHand = [], cpuHand = [], playerGraveyard = [], cpuGraveyard = []) {
+  return {
+    playerDeckCards: [...playerZones, ...playerHand, ...playerGraveyard],
+    cpuDeckCards: [...cpuZones, ...cpuHand, ...cpuGraveyard],
+    drawCount: 5,
+  };
+}
+
+export function bubbleCrashDiscardCount(handCount, fieldCount) {
+  return Math.max(0, handCount + fieldCount - 5);
+}
+
+export function lastBattleWinner(ownAttack, opponentAttack) {
+  return ownAttack === opponentAttack ? "draw" : ownAttack > opponentAttack ? "own" : "opponent";
 }
 
 export function attackCountAfterDeclaration(id, attacksMadeTurn, attacksMadeCount, turnNumber, tyrantHasOpponent = false, grayWingEnabled = false) {
@@ -796,6 +859,7 @@ const flipEffects = Object.freeze({
   "sc-21": "return-monster",
   "sc-25": "take-control-fiend",
   "sc-26": "take-control-dragon",
+  "ma-06": "fiber-jar",
 });
 
 export function flipEffect(id) {
@@ -1177,6 +1241,9 @@ export function equippedMonsterStats(atk, defense, equippedIds, faceUpAllyCount 
     if (id === "ln-44") return { atk: result.atk + 300, def: result.def };
     if (id === "ln-48") return result;
     if (id === "ln-50") return { atk: result.atk + 500, def: result.def + 500 };
+    if (id === "ma-29" || id === "ma-32") return result;
+    if (id === "ma-31") return { atk: result.atk + 800, def: result.def };
+    if (id === "ma-40") return { atk: result.atk + 500, def: result.def };
     if (id === "ps-03") return { atk: result.atk + 700, def: result.def + 700 };
     if (id === "ps-08") return result;
     if (id === "pr99-insect-armor" || id === "pr99-salamandra" || id === "pr99-shine-palace") return { atk: result.atk + 700, def: result.def };
@@ -1240,6 +1307,7 @@ const fieldSpellRaceEffects = Object.freeze({
   "stb-sogen": { boost: ["戦士族", "獣戦士族"], weaken: [] },
   "stb-umi": { boost: ["魚族", "海竜族", "雷族", "水族"], weaken: ["機械族", "炎族"] },
   "stb-yami": { boost: ["魔法使い族", "悪魔族"], weaken: ["天使族"] },
+  "ma-30": { boost: ["魚族", "海竜族", "雷族", "水族"], weaken: ["機械族", "炎族"] },
 });
 
 const fieldSpellAttributeEffects = Object.freeze({
@@ -1559,12 +1627,14 @@ export function cpuRaEffectPlan(lifePoints, currentAttack, opponentLifePoints, o
   };
 }
 
-export const competitiveCpuDeckLatestPackId = "struggle-of-chaos";
+export const competitiveCpuDeckLatestPackId = "mythological-age";
 
 export const competitiveCpuFusionDeck = Object.freeze([
   "vol3-gaia-dragon-champion",
   "pr99-meteor-black-dragon",
   "tb-34",
+  "ma-25",
+  "ma-26",
 ]);
 
 export const competitiveCpuDeck = Object.freeze([
@@ -1572,9 +1642,9 @@ export const competitiveCpuDeck = Object.freeze([
   "mr-maha-vailo",
   "vol7-robbin-goblin",
   "vol5-white-magical-hat",
-  "vol3-skull-red-bird",
+  "ma-11",
+  "ma-13",
   "vol3-stop-defense",
-  "mr-curse-fiend",
   "pr99-meteor-dragon",
   "vol1-gaia",
   "vol7-barrel-dragon",
@@ -1587,7 +1657,7 @@ export const competitiveCpuDeck = Object.freeze([
   "vol3-hane-hane",
   "vol6-sangan",
   "vol6-witch-black-forest",
-  "vol7-rainbow-fish",
+  "ma-44",
   "pr99-goddess-whim",
   "vol3-reaper-cards",
   ...Array(2).fill("vol7-dark-elf"),

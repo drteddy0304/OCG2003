@@ -47,7 +47,7 @@ export function sliferDivineStats(handSize: number): { atk: number; def: number 
 export function raTributeStats(tributes: Array<{ atk?: number; def?: number }>): { atk: number; def: number };
 export function raPointTransfer(lifePoints: number): { lifePoints: number; attackBonus: number };
 export function cpuRaEffectPlan(lifePoints: number, currentAttack: number, opponentLifePoints: number, opponentMonsterCount: number): { usePhoenix: boolean; usePointTransfer: boolean };
-export const competitiveCpuDeckLatestPackId: "struggle-of-chaos";
+export const competitiveCpuDeckLatestPackId: "mythological-age";
 export const competitiveCpuDeck: readonly string[];
 export const competitiveCpuFusionDeck: readonly string[];
 
@@ -92,6 +92,16 @@ export function shouldPlayerChooseFlipTarget(
 ): boolean;
 
 export function canMonsterAttackDirectly(id: string): boolean;
+export const MYTHOLOGICAL_AGE_SPIRIT_IDS: readonly string[];
+export function isSpiritMonster(id: string): boolean;
+export function spiritReturnsAtEnd(id: string, faceDown: boolean, summonedTurn: number | undefined, currentTurn: number, spiritualEnergyActive?: boolean): boolean;
+export function mythologicalBattleAttackBonus(id: string, directAttack: boolean, battlingMonster?: boolean, lifePoints?: number, activateLily?: boolean): number;
+export function mythologicalBattleDamage(id: string, rawDamage: number): number;
+export function mythologicalBattleDamageEffect(id: string, damage: number, handSize?: number): { draw: number; heal: number; skipDraw: boolean; skipBattle: boolean; discardHandBeforeDraw: boolean };
+export function mythologicalTrapOutcome(id: string, context?: { summonedAttack?: number; battleDamage?: number; normalDraw?: boolean; specialSummon?: boolean; lifePoints?: number }): { activate: boolean; [key: string]: boolean | number };
+export function fiberJarReset(playerZones?: string[], cpuZones?: string[], playerHand?: string[], cpuHand?: string[], playerGraveyard?: string[], cpuGraveyard?: string[]): { playerDeckCards: string[]; cpuDeckCards: string[]; drawCount: number };
+export function bubbleCrashDiscardCount(handCount: number, fieldCount: number): number;
+export function lastBattleWinner(ownAttack: number, opponentAttack: number): "own" | "opponent" | "draw";
 export function monsterCannotAttackDirectly(id: string): boolean;
 export function darkDoorPreventsAttack(attacksAlreadyDeclared: number, activeSpellIds?: string[], effectsNegated?: boolean): boolean;
 export function vengefulBogPreventsAttack(summonedTurn: number | undefined, currentTurn: number, activeSpellIds?: string[], effectsNegated?: boolean): boolean;

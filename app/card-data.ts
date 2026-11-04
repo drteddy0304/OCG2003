@@ -18,6 +18,7 @@ import { thousandEyesBibleCards, thousandEyesBiblePack } from "./thousand-eyes-b
 import { spellOfMaskCards, spellOfMaskPack } from "./spell-of-mask-data";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack } from "./labyrinth-of-nightmare-data";
 import { struggleOfChaosCards, struggleOfChaosPack } from "./struggle-of-chaos-data";
+import { mythologicalAgeCards, mythologicalAgePack } from "./mythological-age-data";
 
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
@@ -247,6 +248,7 @@ export const cards: Card[] = [
   ...spellOfMaskCards,
   ...labyrinthOfNightmareCards,
   ...struggleOfChaosCards,
+  ...mythologicalAgeCards,
 ];
 
 export const packs: Pack[] = [
@@ -316,6 +318,7 @@ export const packs: Pack[] = [
   spellOfMaskPack,
   labyrinthOfNightmarePack,
   struggleOfChaosPack,
+  mythologicalAgePack,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));

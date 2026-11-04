@@ -50,6 +50,8 @@ export const FUSION_RECIPES = {
   "sc-02": ["sc-04", "sc-22"],
   "sc-19": ["sc-20", "sc-36"],
   "sc-39": ["sc-40", "sc-03"],
+  "ma-25": ["ma-04", "ma-05"],
+  "ma-26": ["ma-05", "ma-04"],
 };
 
 export function fusionRecipe(fusionId) {
