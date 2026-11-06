@@ -11,6 +11,7 @@ const dataSources = await Promise.all([
   readFile(new URL("../app/labyrinth-of-nightmare-data.ts", import.meta.url), "utf8"),
   readFile(new URL("../app/struggle-of-chaos-data.ts", import.meta.url), "utf8"),
   readFile(new URL("../app/mythological-age-data.ts", import.meta.url), "utf8"),
+  readFile(new URL("../app/pharaonic-guardian-data.ts", import.meta.url), "utf8"),
 ]);
 const textSource = await readFile(new URL("../app/card-text.ts", import.meta.url), "utf8");
 

@@ -22,6 +22,7 @@ import { cpuRaEffectPlan, isGodCard, maskOfRestrictBlocksTribute, raPointTransfe
 import { banisherRedirectsToExile, canSpecialSummonToon, ceasefireDamage, ceremonyBellRevealsHands, chainDestructionResult, cyberJarReveal, destroyEquippedMonsterIndexes, earthquakeMovementChoice, holyElfBlessingGain, kotodamaDuplicateIndexes, megamorphAttack, messengerOfPeacePreventsAttack, messengerOfPeaceStandbyCost, pharaohSummonResponseTrap, shouldCpuKeepMessengerOfPeace, timeBomberEffect, toonAttackDeclaration, toonSummonTributeCount, toonWorldActivationCost, whiteRobeAngelGain } from "./duel-rules.mjs";
 import { aggregateEquipTargetIndex, counterPunchDestroys, decoyDollResolution, finalWarriorDestroyIndexes, fusionReleaseMaterials, kycooBanishIndexes, kycooBlocksGraveyardBanish, positionChangeTargetIndex, spiritEliminationCanSubstitute, supplyOfficerRecoverableMaterials } from "./duel-rules.mjs";
 import { isSpiritMonster, mythologicalBattleAttackBonus, mythologicalBattleDamage, mythologicalBattleDamageEffect, spiritReturnsAtEnd } from "./duel-rules.mjs";
+import { dicePotDamage, isPharaonicCycleFlipMonster, pharaonicAttackBlocked, pharaonicBattleAttack, pharaonicMonsterStats } from "./duel-rules.mjs";
 
 const DECK_STORAGE_KEY = "ocg2003.deck.main.v1";
 const FUSION_DECK_STORAGE_KEY = "ocg2003.deck.fusion.v1";
@@ -1122,6 +1123,20 @@ export function DuelArena({
     setSelectedAttacker(null);
   }
 
+  function setCycleFlipMonster(index: number) {
+    if (!duel || !isPlayerMainPhase || duel.result || pendingTribute) return;
+    const zone = duel.playerField[index];
+    if (!zone || zone.faceDown || zone.positionChanged || zone.summonedTurn === duel.turnNumber || !isPharaonicCycleFlipMonster(zone.id)) return;
+    setDuel({
+      ...duel,
+      playerField: duel.playerField.map((item, fieldIndex) => fieldIndex === index
+        ? { ...item, position: "defense", faceDown: true, positionChanged: true }
+        : item),
+      log: appendLog(duel.log, `${cardById.get(zone.id)?.name ?? "モンスター"}の効果で裏側守備表示に変更。`),
+    });
+    setSelectedAttacker(null);
+  }
+
   function activateTimeBomber() {
     if (!duel || duel.turn !== "player" || duel.phase !== "standby") return;
     const index = duel.playerField.findIndex((zone) => zone.id === "ps-23" && !zone.faceDown);
@@ -1288,6 +1303,50 @@ export function DuelArena({
       return;
     }
     if (["ma-37", "ma-38", "ma-39"].includes(card.id)) {
+      const next = removeHandCard(duel, handIndex);
+      setDuel({ ...next, playerGraveyard: [...next.playerGraveyard, card.id], log: appendLog(next.log, `${card.name}を発動。ターン中の効果を適用。`) });
+      return;
+    }
+    if (["ph-35", "ph-37"].includes(card.id)) {
+      if (duel.playerSpellTrap.length >= FIELD_LIMIT) return;
+      const next = removeHandCard(duel, handIndex);
+      setDuel({ ...next, playerSpellTrap: [...next.playerSpellTrap, card.id], log: appendLog(next.log, `${card.name}を発動。永続効果を適用。`) });
+      return;
+    }
+    if (card.id === "ph-32") {
+      if (duel.playerField.length >= FIELD_LIMIT || specialSummonIsBlocked(duel) || graveyardBanishBlocked(duel, "player")) return;
+      const target = duel.playerGraveyard.map((id, index) => ({ id, index, card: cardById.get(id) })).filter(({ card: targetCard }) => targetCard?.kind === "アンデット族" && !targetCard.fusion).sort((a, b) => (b.card?.atk ?? 0) - (a.card?.atk ?? 0))[0];
+      const banish = duel.cpuGraveyard.findIndex((id) => cardById.get(id)?.cardType === "monster");
+      if (!target || banish < 0) return;
+      const banishedId = duel.cpuGraveyard[banish];
+      const next = removeHandCard(duel, handIndex);
+      setDuel({ ...next, playerField: [...next.playerField, { id: target.id, position: "attack", faceDown: false, attacked: false, equipped: [], summonedTurn: duel.turnNumber, faceUpTurn: duel.turnNumber, positionChanged: true, specialSummoned: true }], playerGraveyard: [...next.playerGraveyard.filter((_, index) => index !== target.index), card.id], cpuGraveyard: next.cpuGraveyard.filter((_, index) => index !== banish), cpuBanished: [...next.cpuBanished, banishedId], log: appendLog(next.log, `生者の書を発動。${target.card?.name ?? "アンデット族"}を特殊召喚し、CPU墓地の${cardById.get(banishedId)?.name ?? "モンスター"}を除外。`) });
+      return;
+    }
+    if (card.id === "ph-33") {
+      const targetIndex = duel.cpuField.findIndex((zone) => zone.faceDown && !isEffectTargetProtected(duel, "cpu", zone));
+      if (targetIndex < 0) return;
+      const target = duel.cpuField[targetIndex];
+      const next = removeHandCard(duel, handIndex);
+      let resolved: DuelState = { ...next, cpuField: next.cpuField.map((zone, index) => index === targetIndex ? { ...zone, position: "attack", faceDown: false, faceUpTurn: duel.turnNumber, positionChanged: true } : zone), playerGraveyard: [...next.playerGraveyard, card.id], log: appendLog(next.log, `太陽の書を発動。${cardById.get(target.id)?.name ?? "裏側モンスター"}を表側攻撃表示に変更。`) };
+      resolved = resolveFlipEffect(resolved, "cpu", target.id);
+      setDuel(resolved);
+      return;
+    }
+    if (card.id === "ph-34") {
+      const targetIndex = strongestAttackIndex(duel.cpuField.map((zone) => zone.faceDown ? -1 : effectiveAtk(zone, duel, "cpu")));
+      if (targetIndex === null) return;
+      const target = duel.cpuField[targetIndex];
+      const next = removeHandCard(duel, handIndex);
+      setDuel({ ...next, cpuField: next.cpuField.map((zone, index) => index === targetIndex ? { ...zone, position: "defense", faceDown: true, positionChanged: true } : zone), playerGraveyard: [...next.playerGraveyard, card.id], log: appendLog(next.log, `月の書を発動。${cardById.get(target.id)?.name ?? "モンスター"}を裏側守備表示に変更。`) });
+      return;
+    }
+    if (card.id === "ph-39") {
+      const next = removeHandCard(duel, handIndex);
+      setDuel({ ...next, playerField: next.playerField.map((zone) => ({ ...zone, battleAtkBonusTurn: duel.turnNumber, battleAtkBonusValue: (zone.battleAtkBonusValue ?? 0) + 200 })), playerGraveyard: [...next.playerGraveyard, card.id], log: appendLog(next.log, "ピラミッドパワーを発動。自分モンスターのATKをこのターン200アップ。") });
+      return;
+    }
+    if (["ph-36", "ph-38"].includes(card.id)) {
       const next = removeHandCard(duel, handIndex);
       setDuel({ ...next, playerGraveyard: [...next.playerGraveyard, card.id], log: appendLog(next.log, `${card.name}を発動。ターン中の効果を適用。`) });
       return;
@@ -3348,6 +3407,30 @@ export function DuelArena({
     }
   }
 
+  function activatePharaonicTrap(trapIndex: number) {
+    if (!duel || !isPlayerMainPhase || areTrapEffectsNegated(duel)) return;
+    const trapId = duel.playerSpellTrap[trapIndex];
+    if (trapId === "ph-44") {
+      if (duel.playerField.length + duel.cpuField.length < 4) return;
+      const destroyedPlayer = duel.playerField.filter((zone) => !zone.faceDown);
+      const destroyedCpu = duel.cpuField.filter((zone) => !zone.faceDown);
+      setDuel(applyDeckSearchTriggers({ ...duel, playerField: duel.playerField.filter((zone) => zone.faceDown), cpuField: duel.cpuField.filter((zone) => zone.faceDown), playerSpellTrap: discardEquips(duel.playerSpellTrap.filter((_, index) => index !== trapIndex), destroyedPlayer), cpuSpellTrap: discardEquips(duel.cpuSpellTrap, destroyedCpu), playerGraveyard: [...duel.playerGraveyard, trapId, ...graveCards(destroyedPlayer)], cpuGraveyard: [...duel.cpuGraveyard, ...graveCards(destroyedCpu)], log: appendLog(duel.log, `つり天井を発動。表側表示モンスター${destroyedPlayer.length + destroyedCpu.length}体を破壊。`) }, destroyedPlayer, destroyedCpu));
+      return;
+    }
+    if (trapId === "ph-48") {
+      if (duel.cpuHand.length < 4) return;
+      const targetIndex = duel.cpuHand.findIndex((id) => cardById.get(id)?.cardType === "monster");
+      if (targetIndex < 0) return;
+      const targetId = duel.cpuHand[targetIndex];
+      setDuel({ ...duel, cpuHand: duel.cpuHand.filter((_, index) => index !== targetIndex), cpuDeck: shuffle([...duel.cpuDeck, targetId]), playerSpellTrap: duel.playerSpellTrap.filter((_, index) => index !== trapIndex), playerGraveyard: [...duel.playerGraveyard, trapId], log: appendLog(duel.log, `ダスト・シュートを発動。CPUの${cardById.get(targetId)?.name ?? "モンスター"}をデッキへ戻した。`) });
+      return;
+    }
+    if (trapId === "ph-50") {
+      if (duel.playerDeck.length < 2) return;
+      setDuel({ ...duel, playerHand: [...duel.playerHand, ...duel.playerDeck.slice(0, 2)], playerDeck: duel.playerDeck.slice(2), playerSkipDrawTurn: duel.turnNumber + 1, playerSpellTrap: duel.playerSpellTrap.filter((_, index) => index !== trapIndex), playerGraveyard: [...duel.playerGraveyard, trapId], log: appendLog(duel.log, "無謀な欲張りを発動。2枚ドローし、次のドローフェイズをスキップする。") });
+    }
+  }
+
   function activatePowerConvergence(trapIndex: number) {
     if (!duel || !isPlayerMainPhase || duel.playerSpellTrap[trapIndex] !== "ln-27" || areTrapEffectsNegated(duel)) return;
     const combined = [...duel.playerField, ...duel.cpuField];
@@ -3974,7 +4057,7 @@ export function DuelArena({
       });
       return;
     }
-    if (!areTrapEffectsNegated(duel) && ["bo5-royal-decree", "bo6-magic-thorn", "sm-17", "ln-29", "ln-31", "ln-32", "ln-35", "ln-36", "ln-37", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24", "sc-11", "sc-12", "sc-14", "sc-43", "sc-48", "ma-43", "ma-45", "ma-46", "ma-47"].includes(card.id)) {
+    if (!areTrapEffectsNegated(duel) && ["bo5-royal-decree", "bo6-magic-thorn", "sm-17", "ln-29", "ln-31", "ln-32", "ln-35", "ln-36", "ln-37", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24", "sc-11", "sc-12", "sc-14", "sc-43", "sc-48", "ma-43", "ma-45", "ma-46", "ma-47", "ph-41", "ph-42", "ph-47"].includes(card.id)) {
       const next = removeHandCard(duel, handIndex);
       setDuel({
         ...next,
@@ -4373,7 +4456,7 @@ export function DuelArena({
     const formationActive = [duel.playerFieldSpell, duel.cpuFieldSpell].includes("sc-29") && duel.fieldSpellNegatedTurn !== duel.turnNumber;
     const formationKind = duel.playerFieldSpell === "sc-29" ? duel.playerFormationKind : duel.cpuFormationKind;
     const grandDragonBlocked = zone.id === "sc-40" && !duel.playerField.some((ally, allyIndex) => allyIndex !== index && !ally.faceDown && effectiveMonsterKind(duel, ally) === "ドラゴン族");
-    if (!zone || zone.position !== "attack" || zone.attacked || grandDragonBlocked || struggleAttackBlockedByFormation(effectiveMonsterKind(duel, zone), zone.summonedTurn, duel.turnNumber, formationActive, formationKind) || tribalRulePreventsAttack(duel, zone) || thousandEyesRestrictsOtherMonster(faceUpIds, zone.id) || luciferPreventsAttack(zone, duel.turnNumber) || thousandEyesAttackBlocked(cardById.get(zone.id), effectiveSpellTrapIds(duel, duel.cpuSpellTrap), effectiveActiveTrapIds(duel, duel.cpuActiveTraps), areTrapEffectsNegated(duel) || areContinuousTrapEffectsNegated(duel)) || paralyzingPotionPreventsAttack(effectiveEquipIds(zone, duel)) || darkDoorPreventsAttack(Number(otherMonsterAttacked), effectiveSpells, areContinuousSpellEffectsNegated(duel)) || vengefulBogPreventsAttack(zone.summonedTurn, duel.turnNumber, effectiveSpells, areContinuousSpellEffectsNegated(duel)) || isSpellbindingCircleLocked(duel, zone) || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || messengerOfPeacePreventsAttack(effectiveAtk(zone, duel, "player"), effectiveSpells) || duelAttackPayment(duel, "player", zone) === null) return;
+    if (!zone || zone.position !== "attack" || zone.attacked || grandDragonBlocked || struggleAttackBlockedByFormation(effectiveMonsterKind(duel, zone), zone.summonedTurn, duel.turnNumber, formationActive, formationKind) || tribalRulePreventsAttack(duel, zone) || thousandEyesRestrictsOtherMonster(faceUpIds, zone.id) || luciferPreventsAttack(zone, duel.turnNumber) || thousandEyesAttackBlocked(cardById.get(zone.id), effectiveSpellTrapIds(duel, duel.cpuSpellTrap), effectiveActiveTrapIds(duel, duel.cpuActiveTraps), areTrapEffectsNegated(duel) || areContinuousTrapEffectsNegated(duel)) || paralyzingPotionPreventsAttack(effectiveEquipIds(zone, duel)) || darkDoorPreventsAttack(Number(otherMonsterAttacked), effectiveSpells, areContinuousSpellEffectsNegated(duel)) || vengefulBogPreventsAttack(zone.summonedTurn, duel.turnNumber, effectiveSpells, areContinuousSpellEffectsNegated(duel)) || isSpellbindingCircleLocked(duel, zone) || !canDeclareAttackOnTurn(zone.attackLockedTurn, duel.turnNumber) || messengerOfPeacePreventsAttack(effectiveAtk(zone, duel, "player"), effectiveSpells) || pharaonicAttackBlocked(effectiveAtk(zone, duel, "player"), duel.cpuField.some((item) => item.id === "ph-14" && !item.faceDown)) || duelAttackPayment(duel, "player", zone) === null) return;
     const toonAttack = toonAttackDeclaration(zone.id, zone.summonedTurn, duel.turnNumber, duel.playerLp, effectiveSpellTrapIds(duel, duel.playerSpellTrap).includes("ps-25"), duel.cpuField.filter((target) => toonSummonTributeCount(target.id) !== null).length);
     const fieldSpells = duel.fieldSpellNegatedTurn === duel.turnNumber ? [] : [duel.playerFieldSpell, duel.cpuFieldSpell].filter((id): id is string => Boolean(id));
     const hasAttackableTarget = duel.cpuField.some((target) => legendaryFishermanAttackTargetable(target.id, fieldSpells));
@@ -5754,7 +5837,7 @@ export function DuelArena({
         <p className="section-label">BATTLE CITY · SINGLE DUEL</p>
         <h2>対戦相手を選択</h2>
         <div className="duel-rule-card">
-          <strong>17 DUELISTS · BUILD 191</strong>
+          <strong>17 DUELISTS · BUILD 192</strong>
           <p>決闘者の王国からバトルシティ編までの主要デュエリストを選べます。全員が40枚の専用デッキを使い、勝てる戦闘・効果・罠を優先します。</p>
         </div>
         <div className="opponent-roster" aria-label="対戦相手一覧">
@@ -7094,8 +7177,18 @@ export function DuelArena({
             {cardById.get(zone.id)?.name}の効果を使う
           </button>
         ))}
+        {isPlayerMainPhase && duel.playerField.map((zone, index) => ({ zone, index })).filter(({ zone }) => !zone.faceDown && !zone.positionChanged && zone.summonedTurn !== duel.turnNumber && isPharaonicCycleFlipMonster(zone.id)).map(({ zone, index }) => (
+          <button className="effect-action-button" key={`pharaonic-cycle-${zone.id}-${index}`} onClick={() => setCycleFlipMonster(index)}>
+            {cardById.get(zone.id)?.name}を裏側守備表示にする
+          </button>
+        ))}
         {isPlayerMainPhase && duel.playerSpellTrap.map((id, index) => ({ id, index })).filter(({ id }) => ["sc-14", "sc-31", "sc-32", "sc-49"].includes(id)).map(({ id, index }) => (
           <button className="effect-action-button" key={`struggle-trap-${id}-${index}`} onClick={() => activateStruggleTrap(index)}>
+            {cardById.get(id)?.name}を発動する
+          </button>
+        ))}
+        {isPlayerMainPhase && duel.playerSpellTrap.map((id, index) => ({ id, index })).filter(({ id }) => ["ph-44", "ph-48", "ph-50"].includes(id)).map(({ id, index }) => (
+          <button className="effect-action-button" key={`pharaonic-trap-${id}-${index}`} onClick={() => activatePharaonicTrap(index)}>
             {cardById.get(id)?.name}を発動する
           </button>
         ))}
@@ -9367,7 +9460,7 @@ function finishCpuTurn(initial: DuelState, resumeBattle = false): DuelState {
       const formationActive = [state.playerFieldSpell, state.cpuFieldSpell].includes("sc-29") && state.fieldSpellNegatedTurn !== state.turnNumber;
       const formationKind = state.cpuFieldSpell === "sc-29" ? state.cpuFormationKind : state.playerFormationKind;
       const grandDragonBlocked = attacker.id === "sc-40" && !state.cpuField.some((ally, allyIndex) => allyIndex !== index && !ally.faceDown && effectiveMonsterKind(state, ally) === "ドラゴン族");
-      if (attacker.position !== "attack" || attacker.attacked || grandDragonBlocked || struggleAttackBlockedByFormation(effectiveMonsterKind(state, attacker), attacker.summonedTurn, state.turnNumber, formationActive, formationKind) || tribalRulePreventsAttack(state, attacker) || thousandEyesRestrictsOtherMonster(faceUpIds, attacker.id) || luciferPreventsAttack(attacker, state.turnNumber) || thousandEyesAttackBlocked(cardById.get(attacker.id), effectiveSpellTrapIds(state, state.playerSpellTrap), effectiveActiveTrapIds(state, state.playerActiveTraps), areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state)) || paralyzingPotionPreventsAttack(effectiveEquipIds(attacker, state)) || darkDoorPreventsAttack(Number(otherMonsterAttacked), effectiveSpells, areContinuousSpellEffectsNegated(state)) || vengefulBogPreventsAttack(attacker.summonedTurn, state.turnNumber, effectiveSpells, areContinuousSpellEffectsNegated(state)) || isSpellbindingCircleLocked(state, attacker) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber) || messengerOfPeacePreventsAttack(effectiveAtk(attacker, state, "cpu"), effectiveSpells)) continue;
+      if (attacker.position !== "attack" || attacker.attacked || grandDragonBlocked || struggleAttackBlockedByFormation(effectiveMonsterKind(state, attacker), attacker.summonedTurn, state.turnNumber, formationActive, formationKind) || tribalRulePreventsAttack(state, attacker) || thousandEyesRestrictsOtherMonster(faceUpIds, attacker.id) || luciferPreventsAttack(attacker, state.turnNumber) || thousandEyesAttackBlocked(cardById.get(attacker.id), effectiveSpellTrapIds(state, state.playerSpellTrap), effectiveActiveTrapIds(state, state.playerActiveTraps), areTrapEffectsNegated(state) || areContinuousTrapEffectsNegated(state)) || paralyzingPotionPreventsAttack(effectiveEquipIds(attacker, state)) || darkDoorPreventsAttack(Number(otherMonsterAttacked), effectiveSpells, areContinuousSpellEffectsNegated(state)) || vengefulBogPreventsAttack(attacker.summonedTurn, state.turnNumber, effectiveSpells, areContinuousSpellEffectsNegated(state)) || isSpellbindingCircleLocked(state, attacker) || !canDeclareAttackOnTurn(attacker.attackLockedTurn, state.turnNumber) || messengerOfPeacePreventsAttack(effectiveAtk(attacker, state, "cpu"), effectiveSpells) || pharaonicAttackBlocked(effectiveAtk(attacker, state, "cpu"), state.playerField.some((item) => item.id === "ph-14" && !item.faceDown))) continue;
       if (duelAttackPayment(state, "cpu", attacker) === null) continue;
       const evilSpiritIndex = areTrapEffectsNegated(state) ? -1 : state.playerSpellTrap.indexOf("ln-28");
       const replacementIndex = state.cpuField.findIndex((zone, zoneIndex) => zoneIndex !== index && !zone.faceDown && zone.position === "attack" && !zone.attacked);
@@ -10579,7 +10672,7 @@ function setCpuTrapAndEquips(initial: DuelState): DuelState {
     };
   }
 
-  for (const trapId of ["sm-17", "ln-29", "ln-36", "ln-37", "ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-16", "ca-17", "ca-18", "ca-19", "ca-21", "ca-22", "ca-24", "ca-25", "ca-26", "ca-27", "ca-28", "ca-29", "ca-31", "ca-32", "ca-33", "ca-34", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24", "sc-10", "sc-11", "sc-12", "sc-14", "sc-31", "sc-32", "sc-43", "sc-48", "sc-49", "ma-40", "ma-41", "ma-42", "ma-43", "ma-44", "ma-45", "ma-46", "ma-47", "ma-48", "ma-49", "ma-50", "ma-51"]) {
+  for (const trapId of ["sm-17", "ln-29", "ln-36", "ln-37", "ca-05", "ca-08", "ca-10", "ca-11", "ca-12", "ca-16", "ca-17", "ca-18", "ca-19", "ca-21", "ca-22", "ca-24", "ca-25", "ca-26", "ca-27", "ca-28", "ca-29", "ca-31", "ca-32", "ca-33", "ca-34", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24", "sc-10", "sc-11", "sc-12", "sc-14", "sc-31", "sc-32", "sc-43", "sc-48", "sc-49", "ma-40", "ma-41", "ma-42", "ma-43", "ma-44", "ma-45", "ma-46", "ma-47", "ma-48", "ma-49", "ma-50", "ma-51", "ph-40", "ph-41", "ph-42", "ph-43", "ph-44", "ph-45", "ph-46", "ph-47", "ph-48", "ph-49", "ph-50", "ph-51"]) {
     if (state.cpuSpellTrap.length >= FIELD_LIMIT || !state.cpuHand.includes(trapId) || isCardProhibited(state, trapId) || !canPayDuelChainEnergy(state, "cpu")) continue;
     state = {
       ...removeCpuHandCard(state, trapId),
@@ -11073,7 +11166,7 @@ function resolveBattle(state: DuelState, attackerSide: Side, attackerIndex: numb
   if (guardianEffect) defenderZone.guardianEffectUsed = true;
   const defenderActiveTraps = effectiveActiveTrapIds(state, defenderSide === "player" ? state.playerActiveTraps : state.cpuActiveTraps);
   const attackValue = guardianAdjustedAttack(
-    mirrorWallAttack(effectiveAtk(attackerZone, state, attackerSide), defenderActiveTraps, areTrapEffectsNegated(state))
+    mirrorWallAttack(pharaonicBattleAttack(attacker.id, effectiveAtk(attackerZone, state, attackerSide), Boolean(defenderZone?.faceDown)), defenderActiveTraps, areTrapEffectsNegated(state))
       + battleAttackBonus(attacker.id, defender.attribute)
       + struggleHunterBattleBonus(attacker.id, effectiveMonsterKind(state, defenderZone), effectiveMonsterKind(state, defenderZone))
       + mythologicalBattleAttackBonus(attacker.id, false, true, attackerLpAfterCost, lilyActivated),
@@ -11682,7 +11775,7 @@ function isCpuHandRevealed(state: DuelState): boolean {
 
 function activateCpuContinuousTraps(state: DuelState): DuelState {
   if (areTrapEffectsNegated(state)) return state;
-  const activating = state.cpuSpellTrap.filter((id) => ["sm-17", "ln-29", "ln-31", "ln-32", "ln-35", "ln-36", "ln-37", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24", "sc-11", "sc-12", "sc-14", "sc-43", "sc-48", "ma-43", "ma-45", "ma-46", "ma-47"].includes(id));
+  const activating = state.cpuSpellTrap.filter((id) => ["sm-17", "ln-29", "ln-31", "ln-32", "ln-35", "ln-36", "ln-37", "ca-10", "ca-24", "ca-26", "ca-27", "ca-31", "ca-32", "ca-33", "tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24", "sc-11", "sc-12", "sc-14", "sc-43", "sc-48", "ma-43", "ma-45", "ma-46", "ma-47", "ph-41", "ph-42", "ph-47"].includes(id));
   const nextActive = [...new Set([...state.cpuActiveTraps, ...activating])];
   if (nextActive.length === state.cpuActiveTraps.length) return state;
   const names = activating
@@ -12313,6 +12406,50 @@ function resolveFlipEffect(state: DuelState, owner: Side, monsterId: string): Du
       ...state,
       log: appendLog(state.log, `${ownerName}の${cardById.get(monsterId)?.name ?? "モンスター"}がリバース。王宮の号令によりリバース効果を無効化。`),
     };
+  }
+  if (effect === "damage-500") {
+    const lifeKey = owner === "player" ? "cpuLp" : "playerLp";
+    const life = Math.max(0, state[lifeKey] - 500);
+    return { ...state, [lifeKey]: life, result: life === 0 ? (owner === "player" ? "win" : "lose") : state.result, log: appendLog(state.log, `${ownerName}のポイズンマミーがリバース。相手に500ダメージ。`) } as DuelState;
+  }
+  if (effect === "dice-pot") {
+    let ownRoll = 1 + Math.floor(Math.random() * 6);
+    let opponentRoll = 1 + Math.floor(Math.random() * 6);
+    while (ownRoll === opponentRoll) {
+      ownRoll = 1 + Math.floor(Math.random() * 6);
+      opponentRoll = 1 + Math.floor(Math.random() * 6);
+    }
+    const outcome = dicePotDamage(ownRoll, opponentRoll);
+    const playerDamage = owner === "player" ? outcome.own : outcome.opponent;
+    const cpuDamage = owner === "player" ? outcome.opponent : outcome.own;
+    const playerLp = Math.max(0, state.playerLp - playerDamage);
+    const cpuLp = Math.max(0, state.cpuLp - cpuDamage);
+    return { ...state, playerLp, cpuLp, result: playerLp === 0 && cpuLp === 0 ? "draw" : playerLp === 0 ? "lose" : cpuLp === 0 ? "win" : state.result, log: appendLog(state.log, `ダイス・ポットがリバース。${ownerName}${ownRoll}・相手${opponentRoll}、${playerDamage > 0 ? `あなたに${playerDamage}` : `CPUに${cpuDamage}`}ダメージ。`) };
+  }
+  if (effect === "return-all-monsters") {
+    const opponentField = owner === "player" ? state.cpuField : state.playerField;
+    if (owner === "player") return { ...state, cpuHand: [...state.cpuHand, ...opponentField.map((zone) => zone.id)], cpuField: [], cpuSpellTrap: discardEquips(state.cpuSpellTrap, opponentField), cpuGraveyard: [...state.cpuGraveyard, ...equipGraveCards(opponentField)], log: appendLog(state.log, `守護者スフィンクスが反転召喚。CPUモンスター${opponentField.length}体を手札へ戻した。`) };
+    return { ...state, playerHand: [...state.playerHand, ...opponentField.map((zone) => zone.id)], playerField: [], playerSpellTrap: discardEquips(state.playerSpellTrap, opponentField), playerGraveyard: [...state.playerGraveyard, ...equipGraveCards(opponentField)], log: appendLog(state.log, `CPUの守護者スフィンクスが反転召喚。あなたのモンスター${opponentField.length}体を手札へ戻した。`) };
+  }
+  if (effect === "destroy-spell-trap") {
+    const opponentSpellTrap = owner === "player" ? state.cpuSpellTrap : state.playerSpellTrap;
+    if (opponentSpellTrap.length === 0) return { ...state, log: appendLog(state.log, `${ownerName}のイナゴの軍勢が反転召喚したが、破壊できる魔法・罠はなかった。`) };
+    const targetId = opponentSpellTrap[0];
+    return owner === "player"
+      ? { ...state, cpuSpellTrap: opponentSpellTrap.slice(1), cpuActiveTraps: state.cpuActiveTraps.filter((id) => id !== targetId), cpuGraveyard: [...state.cpuGraveyard, targetId], log: appendLog(state.log, `イナゴの軍勢の効果でCPUの${cardById.get(targetId)?.name ?? "魔法・罠"}を破壊。`) }
+      : { ...state, playerSpellTrap: opponentSpellTrap.slice(1), playerActiveTraps: state.playerActiveTraps.filter((id) => id !== targetId), playerGraveyard: [...state.playerGraveyard, targetId], log: appendLog(state.log, `CPUのイナゴの軍勢の効果で${cardById.get(targetId)?.name ?? "魔法・罠"}を破壊。`) };
+  }
+  if (effect === "take-control-any") {
+    const ownField = owner === "player" ? state.playerField : state.cpuField;
+    const opponentField = owner === "player" ? state.cpuField : state.playerField;
+    if (ownField.length >= FIELD_LIMIT || opponentField.length === 0) return { ...state, log: appendLog(state.log, `${ownerName}のX・E・N・Oがリバースしたが、奪えるモンスターはいなかった。`) };
+    const opponentSide: Side = owner === "player" ? "cpu" : "player";
+    const targetIndex = strongestAttackIndex(opponentField.map((zone) => zone.faceDown ? 0 : effectiveAtk(zone, state, opponentSide))) ?? 0;
+    const target = opponentField[targetIndex];
+    const controlled: ZoneCard = { ...target, position: "attack", faceDown: false, controlReturn: opponentSide, attacked: false, positionChanged: true };
+    return owner === "player"
+      ? { ...state, playerField: [...state.playerField, controlled], cpuField: state.cpuField.filter((_, index) => index !== targetIndex), log: appendLog(state.log, `X・E・N・Oの効果で${cardById.get(target.id)?.name ?? "モンスター"}のコントロールを得た。`) }
+      : { ...state, cpuField: [...state.cpuField, controlled], playerField: state.playerField.filter((_, index) => index !== targetIndex), log: appendLog(state.log, `CPUのX・E・N・Oが${cardById.get(target.id)?.name ?? "モンスター"}のコントロールを得た。`) };
   }
   if (effect === "fiber-jar") {
     const ownedPlayerZones = [
@@ -13136,13 +13273,20 @@ function effectiveAtk(zone: ZoneCard, state?: DuelState, side?: Side) {
     def: equippedBase.def + sevenCardDefenseCount * 700,
   };
   if (!state || !side || zone.faceDown || !card) return equipped.atk;
+  const pharaonic = pharaonicMonsterStats(
+    zone.id,
+    equipped.atk,
+    equipped.def,
+    [...state.playerField, ...state.cpuField].filter((fieldZone) => fieldZone !== zone && !fieldZone.faceDown && effectiveMonsterKind(state, fieldZone) === "昆虫族").length,
+    zone.faceUpTurn === state.turnNumber && zone.summonedTurn !== state.turnNumber,
+  );
   const stats = continuousMonsterStats({
     id: zone.id,
     attribute: card.attribute,
     kind: effectiveMonsterKind(state, zone),
     position: zone.position,
-    atk: equipped.atk,
-    def: equipped.def,
+    atk: pharaonic.atk,
+    def: pharaonic.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
     opponentMonsterCount: side === "player" ? state.cpuField.length : state.playerField.length,
     opponentDragonCount: (side === "player" ? state.cpuField : state.playerField)
@@ -13220,13 +13364,20 @@ function effectiveDef(zone: ZoneCard, state?: DuelState, side?: Side) {
     def: equippedBase.def + sevenCardDefenseCount * 700,
   };
   if (!state || !side || zone.faceDown || !card) return equipped.def;
+  const pharaonic = pharaonicMonsterStats(
+    zone.id,
+    equipped.atk,
+    equipped.def,
+    [...state.playerField, ...state.cpuField].filter((fieldZone) => fieldZone !== zone && !fieldZone.faceDown && effectiveMonsterKind(state, fieldZone) === "昆虫族").length,
+    zone.faceUpTurn === state.turnNumber && zone.summonedTurn !== state.turnNumber,
+  );
   const stats = continuousMonsterStats({
     id: zone.id,
     attribute: card.attribute,
     kind: effectiveMonsterKind(state, zone),
     position: zone.position,
-    atk: equipped.atk,
-    def: equipped.def,
+    atk: pharaonic.atk,
+    def: pharaonic.def,
     handSize: side === "player" ? state.playerHand.length : state.cpuHand.length,
     opponentMonsterCount: side === "player" ? state.cpuField.length : state.playerField.length,
     graveyardMonsterCount: 0,
@@ -14164,7 +14315,7 @@ function trapDescription(id: string) {
 }
 
 function isTrapImplemented(id: string) {
-  if (/^ma-(4[0-9]|5[01])$/.test(id)) return true;
+  if (/^(ma|ph)-(4[0-9]|5[01])$/.test(id)) return true;
   if (["sc-10", "sc-11", "sc-12", "sc-14", "sc-31", "sc-32", "sc-43", "sc-48", "sc-49"].includes(id)) return true;
   if (["ln-27", "ln-28", "ln-29", "ln-30", "ln-31", "ln-32", "ln-33", "ln-34", "ln-35", "ln-36", "ln-37"].includes(id)) return true;
   if (id === "ca-34" || ["tb-02", "tb-05", "tb-06", "tb-22", "tb-23", "tb-24"].includes(id)) return true;

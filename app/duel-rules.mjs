@@ -291,6 +291,8 @@ const directAttackMonsters = new Set([
   "vol5-rainbow-flower",
   "vol5-queens-double",
   "ma-16",
+  "ph-11",
+  "ph-12",
 ]);
 
 export function canMonsterAttackDirectly(id) {
@@ -344,7 +346,7 @@ export function monsterAttackLimit(id, tyrantHasOpponent = false, grayWingEnable
   return 1;
 }
 
-export const MYTHOLOGICAL_AGE_SPIRIT_IDS = Object.freeze(["ma-15", "ma-16", "ma-17", "ma-18", "ma-19", "ma-20", "ma-21", "ma-22", "ma-23", "ma-24"]);
+export const MYTHOLOGICAL_AGE_SPIRIT_IDS = Object.freeze(["ma-15", "ma-16", "ma-17", "ma-18", "ma-19", "ma-20", "ma-21", "ma-22", "ma-23", "ma-24", "ph-17"]);
 
 export function isSpiritMonster(id) {
   return MYTHOLOGICAL_AGE_SPIRIT_IDS.includes(id);
@@ -398,6 +400,61 @@ export function bubbleCrashDiscardCount(handCount, fieldCount) {
 
 export function lastBattleWinner(ownAttack, opponentAttack) {
   return ownAttack === opponentAttack ? "draw" : ownAttack > opponentAttack ? "own" : "opponent";
+}
+
+export const PHARAONIC_CYCLE_FLIP_IDS = Object.freeze(["ph-00", "ph-18", "ph-19", "ph-21", "ph-22", "ph-23", "ph-24", "ph-25", "ph-30", "ph-31"]);
+
+export function isPharaonicCycleFlipMonster(id) {
+  return PHARAONIC_CYCLE_FLIP_IDS.includes(id);
+}
+
+export function pharaonicMonsterStats(id, baseAtk, baseDef, otherFaceUpInsectCount = 0, flippedThisTurn = false) {
+  if (id === "ph-07" && otherFaceUpInsectCount === 0) return { atk: 1000, def: 1000 };
+  if (id === "ph-18" && flippedThisTurn) return { atk: baseAtk + 300, def: baseDef + 300 };
+  return { atk: baseAtk, def: baseDef };
+}
+
+export function pharaonicBattleAttack(id, baseAttack, targetFaceDown = false) {
+  return id === "ph-24" && targetFaceDown ? 2400 : baseAttack;
+}
+
+export function pharaonicAttackBlocked(attack, goraTurtleFaceUp = false) {
+  return Boolean(goraTurtleFaceUp && attack >= 1900);
+}
+
+export function pharaonicSummonDestruction(summonedAttack, wanghuFaceUp = false) {
+  return Boolean(wanghuFaceUp && summonedAttack <= 1400);
+}
+
+export function pharaonicBattleEffect(id, { destroyedMonster = false, dealtBattleDamage = false } = {}) {
+  return {
+    skipOpponentMain1: id === "ph-10" && destroyedMonster,
+    searchHarpieLady: id === "ph-05" && destroyedMonster,
+    destroySetWithoutDamage: id === "ph-15",
+    millOpponentSpell: id === "ph-28" && dealtBattleDamage,
+    discardOpponentCard: id === "ph-29" && dealtBattleDamage,
+  };
+}
+
+export function dicePotDamage(ownRoll, opponentRoll) {
+  if (ownRoll === opponentRoll) return { own: 0, opponent: 0, reroll: true };
+  const ownLoses = ownRoll < opponentRoll;
+  const damage = (ownLoses ? opponentRoll : ownRoll) === 6 ? 6000 : (ownLoses ? opponentRoll : ownRoll) * 500;
+  return { own: ownLoses ? damage : 0, opponent: ownLoses ? 0 : damage, reroll: false };
+}
+
+export function pharaonicTrapOutcome(id, context = {}) {
+  if (id === "ph-44") return { activate: (context.monsterCount ?? 0) >= 4, destroyFaceUp: (context.monsterCount ?? 0) >= 4 };
+  if (id === "ph-48") return { activate: (context.opponentHandCount ?? 0) >= 4, returnMonsterToDeck: (context.opponentHandCount ?? 0) >= 4 };
+  if (id === "ph-50") return { activate: (context.deckCount ?? 0) >= 2, draw: 2, skipDraws: 2 };
+  if (id === "ph-41") return { activate: Boolean(context.attackDeclared), returnAttacker: Boolean(context.guessWrong) };
+  return { activate: false };
+}
+
+export function bottomlessShiftingSandTarget(attacks = []) {
+  if (attacks.length === 0) return null;
+  const highest = Math.max(...attacks);
+  return attacks.indexOf(highest);
 }
 
 export function attackCountAfterDeclaration(id, attacksMadeTurn, attacksMadeCount, turnNumber, tyrantHasOpponent = false, grayWingEnabled = false) {
@@ -860,6 +917,14 @@ const flipEffects = Object.freeze({
   "sc-25": "take-control-fiend",
   "sc-26": "take-control-dragon",
   "ma-06": "fiber-jar",
+  "ph-09": "take-control-any",
+  "ph-16": "damage-500",
+  "ph-21": "destroy-monster",
+  "ph-22": "destroy-spell-trap",
+  "ph-25": "return-all-monsters",
+  "ph-27": "dice-pot",
+  "ph-30": "draw",
+  "ph-31": "inspect-all-set",
 });
 
 export function flipEffect(id) {
@@ -1596,6 +1661,7 @@ export function isGodCard(id) {
 
 export function requiredTributes(id, level = 0) {
   if (isGodCard(id)) return 3;
+  if (id === "ph-13") return 3;
   return level >= 7 ? 2 : level >= 5 ? 1 : 0;
 }
 
@@ -1627,7 +1693,7 @@ export function cpuRaEffectPlan(lifePoints, currentAttack, opponentLifePoints, o
   };
 }
 
-export const competitiveCpuDeckLatestPackId = "mythological-age";
+export const competitiveCpuDeckLatestPackId = "pharaonic-guardian";
 
 export const competitiveCpuFusionDeck = Object.freeze([
   "vol3-gaia-dragon-champion",
@@ -1640,26 +1706,25 @@ export const competitiveCpuFusionDeck = Object.freeze([
 export const competitiveCpuDeck = Object.freeze([
   "g4-01-obelisk",
   "mr-maha-vailo",
-  "vol7-robbin-goblin",
   "vol5-white-magical-hat",
-  "ma-11",
-  "ma-13",
-  "vol3-stop-defense",
+  "ph-04",
+  "ph-25",
   "pr99-meteor-dragon",
   "vol1-gaia",
   "vol7-barrel-dragon",
   "pr99-time-wizard",
   "vol3-red-eyes",
   "mr-axe-despair",
-  "vol3-giant-soldier-stone",
   "pr99-seiyaryu",
-  ...Array(3).fill("vol3-man-eater-bug"),
-  "vol3-hane-hane",
+  "vol3-man-eater-bug",
   "vol6-sangan",
   "vol6-witch-black-forest",
   "ma-44",
+  "ph-32",
+  "ph-34",
+  "ph-44",
+  "ph-50",
   "pr99-goddess-whim",
-  "vol3-reaper-cards",
   ...Array(2).fill("vol7-dark-elf"),
   "vol1-dark-hole",
   "vol1-fissure",
@@ -1667,6 +1732,9 @@ export const competitiveCpuDeck = Object.freeze([
   "pr99-feather-duster",
   "vol1-trap-hole",
   "vol7-mirror-force",
+  "vol7-robbin-goblin",
+  "vol3-reaper-cards",
+  "vol3-stop-defense",
   "mr-upstart-goblin",
   "mr-confiscation",
   "mr-forceful-sentry",

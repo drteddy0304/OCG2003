@@ -47,7 +47,7 @@ export function sliferDivineStats(handSize: number): { atk: number; def: number 
 export function raTributeStats(tributes: Array<{ atk?: number; def?: number }>): { atk: number; def: number };
 export function raPointTransfer(lifePoints: number): { lifePoints: number; attackBonus: number };
 export function cpuRaEffectPlan(lifePoints: number, currentAttack: number, opponentLifePoints: number, opponentMonsterCount: number): { usePhoenix: boolean; usePointTransfer: boolean };
-export const competitiveCpuDeckLatestPackId: "mythological-age";
+export const competitiveCpuDeckLatestPackId: "pharaonic-guardian";
 export const competitiveCpuDeck: readonly string[];
 export const competitiveCpuFusionDeck: readonly string[];
 
@@ -99,6 +99,16 @@ export function mythologicalBattleAttackBonus(id: string, directAttack: boolean,
 export function mythologicalBattleDamage(id: string, rawDamage: number): number;
 export function mythologicalBattleDamageEffect(id: string, damage: number, handSize?: number): { draw: number; heal: number; skipDraw: boolean; skipBattle: boolean; discardHandBeforeDraw: boolean };
 export function mythologicalTrapOutcome(id: string, context?: { summonedAttack?: number; battleDamage?: number; normalDraw?: boolean; specialSummon?: boolean; lifePoints?: number }): { activate: boolean; [key: string]: boolean | number };
+export const PHARAONIC_CYCLE_FLIP_IDS: readonly string[];
+export function isPharaonicCycleFlipMonster(id: string): boolean;
+export function pharaonicMonsterStats(id: string, baseAtk: number, baseDef: number, otherFaceUpInsectCount?: number, flippedThisTurn?: boolean): { atk: number; def: number };
+export function pharaonicBattleAttack(id: string, baseAttack: number, targetFaceDown?: boolean): number;
+export function pharaonicAttackBlocked(attack: number, goraTurtleFaceUp?: boolean): boolean;
+export function pharaonicSummonDestruction(summonedAttack: number, wanghuFaceUp?: boolean): boolean;
+export function pharaonicBattleEffect(id: string, context?: { destroyedMonster?: boolean; dealtBattleDamage?: boolean }): { skipOpponentMain1: boolean; searchHarpieLady: boolean; destroySetWithoutDamage: boolean; millOpponentSpell: boolean; discardOpponentCard: boolean };
+export function dicePotDamage(ownRoll: number, opponentRoll: number): { own: number; opponent: number; reroll: boolean };
+export function pharaonicTrapOutcome(id: string, context?: { monsterCount?: number; opponentHandCount?: number; deckCount?: number; attackDeclared?: boolean; guessWrong?: boolean }): { activate: boolean; [key: string]: boolean | number };
+export function bottomlessShiftingSandTarget(attacks?: number[]): number | null;
 export function fiberJarReset(playerZones?: string[], cpuZones?: string[], playerHand?: string[], cpuHand?: string[], playerGraveyard?: string[], cpuGraveyard?: string[]): { playerDeckCards: string[]; cpuDeckCards: string[]; drawCount: number };
 export function bubbleCrashDiscardCount(handCount: number, fieldCount: number): number;
 export function lastBattleWinner(ownAttack: number, opponentAttack: number): "own" | "opponent" | "draw";

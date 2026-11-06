@@ -19,6 +19,7 @@ import { spellOfMaskCards, spellOfMaskPack } from "./spell-of-mask-data";
 import { labyrinthOfNightmareCards, labyrinthOfNightmarePack } from "./labyrinth-of-nightmare-data";
 import { struggleOfChaosCards, struggleOfChaosPack } from "./struggle-of-chaos-data";
 import { mythologicalAgeCards, mythologicalAgePack } from "./mythological-age-data";
+import { pharaonicGuardianCards, pharaonicGuardianPack } from "./pharaonic-guardian-data";
 
 export type Rarity = "SE" | "UR" | "SR" | "R" | "N";
 
@@ -249,6 +250,7 @@ export const cards: Card[] = [
   ...labyrinthOfNightmareCards,
   ...struggleOfChaosCards,
   ...mythologicalAgeCards,
+  ...pharaonicGuardianCards,
 ];
 
 export const packs: Pack[] = [
@@ -319,6 +321,7 @@ export const packs: Pack[] = [
   labyrinthOfNightmarePack,
   struggleOfChaosPack,
   mythologicalAgePack,
+  pharaonicGuardianPack,
 ];
 
 export const cardById = new Map(cards.map((card) => [card.id, card]));
